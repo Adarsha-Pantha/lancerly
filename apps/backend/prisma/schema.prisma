@@ -1,0 +1,67 @@
+// --- generator: REQUIRED so `@prisma/client` gets generated
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- datasource: points to your Postgres from .env
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- models
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(FREELANCER)
+  twoFA     Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  profile   Profile?
+  logins    Login[]
+  provider    AuthProvider @default(CREDENTIALS)
+  providerId  String?      @unique
+}
+
+model Profile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  name         String
+  headline     String?
+  skills       Json?             // <-- Json? works well for arrays
+  availability Boolean  @default(true)
+  avatarUrl    String?  
+
+   dob         DateTime?
+  country     String?
+  phone       String?
+  street      String?
+  city        String?
+  state       String?
+  postalCode  String?
+
+  // convenience flag (optional)
+  isComplete  Boolean   @default(false)
+}
+
+model Login {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+}
+
+enum Role {
+  CLIENT
+  FREELANCER
+  ADMIN
+}
+
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+  FACEBOOK
+}

@@ -1,0 +1,41 @@
+// apps/backend/src/profile/profile.controller.ts
+import {
+  Controller, Get, Put, Body, Req, UseInterceptors, UploadedFile,
+} from '@nestjs/common';
+import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import type { File as MulterFile } from 'multer';   // 👈 add this
+import { ProfileService } from './profile.service';
+import { CompleteProfileDto } from './dto/complete-profile.dto';
+
+@Controller('profile')
+export class ProfileController {
+  constructor(private readonly svc: ProfileService) {}
+
+  @Get('me')
+  me(@Req() req: Request) {
+    return this.svc.getMine(req.headers['authorization'] as string | undefined);
+  }
+
+  @Put()
+  @UseInterceptors(FileInterceptor('avatar', {
+    storage: diskStorage({
+      destination: 'uploads',
+      filename: (_req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, unique + extname(file.originalname));
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }))
+  update(
+    @Req() req: Request,
+    @Body() dto: CompleteProfileDto,
+    @UploadedFile() file?: MulterFile,               // 👈 use MulterFile
+  ) {
+    const avatarUrl = file ? `/uploads/${file.filename}` : undefined;
+    return this.svc.updateMine(req.headers['authorization'], dto, avatarUrl);
+  }
+}
