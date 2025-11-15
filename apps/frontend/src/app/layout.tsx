@@ -1,4 +1,3 @@
-// apps/frontend/src/app/layout.tsx
 "use client";
 
 import "./globals.css";
@@ -9,25 +8,23 @@ import { useEffect } from "react";
 import { needsCompletion } from "@/lib/auth";
 
 function CompletionGuard({ children }: { children: React.ReactNode }) {
-  const { user, token } = useAuth();
+  const { user, token, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!token) return; // not logged in, no redirect needed
+    if (loading) return; // wait until auth is ready
+    if (!token) return; // not logged in → no redirect
 
-    // ✅ allow certain routes even if incomplete
     const allowed = ["/login", "/register", "/oauth"];
     if (allowed.some((p) => pathname?.startsWith(p))) return;
 
-    // ✅ allow setup page itself
     if (pathname?.startsWith("/profile/setup")) return;
 
-    // ✅ redirect to setup if profile incomplete
     if (needsCompletion(user)) {
       router.replace("/profile/setup");
     }
-  }, [token, user, pathname, router]);
+  }, [token, user, pathname, router, loading]);
 
   return <>{children}</>;
 }

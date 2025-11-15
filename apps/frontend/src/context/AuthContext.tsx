@@ -1,4 +1,3 @@
-// apps/frontend/src/context/AuthContext.tsx
 "use client";
 
 import React, {
@@ -15,8 +14,6 @@ export type User = {
   email: string;
   role: "CLIENT" | "FREELANCER" | "ADMIN";
   createdAt: string;
-
-  // Profile fields (optional)
   name?: string | null;
   avatarUrl?: string | null;
   dob?: string | null;
@@ -37,25 +34,17 @@ type AuthResponse = {
 type AuthContextType = {
   user: User | null;
   token: string | null;
+  loading: boolean;
 
-  /** Email/password login → stores token & user */
   login: (email: string, password: string) => Promise<void>;
-
-  /** Register (no auto-login). Redirect to /login on the page after this resolves. */
   register: (
     name: string,
     email: string,
     password: string,
     role: "CLIENT" | "FREELANCER"
   ) => Promise<void>;
-
-  /** Store a JWT from OAuth (?token=...) and hydrate user (if not passed). */
   loginWithToken: (jwt: string, maybeUser?: User) => Promise<void>;
-
-  /** Re-fetch the current user using stored token. */
   refreshUser: () => Promise<User | null>;
-
-  /** Clear local auth state */
   logout: () => void;
 };
 
@@ -64,8 +53,9 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load existing session (if any) from localStorage
+  // ✅ Load existing session (sync with localStorage)
   useEffect(() => {
     try {
       const t = localStorage.getItem("token");
@@ -75,23 +65,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // If we have a token but no user (e.g., page refresh after OAuth), hydrate from /auth/me
+  // ✅ If we have a token but no user (like after hard refresh)
   useEffect(() => {
     (async () => {
       if (!token || user) return;
+      setLoading(true);
       try {
         const data = await get<{ user: User }>("/auth/me", token);
         setUser(data.user);
         localStorage.setItem("user", JSON.stringify(data.user));
       } catch {
-        // token invalid/expired; clear it
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setToken(null);
         setUser(null);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [token, user]);
@@ -119,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {
       user,
       token,
+      loading,
 
       login: async (email, password) => {
         const res = await post<AuthResponse>("/auth/login", { email, password });
@@ -127,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       register: async (name, email, password, role) => {
         await post<unknown>("/auth/register", { name, email, password, role });
-        // (Do not set token/user; the Register page will redirect to /login)
       },
 
       loginWithToken: async (jwt, maybeUser) => {
@@ -140,7 +134,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // fetch the user if not provided
         try {
           const data = await get<{ user: User }>("/auth/me", jwt);
           setUser(data.user);
@@ -160,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("user");
       },
     };
-  }, [user, token]);
+  }, [user, token, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

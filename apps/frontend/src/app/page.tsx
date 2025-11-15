@@ -1,19 +1,17 @@
+"use client";
 
-import Hero from "../components/Hero";
-import Categories from "../components/Categories";
-import ProjectGrid from "../components/ProjectGrid";
-import HowItWorks from "../components/HowItWorks";
-import Footer from "../components/Footer";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function Home() {
-  return (
-    <main>
-   
-      <Hero />
-      <Categories />
-      <ProjectGrid />
-      <HowItWorks />
-      <Footer />
-    </main>
-  );
+export default function IndexRedirect() {
+  const { token } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (token) router.replace("/home");     // logged-in → dashboard
+    else router.replace("/landing");        // guest → explore page
+  }, [token, router]);
+
+  return null;
 }
