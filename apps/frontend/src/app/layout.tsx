@@ -30,6 +30,17 @@ function CompletionGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    try {
+      const storedTheme = localStorage.getItem("theme");
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const shouldUseDark = storedTheme ? storedTheme === "dark" : prefersDark;
+      document.documentElement.classList.toggle("dark", shouldUseDark);
+    } catch {
+      /* no-op */
+    }
+  }, []);
+
   return (
     <html lang="en">
       <body className="bg-gray-50">

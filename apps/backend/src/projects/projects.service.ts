@@ -10,6 +10,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
+type ProjectKind = 'CLIENT_REQUEST' | 'FREELANCER_SHOWCASE';
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -29,18 +31,37 @@ export class ProjectsService {
     return payload.sub;
   }
 
+  private async resolveUserRole(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return user.role;
+  }
+
   /** Create a new project */
-  async create(clientId: string, dto: CreateProjectDto) {
+  async create(clientId: string, dto: CreateProjectDto, assetUrls: string[] = []) {
+    const role = await this.resolveUserRole(clientId);
+    const projectType: ProjectKind =
+      role === 'FREELANCER' ? 'FREELANCER_SHOWCASE' : 'CLIENT_REQUEST';
+
+    const data: any = {
+      clientId,
+      title: dto.title,
+      description: dto.description,
+      budgetMin: dto.budgetMin,
+      budgetMax: dto.budgetMax,
+      skills: dto.skills || [],
+      attachments: assetUrls,
+      projectType,
+      status: 'OPEN',
+    };
+
     const project = await this.prisma.project.create({
-      data: {
-        clientId,
-        title: dto.title,
-        description: dto.description,
-        budgetMin: dto.budgetMin,
-        budgetMax: dto.budgetMax,
-        skills: dto.skills || [],
-        status: 'OPEN',
-      },
+      data,
       include: {
         client: {
           select: {
@@ -66,6 +87,7 @@ export class ProjectsService {
     keyword?: string;
     skills?: string[];
     clientId?: string;
+    type?: ProjectKind;
   }) {
     const where: any = {};
 
@@ -86,6 +108,10 @@ export class ProjectsService {
 
     if (filters?.clientId) {
       where.clientId = filters.clientId;
+    }
+
+    if (filters?.type) {
+      where.projectType = filters.type;
     }
 
     const projects = await this.prisma.project.findMany({
@@ -198,6 +224,61 @@ export class ProjectsService {
                 avatarUrl: true,
               },
             },
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  /** Attach uploaded asset paths to a project */
+  async addAttachments(userId: string, id: string, assetUrls: string[]) {
+    if (!assetUrls.length) {
+      throw new BadRequestException('No files uploaded');
+    }
+
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      select: { clientId: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role !== 'ADMIN' && project.clientId !== userId) {
+      throw new ForbiddenException('You can only modify your own projects');
+    }
+
+    const updated = await this.prisma.project.update({
+      where: { id },
+      data: {
+        attachments: {
+          push: assetUrls,
+        },
+      } as any,
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+            profile: {
+              select: {
+                name: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            proposals: true,
           },
         },
       },

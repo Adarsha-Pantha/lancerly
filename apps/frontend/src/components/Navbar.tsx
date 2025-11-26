@@ -11,6 +11,10 @@ import {
   User,
   ChevronDown,
   Sparkles,
+  Home,
+  Compass,
+  Rss,
+  Briefcase,
 } from "lucide-react";
 
 const API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(
@@ -28,17 +32,15 @@ export default function Navbar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false); // 👈 New
+  const [hydrated, setHydrated] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const categoryRef = useRef<HTMLDivElement>(null);
+  const categoryRef = useRef<HTMLLIElement>(null);
 
-  // ✅ Hydration guard (prevents flicker)
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // ✅ Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
@@ -54,221 +56,264 @@ export default function Navbar() {
     user?.name || "User"
   )}`;
 
-  // 🧠 Handle unhydrated or loading state
   if (!hydrated || loading) {
     return (
-      <nav className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-6 py-3 text-white shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="text-2xl font-extrabold">Lancerly</div>
-          <div className="animate-pulse h-6 w-28 bg-white/30 rounded-md"></div>
-        </div>
-      </nav>
+      <>
+        <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="text-2xl font-bold gradient-text">Lancerly</div>
+              <div className="animate-pulse h-8 w-32 bg-slate-200 rounded-lg"></div>
+            </div>
+          </div>
+        </nav>
+      </>
     );
   }
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex items-center justify-between bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 px-6 py-3 shadow-lg">
-        {/* Left side */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen((prev) => !prev)}
-            className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 md:hidden"
-          >
-            {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-
-          <Link
-            href="/"
-            className="text-2xl font-extrabold text-white tracking-tight hover:opacity-90 transition"
-          >
-            Lancerly
-          </Link>
-        </div>
-
-        {/* Center Nav Links */}
-        <ul className="hidden md:flex items-center space-x-8 font-medium text-white">
-          <li>
-            <Link href="/" className="hover:underline underline-offset-4">
-              Home
-            </Link>
-          </li>
-          <li>
-            <Link href="/explore" className="hover:underline underline-offset-4">
-              Explore
-            </Link>
-          </li>
-
-          {/* Categories Dropdown */}
-          <li ref={categoryRef} className="relative">
-            <button
-              onClick={() => setCategoryOpen((p) => !p)}
-              className="flex items-center gap-1 hover:underline underline-offset-4 focus:outline-none"
-            >
-              Categories <ChevronDown size={14} />
-            </button>
-
-            {categoryOpen && (
-              <div className="absolute left-0 mt-3 w-56 bg-white text-gray-800 rounded-lg shadow-lg border animate-fadeIn z-50">
-                <Link
-                  href="/categories/design"
-                  className="block px-4 py-2 hover:bg-indigo-50"
-                >
-                  🎨 Design & Creative
-                </Link>
-                <Link
-                  href="/categories/development"
-                  className="block px-4 py-2 hover:bg-indigo-50"
-                >
-                  💻 Web Development
-                </Link>
-                <Link
-                  href="/categories/writing"
-                  className="block px-4 py-2 hover:bg-indigo-50"
-                >
-                  ✍️ Writing & Translation
-                </Link>
-                <Link
-                  href="/categories/marketing"
-                  className="block px-4 py-2 hover:bg-indigo-50"
-                >
-                  📈 Marketing & Sales
-                </Link>
-                <Link
-                  href="/categories/ai"
-                  className="block px-4 py-2 hover:bg-indigo-50"
-                >
-                  🤖 AI & Data Science
-                </Link>
-              </div>
-            )}
-          </li>
-
-          <li>
-            <Link href="/find-work" className="hover:underline underline-offset-4">
-              Find Work
-            </Link>
-          </li>
-          <li>
-            <Link href="/hire" className="hover:underline underline-offset-4">
-              Hire Talent
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/ai-discover"
-              className="flex items-center gap-1 hover:underline underline-offset-4"
-            >
-              <Sparkles size={16} /> AI Discover
-            </Link>
-          </li>
-        </ul>
-
-        {/* Right side */}
-        <div className="flex items-center gap-3">
-          {!user ? (
-            <>
-              <Link
-                href="/login"
-                className="px-4 py-1.5 rounded-md border border-white text-white hover:bg-white hover:text-indigo-700 transition font-medium"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-1.5 rounded-md bg-white text-indigo-700 font-semibold hover:bg-gray-100 transition"
-              >
-                Register
-              </Link>
-            </>
-          ) : (
-            <div className="relative" ref={dropdownRef}>
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Left side */}
+            <div className="flex items-center gap-4">
               <button
-                onClick={() => setDropdownOpen((p) => !p)}
-                className="flex items-center gap-2 focus:outline-none"
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden transition-colors"
               >
-                <img
-                  src={toPublicUrl(user.avatarUrl) || fallback}
-                  alt={user.name || "User"}
-                  className="h-9 w-9 rounded-full object-cover border-2 border-white shadow-sm hover:scale-105 transition"
-                />
+                {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
 
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-3 w-52 rounded-xl bg-white text-gray-800 shadow-xl border animate-fadeIn z-50">
+              <Link
+                href="/"
+                className="text-2xl font-bold gradient-text tracking-tight hover:opacity-90 transition"
+              >
+                Lancerly
+              </Link>
+            </div>
+
+            {/* Center Nav Links */}
+            <ul className="hidden md:flex items-center gap-1">
+              <li>
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  <Home size={16} />
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/explore"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  <Compass size={16} />
+                  Explore
+                </Link>
+              </li>
+              {user && (
+                <li>
                   <Link
-                    href="/profile"
-                    className="flex items-center gap-2 px-4 py-3 hover:bg-indigo-50 rounded-t-xl"
+                    href="/feed"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
                   >
-                    <User size={16} /> Profile
+                    <Rss size={16} />
+                    Feed
+                  </Link>
+                </li>
+              )}
+
+              {/* Categories Dropdown */}
+              <li ref={categoryRef} className="relative">
+                <button
+                  onClick={() => setCategoryOpen((p) => !p)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  Categories
+                  <ChevronDown size={14} className={categoryOpen ? "rotate-180" : ""} />
+                </button>
+
+                {categoryOpen && (
+                  <div className="absolute left-0 mt-2 w-64 glass-effect rounded-xl shadow-soft border border-slate-200 animate-fadeIn z-50 overflow-hidden">
+                    <Link
+                      href="/categories/design"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                    >
+                      <span className="text-xl">🎨</span>
+                      <span className="font-medium text-slate-700">Design & Creative</span>
+                    </Link>
+                    <Link
+                      href="/categories/development"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                    >
+                      <span className="text-xl">💻</span>
+                      <span className="font-medium text-slate-700">Web Development</span>
+                    </Link>
+                    <Link
+                      href="/categories/writing"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                    >
+                      <span className="text-xl">✍️</span>
+                      <span className="font-medium text-slate-700">Writing & Translation</span>
+                    </Link>
+                    <Link
+                      href="/categories/marketing"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                    >
+                      <span className="text-xl">📈</span>
+                      <span className="font-medium text-slate-700">Marketing & Sales</span>
+                    </Link>
+                    <Link
+                      href="/categories/ai"
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                    >
+                      <span className="text-xl">🤖</span>
+                      <span className="font-medium text-slate-700">AI & Data Science</span>
+                    </Link>
+                  </div>
+                )}
+              </li>
+
+              <li>
+                <Link
+                  href="/find-work"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  Find Work
+                </Link>
+              </li>
+              {user && (
+                <li>
+                  <Link
+                    href="/projects/mine"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                  >
+                    <Briefcase size={16} />
+                    My Projects
+                  </Link>
+                </li>
+              )}
+              <li>
+                <Link
+                  href="/hire"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  Hire Talent
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/ai-discover"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  <Sparkles size={16} />
+                  AI Discover
+                </Link>
+              </li>
+            </ul>
+
+            {/* Right side */}
+            <div className="flex items-center gap-3">
+              {!user ? (
+                <>
+                  <Link
+                    href="/login"
+                    className="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-purple-600 transition-colors"
+                  >
+                    Login
                   </Link>
                   <Link
-                    href="/settings"
-                    className="flex items-center gap-2 px-4 py-3 hover:bg-indigo-50"
+                    href="/register"
+                    className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl"
                   >
-                    <Settings size={16} /> Settings
+                    Register
                   </Link>
+                </>
+              ) : (
+                <div className="relative" ref={dropdownRef}>
                   <button
-                    onClick={logout}
-                    className="w-full text-left flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-red-600 rounded-b-xl"
+                    onClick={() => setDropdownOpen((p) => !p)}
+                    className="flex items-center gap-2 focus:outline-none rounded-full hover:ring-2 hover:ring-purple-200 transition-all"
                   >
-                    <LogOut size={16} /> Logout
+                    <img
+                      src={toPublicUrl(user.avatarUrl) || fallback}
+                      alt={user.name || "User"}
+                      className="h-10 w-10 rounded-full object-cover ring-2 ring-purple-200 shadow-sm"
+                    />
                   </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-3 w-56 glass-effect rounded-xl shadow-soft border border-slate-200 animate-fadeIn z-50 overflow-hidden">
+                      <Link
+                        href="/profile"
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                      >
+                        <User size={18} className="text-slate-600" />
+                        <span className="font-medium text-slate-700">Profile</span>
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors"
+                      >
+                        <Settings size={18} className="text-slate-600" />
+                        <span className="font-medium text-slate-700">Settings</span>
+                      </Link>
+                      <div className="border-t border-slate-200"></div>
+                      <button
+                        onClick={logout}
+                        className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 transition-colors"
+                      >
+                        <LogOut size={18} />
+                        <span className="font-medium">Logout</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       </nav>
 
-      {/* Sidebar (Mobile) */}
+      {/* Mobile Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white border-r shadow-lg transform transition-transform duration-300 z-40 ${
+        className={`fixed top-0 left-0 h-full w-80 glass-effect border-r border-slate-200 shadow-2xl transform transition-transform duration-300 z-40 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold text-indigo-600">Menu</h2>
+        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+          <h2 className="text-xl font-bold gradient-text">Menu</h2>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-2 rounded hover:bg-gray-100"
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <X size={20} />
           </button>
         </div>
-        <ul className="p-4 space-y-4 text-gray-800 font-medium">
-          <li>
-            <Link href="/" onClick={() => setSidebarOpen(false)}>
-              Home
-            </Link>
-          </li>
-          <li>
-            <Link href="/explore" onClick={() => setSidebarOpen(false)}>
-              Explore
-            </Link>
-          </li>
-          <li>
-            <Link href="/find-work" onClick={() => setSidebarOpen(false)}>
-              Find Work
-            </Link>
-          </li>
-          <li>
-            <Link href="/hire" onClick={() => setSidebarOpen(false)}>
-              Hire Talent
-            </Link>
-          </li>
-          <li>
-            <Link href="/ai-discover" onClick={() => setSidebarOpen(false)}>
-              AI Discover
-            </Link>
-          </li>
-          {user && (
-            <li>
-              <Link href="/profile" onClick={() => setSidebarOpen(false)}>
-                Profile
+        <ul className="p-4 space-y-2">
+          {[
+            { href: "/", label: "Home", icon: <Home size={18} /> },
+            { href: "/explore", label: "Explore", icon: <Compass size={18} /> },
+            ...(user ? [{ href: "/feed", label: "Feed", icon: <Rss size={18} /> }] : []),
+            { href: "/find-work", label: "Find Work", icon: <Briefcase size={18} /> },
+            ...(user ? [{ href: "/projects/mine", label: "My Projects", icon: <Briefcase size={18} /> }] : []),
+            { href: "/hire", label: "Hire Talent" },
+            { href: "/ai-discover", label: "AI Discover", icon: <Sparkles size={18} /> },
+            ...(user ? [{ href: "/profile", label: "Profile", icon: <User size={18} /> }] : []),
+          ].map((item, i) => (
+            <li key={i}>
+              <Link
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-slate-700 font-medium hover:bg-purple-50 hover:text-purple-600 rounded-xl transition-all"
+              >
+                {item.icon && <span className="text-slate-500">{item.icon}</span>}
+                {item.label}
               </Link>
             </li>
-          )}
+          ))}
         </ul>
       </div>
     </>

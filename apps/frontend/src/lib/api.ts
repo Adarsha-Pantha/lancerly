@@ -49,8 +49,20 @@ async function request<T = any>(
   const text = await res.text();
   const data = safeJson(text);
   if (!res.ok) {
-    const msg = (data && (data.message || data.error || data.raw)) || `HTTP ${res.status}`;
-    throw new Error(Array.isArray(msg) ? msg.join(", ") : msg);
+    let msg: string | string[] = `HTTP ${res.status}`;
+    
+    if (data) {
+      if (data.message) {
+        msg = data.message;
+      } else if (data.error) {
+        msg = data.error;
+      } else if (data.raw) {
+        msg = data.raw;
+      }
+    }
+    
+    const errorMessage = Array.isArray(msg) ? msg.join(", ") : String(msg);
+    throw new Error(errorMessage);
   }
   return data as T;
 }

@@ -38,6 +38,8 @@ export class ProfileService {
         profile: {
           select: {
             name: true,
+            headline: true,
+            skills: true,
             avatarUrl: true,
             dob: true,
             country: true,

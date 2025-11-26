@@ -1,11 +1,11 @@
-// apps/frontend/src/app/register/page.tsx
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, UserCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { post } from "@/lib/api"; // ⬅️ call API directly (don’t auto-login)
+import { post } from "@/lib/api";
+import AnimatedButton from "@/components/ui/AnimatedButton";
 
 type Errors = {
   name?: string;
@@ -55,9 +55,7 @@ export default function RegisterPage() {
     setErrors((prev) => ({ ...prev, form: undefined }));
     try {
       const mappedRole = role === "client" ? "CLIENT" : "FREELANCER";
-      // call backend to create the account; ignore returned token
       await post("/auth/register", { name, email, password, role: mappedRole });
-      // redirect to login with a flag so we can show a success message
       router.push("/login?registered=1");
     } catch (err: any) {
       setErrors((prev) => ({ ...prev, form: err?.message || "Registration failed" }));
@@ -66,131 +64,206 @@ export default function RegisterPage() {
     }
   };
 
-  const inputBase =
-    "w-full px-4 py-2 border rounded-lg text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-600 focus:outline-none";
-
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center text-indigo-600 mb-6">
-          Create Your Lancerly Account
-        </h2>
-
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
-          {/* Full Name */}
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input
-              id="name"
-              autoComplete="name"
-              type="text"
-              placeholder="John Doe"
-              className={`${inputBase} ${submitted && errors.name ? "border-red-400" : ""}`}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            {submitted && errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 px-4 py-12">
+      <div className="w-full max-w-md animate-slideUp">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-4 shadow-lg">
+            <Sparkles className="text-white" size={32} />
           </div>
+          <h1 className="text-4xl font-bold gradient-text mb-2">Join Lancerly</h1>
+          <p className="text-slate-600">Create your account and start your journey</p>
+        </div>
 
-          {/* Email */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              id="email"
-              autoComplete="email"
-              type="email"
-              placeholder="you@example.com"
-              className={`${inputBase} ${submitted && errors.email ? "border-red-400" : ""}`}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            {submitted && errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
-          </div>
-
-          {/* Password */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <div className="relative">
-              <input
-                id="password"
-                autoComplete="new-password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                className={`${inputBase} pr-10 ${submitted && errors.password ? "border-red-400" : ""}`}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-indigo-600"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+        {/* Form Card */}
+        <div className="glass-effect rounded-2xl shadow-soft p-8">
+          <form className="space-y-5" onSubmit={onSubmit} noValidate>
+            {/* Full Name */}
+            <div>
+              <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  id="name"
+                  autoComplete="name"
+                  type="text"
+                  placeholder="John Doe"
+                  className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white/50 ${
+                    submitted && errors.name ? "border-red-400" : "border-slate-200"
+                  }`}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              {submitted && errors.name && (
+                <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.name}</p>
+              )}
             </div>
-            {submitted && errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
-          </div>
 
-          {/* Confirm Password */}
-          <div>
-            <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-            <div className="relative">
-              <input
-                id="confirm"
-                autoComplete="new-password"
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="••••••••"
-                className={`${inputBase} pr-10 ${submitted && errors.confirmPassword ? "border-red-400" : ""}`}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-indigo-600"
-                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-              >
-                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  id="email"
+                  autoComplete="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white/50 ${
+                    submitted && errors.email ? "border-red-400" : "border-slate-200"
+                  }`}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              {submitted && errors.email && (
+                <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.email}</p>
+              )}
             </div>
-            {submitted && errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
-          </div>
 
-          {/* Role */}
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <select
-              id="role"
-              className={`${inputBase} ${submitted && errors.role ? "border-red-400" : ""}`}
-              value={role}
-              onChange={(e) => setRole(e.target.value as "client" | "freelancer")}
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  id="password"
+                  autoComplete="new-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className={`w-full pl-12 pr-12 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white/50 ${
+                    submitted && errors.password ? "border-red-400" : "border-slate-200"
+                  }`}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {submitted && errors.password && (
+                <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirm" className="block text-sm font-semibold text-slate-700 mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  id="confirm"
+                  autoComplete="new-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className={`w-full pl-12 pr-12 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white/50 ${
+                    submitted && errors.confirmPassword ? "border-red-400" : "border-slate-200"
+                  }`}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {submitted && errors.confirmPassword && (
+                <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.confirmPassword}</p>
+              )}
+            </div>
+
+            {/* Role */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-semibold text-slate-700 mb-2">
+                I am a
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole("client")}
+                  className={`relative p-4 rounded-xl border-2 transition-all ${
+                    role === "client"
+                      ? "border-purple-600 bg-purple-50"
+                      : "border-slate-200 hover:border-purple-300"
+                  }`}
+                >
+                  <UserCheck className="mx-auto mb-2 text-purple-600" size={24} />
+                  <p className="font-semibold text-slate-900">Client</p>
+                  <p className="text-xs text-slate-600 mt-1">Hire talent</p>
+                  {role === "client" && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("freelancer")}
+                  className={`relative p-4 rounded-xl border-2 transition-all ${
+                    role === "freelancer"
+                      ? "border-purple-600 bg-purple-50"
+                      : "border-slate-200 hover:border-purple-300"
+                  }`}
+                >
+                  <UserCheck className="mx-auto mb-2 text-purple-600" size={24} />
+                  <p className="font-semibold text-slate-900">Freelancer</p>
+                  <p className="text-xs text-slate-600 mt-1">Find work</p>
+                  {role === "freelancer" && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
+                </button>
+              </div>
+              {submitted && errors.role && (
+                <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.role}</p>
+              )}
+            </div>
+
+            {/* Form error */}
+            {errors.form && (
+              <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 animate-fadeIn">
+                {errors.form}
+              </div>
+            )}
+
+            {/* Submit */}
+            <AnimatedButton
+              type="submit"
+              variant="primary"
+              size="lg"
+              loading={loading}
+              icon={<Sparkles size={18} />}
+              className="w-full"
             >
-              <option value="client">Client</option>
-              <option value="freelancer">Freelancer</option>
-            </select>
-            {submitted && errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}
-          </div>
+              Create Account
+            </AnimatedButton>
+          </form>
 
-          {/* Form error */}
-          {errors.form && <p className="text-sm text-red-600">{errors.form}</p>}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-5 py-2 rounded-lg bg-indigo-600 text-white shadow hover:bg-indigo-700 transition font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 disabled:opacity-60"
-          >
-            {loading ? "Creating account..." : "Register"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-600 mt-6">
-          Already have an account?{" "}
-          <Link href="/login" className="text-indigo-600 hover:underline font-medium">
-            Login
-          </Link>
-        </p>
+          <p className="text-center text-sm text-slate-600 mt-8">
+            Already have an account?{" "}
+            <Link href="/login" className="text-purple-600 hover:text-purple-700 font-semibold hover:underline">
+              Sign in here
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
