@@ -2,6 +2,7 @@
 import {
   Injectable,
   UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -55,6 +56,67 @@ export class ProfileService {
     });
     if (!user) throw new UnauthorizedException('User not found');
     return user;
+  }
+
+  /** GET /profile/:id (public profile view) */
+  async getById(targetUserId: string, auth?: string) {
+    // Get current user ID if authenticated (to check friendship status)
+    let currentUserId: string | null = null;
+    try {
+      if (auth) {
+        currentUserId = await this.userIdFromAuth(auth);
+      }
+    } catch {
+      // Not authenticated, that's fine
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        profile: {
+          select: {
+            name: true,
+            headline: true,
+            skills: true,
+            avatarUrl: true,
+            dob: true,
+            country: true,
+            city: true,
+            state: true,
+            availability: true,
+            // Don't expose sensitive info like phone, street, postalCode for public profiles
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if current user is friends with this user
+    let isFriend = false;
+    if (currentUserId) {
+      const friendship = await this.prisma.friendship.findFirst({
+        where: {
+          OR: [
+            { userId: currentUserId, friendId: targetUserId },
+            { userId: targetUserId, friendId: currentUserId },
+          ],
+        },
+      });
+      isFriend = !!friendship;
+    }
+
+    return {
+      ...user,
+      isFriend,
+      isOwnProfile: currentUserId === targetUserId,
+    };
   }
 
   /**

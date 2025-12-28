@@ -4,8 +4,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { needsCompletion } from "@/lib/auth";
-
-const API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "");
+import { get } from "@/lib/api";
 
 export default function OAuthLanding() {
   const router = useRouter();
@@ -22,17 +21,16 @@ export default function OAuthLanding() {
     (async () => {
       try {
         // fetch current user with the token we just received
-        const res = await fetch(`${API}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message || "Failed to load profile");
+        const data = await get<{ user: any }>("/auth/me", token);
 
         // store token + user in AuthContext/localStorage
         loginWithToken(token, data.user);
         router.replace(needsCompletion(data.user) ? "/profile/setup" : "/");
-      } catch (e) {
+      } catch (e: any) {
         console.error("OAuth finalize failed:", e);
+        // Better error message for debugging
+        const errorMsg = e?.message || "Failed to complete sign-in";
+        console.error("Error details:", errorMsg);
         router.replace("/login");
       }
     })();

@@ -3,9 +3,26 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { get, postForm, del, post } from "@/lib/api";
 import { toPublicUrl } from "@/lib/url";
-import { Heart, Trash2, Image as ImageIcon, Video, X, Loader2, Send, Smile, MoreVertical } from "lucide-react";
+import {
+  Heart,
+  Trash2,
+  Image as ImageIcon,
+  Video,
+  X,
+  Loader2,
+  Send,
+  Megaphone,
+  BookOpen,
+  Rocket,
+  CheckCircle2,
+  Lightbulb,
+  Sparkles,
+  Compass,
+  ArrowRight,
+} from "lucide-react";
 
 type Post = {
   id: string;
@@ -27,7 +44,7 @@ type Post = {
 };
 
 export default function FeedPage() {
-  const { user, token } = useAuth();
+  const { user, token, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +55,16 @@ export default function FeedPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!token) {
       router.replace("/login?redirect=/feed");
-    } else {
-      loadFeed();
+      return;
     }
-  }, [token, router]);
+    
+    loadFeed();
+  }, [token, authLoading, router]);
 
   async function loadFeed() {
     if (!token) return;
@@ -54,9 +75,14 @@ export default function FeedPage() {
     } catch (err: any) {
       console.error("Failed to load feed:", err);
       const msg = err?.message || "";
-      const authErrors = ["Unauthorized", "token", "User not found", "Missing token", "Invalid token"];
-      if (authErrors.some((p) => msg.includes(p))) {
+      const authErrors = ["Unauthorized", "token", "expired", "User not found", "Missing token", "Invalid token"];
+      if (authErrors.some((p) => msg.toLowerCase().includes(p.toLowerCase()))) {
+        // Clear expired/invalid token
+        logout();
         router.replace("/login?redirect=/feed");
+      } else {
+        // For other errors, just show loading state as false
+        console.error("Feed loading error:", err);
       }
     } finally {
       setLoading(false);
@@ -207,8 +233,87 @@ export default function FeedPage() {
     user?.name || "User"
   )}`;
 
-  if (!token) {
-    return null;
+  const whatsNewHighlights = [
+    {
+    title: "Role-based dashboards",
+      description: "Switch between Client and Freelancer views to track projects, payments, and invites in one place.",
+      icon: Megaphone,
+      tag: "New",
+    },
+    {
+      title: "Smart settings center",
+      description: "Manage availability, notifications, two-factor auth, and privacy from a single streamlined screen.",
+      icon: BookOpen,
+      tag: "Updated",
+    },
+    {
+      title: "Creative feed upgrades",
+      description: "Post videos, celebrate wins, and discover community highlights right from your home feed.",
+      icon: Sparkles,
+      tag: "Hot",
+    },
+  ];
+
+  const gettingStartedSteps = [
+    {
+      title: "Complete your profile",
+      description: "Add a headline, skills, and work history so clients know what makes you unique.",
+    },
+    {
+      title: "Share your first update",
+      description: "Post a project win, a question, or a work-in-progress to start engaging with others.",
+    },
+    {
+      title: "Explore opportunities",
+      description: "Use Explore and Find Work to discover briefs, collaborators, and communities to join.",
+    },
+  ];
+
+  const quickStartTips = [
+    {
+      title: "Follow the guidelines",
+      description: "Stay respectful, be transparent about availability, and credit collaborators.",
+      icon: BookOpen,
+    },
+    {
+      title: "Ask for feedback",
+      description: "Use the feed to request critique, share learnings, and support other builders.",
+      icon: Lightbulb,
+    },
+    {
+      title: "Act on insights",
+      description: "Use dashboards and alerts to follow up on leads, proposals, and conversations quickly.",
+      icon: Compass,
+    },
+    {
+      title: "Launch with confidence",
+      description: "Use project templates and our proposal tips to pitch faster and win more work.",
+      icon: Rocket,
+    },
+    {
+      title: "Celebrate milestones",
+      description: "Post your launches, hires, and testimonials so the community can cheer you on.",
+      icon: Heart,
+    },
+    {
+      title: "Stay consistent",
+      description: "Drop weekly updates to build your brand, attract clients, and grow trust.",
+      icon: CheckCircle2,
+    },
+  ];
+
+  // Show loading state while auth is loading or if no token
+  if (authLoading || !token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-purple-600 mx-auto mb-4" size={40} />
+          <p className="text-slate-600">
+            {authLoading ? "Loading..." : "Redirecting to login..."}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -216,8 +321,116 @@ export default function FeedPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Header */}
         <div className="mb-8 animate-slideUp">
-          <h1 className="text-4xl font-bold gradient-text mb-2">Community Feed</h1>
-          <p className="text-slate-600 text-lg">Share your thoughts, projects, and connect with the community</p>
+          <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 text-sm font-semibold text-purple-700 bg-purple-50 rounded-full">
+            <Sparkles size={16} />
+            Home Feed
+          </div>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">
+            Hey {user?.name || "there"}, here’s what’s happening on Lancerly
+          </h1>
+          <p className="text-slate-600 text-lg">
+            Catch community highlights, share your wins, and follow our quick-start guide to get the most out of the
+            platform.
+          </p>
+        </div>
+
+        {/* Home Highlights */}
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <div className="glass-effect rounded-2xl p-6 border border-purple-100 shadow-soft">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-purple-100 text-purple-700">
+                  <Megaphone size={22} />
+                </div>
+                <div>
+                  <p className="text-sm uppercase tracking-wide text-slate-500">What’s new</p>
+                  <h2 className="text-xl font-semibold text-slate-900">Product updates & highlights</h2>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {whatsNewHighlights.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-white shadow-sm text-purple-600">
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-900 flex items-center gap-2">
+                        {item.title}
+                        <span className="text-xs font-semibold uppercase text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                          {item.tag}
+                        </span>
+                      </p>
+                      <p className="text-sm text-slate-600">{item.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="glass-effect rounded-2xl p-6 border border-blue-100 shadow-soft">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-blue-100 text-blue-700">
+                <CheckCircle2 size={22} />
+              </div>
+              <div>
+                <p className="text-sm uppercase tracking-wide text-slate-500">Getting started</p>
+                <h2 className="text-xl font-semibold text-slate-900">Your first week on Lancerly</h2>
+              </div>
+            </div>
+            <ol className="space-y-4">
+              {gettingStartedSteps.map((step, idx) => (
+                <li key={idx} className="flex gap-3">
+                  <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">{step.title}</p>
+                    <p className="text-sm text-slate-600">{step.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+
+        <div className="glass-effect rounded-2xl p-6 border border-slate-200 shadow-soft mb-10">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-wide text-slate-500">Lancerly playbook</p>
+              <h2 className="text-2xl font-semibold text-slate-900">How to make the most of every post</h2>
+              <p className="text-slate-600 mt-2 max-w-2xl">
+                Follow these community guidelines and tips to build trust, grow your network, and turn ideas into paid
+                work faster.
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/landing")}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-purple-700 bg-purple-100 rounded-full hover:bg-purple-200 transition-colors"
+            >
+              View full guidelines
+              <ArrowRight size={16} />
+            </button>
+          </div>
+          <div className="grid gap-4 mt-6 md:grid-cols-2">
+            {quickStartTips.map((tip, idx) => {
+              const Icon = tip.icon;
+              return (
+                <div key={idx} className="p-4 rounded-xl border border-slate-100 bg-white/80 flex gap-3">
+                  <div className="p-3 rounded-lg bg-slate-100 text-slate-700">
+                    <Icon size={18} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">{tip.title}</p>
+                    <p className="text-sm text-slate-600">{tip.description}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Create Post Card */}
@@ -353,19 +566,22 @@ export default function FeedPage() {
                 {/* Post Header */}
                 <div className="p-5 border-b border-slate-100">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/users/${post.author.id}`}
+                      className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                    >
                       <img
                         src={toPublicUrl(post.author.profile?.avatarUrl || undefined) || fallbackAvatar}
                         alt={post.author.profile?.name || "User"}
                         className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-200"
                       />
                       <div>
-                        <p className="font-semibold text-slate-900">
+                        <p className="font-semibold text-slate-900 hover:text-purple-600 transition-colors">
                           {post.author.profile?.name || post.author.email}
                         </p>
                         <p className="text-sm text-slate-500">{formatTime(post.createdAt)}</p>
                       </div>
-                    </div>
+                    </Link>
                     {token && post.author.id === user?.id && (
                       <button
                         onClick={() => handleDelete(post.id)}

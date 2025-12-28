@@ -35,16 +35,25 @@ async function request<T = any>(
     ...(opts?.headers ?? {}),
   };
 
-  const res = await fetch(urlFor(path), {
-    method,
-    headers,
-    body:
-      method === "GET" || method === "DELETE"
-        ? undefined
-        : isForm
-        ? (opts?.body as FormData)
-        : JSON.stringify(opts?.body ?? {}),
-  });
+  let res: Response;
+  try {
+    res = await fetch(urlFor(path), {
+      method,
+      headers,
+      body:
+        method === "GET" || method === "DELETE"
+          ? undefined
+          : isForm
+          ? (opts?.body as FormData)
+          : JSON.stringify(opts?.body ?? {}),
+    });
+  } catch (error: any) {
+    // Network error (backend not running, CORS, etc.)
+    const url = urlFor(path);
+    throw new Error(
+      `Failed to connect to backend at ${url}. Make sure the backend server is running on port 3001. ${error?.message || ""}`
+    );
+  }
 
   const text = await res.text();
   const data = safeJson(text);
@@ -56,12 +65,26 @@ async function request<T = any>(
         msg = data.message;
       } else if (data.error) {
         msg = data.error;
+      } else if (Array.isArray(data.message)) {
+        msg = data.message;
       } else if (data.raw) {
         msg = data.raw;
+      } else if (typeof data === 'string') {
+        msg = data;
       }
+    } else if (text) {
+      msg = text;
     }
     
     const errorMessage = Array.isArray(msg) ? msg.join(", ") : String(msg);
+    console.error('API Error:', {
+      status: res.status,
+      statusText: res.statusText,
+      url: urlFor(path),
+      data,
+      text,
+      errorMessage,
+    });
     throw new Error(errorMessage);
   }
   return data as T;

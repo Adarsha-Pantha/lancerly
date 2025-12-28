@@ -15,7 +15,10 @@ import {
   Compass,
   Rss,
   Briefcase,
+  Search,
+  MessageCircle,
 } from "lucide-react";
+import { NotificationBell } from "./NotificationBell";
 
 const API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(
   /\/+$/,
@@ -97,15 +100,6 @@ export default function Navbar() {
             <ul className="hidden md:flex items-center gap-1">
               <li>
                 <Link
-                  href="/"
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
-                >
-                  <Home size={16} />
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/explore"
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
                 >
@@ -114,15 +108,35 @@ export default function Navbar() {
                 </Link>
               </li>
               {user && (
-                <li>
-                  <Link
-                    href="/feed"
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
-                  >
-                    <Rss size={16} />
-                    Feed
-                  </Link>
-                </li>
+                <>
+                  <li>
+                    <Link
+                      href="/feed"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                    >
+                      <Rss size={16} />
+                      Feed
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/friends"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                    >
+                      <User size={16} />
+                      Friends
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/messages"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                    >
+                      <MessageCircle size={16} />
+                      Messages
+                    </Link>
+                  </li>
+                </>
               )}
 
               {/* Categories Dropdown */}
@@ -214,8 +228,30 @@ export default function Navbar() {
               </li>
             </ul>
 
+            {/* Search Bar */}
+            <div className="hidden lg:flex flex-1 max-w-2xl mx-6">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search projects, freelancers..."
+                  className="w-full pl-11 pr-4 py-3 bg-white/80 border border-slate-200 rounded-2xl text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm"
+                />
+              </div>
+            </div>
+
             {/* Right side */}
             <div className="flex items-center gap-3">
+              {user && <NotificationBell />}
+              {user && (
+                <Link
+                  href="/settings"
+                  className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+                >
+                  <Settings size={16} />
+                  Settings
+                </Link>
+              )}
               {!user ? (
                 <>
                   <Link
@@ -292,16 +328,32 @@ export default function Navbar() {
             <X size={20} />
           </button>
         </div>
+        {/* Mobile Search */}
+        <div className="px-4 py-3 border-b border-slate-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search projects, freelancers..."
+              className="w-full pl-11 pr-4 py-3 bg-white/90 border border-slate-200 rounded-2xl text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm"
+            />
+          </div>
+        </div>
         <ul className="p-4 space-y-2">
           {[
             { href: "/", label: "Home", icon: <Home size={18} /> },
             { href: "/explore", label: "Explore", icon: <Compass size={18} /> },
             ...(user ? [{ href: "/feed", label: "Feed", icon: <Rss size={18} /> }] : []),
+            ...(user ? [{ href: "/friends", label: "Friends", icon: <User size={18} /> }] : []),
+            ...(user ? [{ href: "/messages", label: "Messages", icon: <MessageCircle size={18} /> }] : []),
             { href: "/find-work", label: "Find Work", icon: <Briefcase size={18} /> },
             ...(user ? [{ href: "/projects/mine", label: "My Projects", icon: <Briefcase size={18} /> }] : []),
             { href: "/hire", label: "Hire Talent" },
             { href: "/ai-discover", label: "AI Discover", icon: <Sparkles size={18} /> },
-            ...(user ? [{ href: "/profile", label: "Profile", icon: <User size={18} /> }] : []),
+            ...(user ? [
+              { href: "/profile", label: "Profile", icon: <User size={18} /> },
+              { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
+            ] : []),
           ].map((item, i) => (
             <li key={i}>
               <Link

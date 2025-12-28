@@ -43,9 +43,9 @@ import {
   Zap,
   Target,
   TrendingDown,
+  LayoutDashboard,
 } from "lucide-react";
 import AnimatedButton from "@/components/ui/AnimatedButton";
-import { AnimatedThemeToggler } from "@/components/AnimatedThemeToggler";
 
 type Field = string | null | undefined;
 
@@ -302,9 +302,6 @@ export default function ProfilePage() {
                     <span className="text-xs font-semibold">Verified</span>
                   </div>
                 )}
-                <div className="ml-auto flex items-center gap-2">
-                  <AnimatedThemeToggler />
-                </div>
               </div>
               
               <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100 mb-3">{name || "Your Name"}</h1>
@@ -347,20 +344,20 @@ export default function ProfilePage() {
               <AnimatedButton
                 variant="primary"
                 size="md"
+                icon={<LayoutDashboard size={16} />}
+                onClick={() => router.push("/dashboard")}
+                className="w-full md:w-auto"
+              >
+                Dashboard
+              </AnimatedButton>
+              <AnimatedButton
+                variant="outline"
+                size="md"
                 icon={<Edit size={16} />}
                 onClick={() => router.push("/profile/edit")}
                 className="w-full md:w-auto"
               >
                 Edit Profile
-              </AnimatedButton>
-              <AnimatedButton
-                variant="outline"
-                size="md"
-                icon={<Settings size={16} />}
-                onClick={() => router.push("/settings")}
-                className="w-full md:w-auto"
-              >
-                Settings
               </AnimatedButton>
             </div>
           </div>
@@ -656,6 +653,18 @@ export default function ProfilePage() {
             <div className="bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-950/20 rounded-lg border border-emerald-200/50 dark:border-emerald-800/50 shadow-sm p-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Quick Actions</h3>
               <div className="space-y-2">
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors group"
+                >
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                    <LayoutDashboard className="text-purple-600 dark:text-purple-400" size={18} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">Dashboard</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">View your dashboard</p>
+                  </div>
+                </Link>
                 <Link
                   href="/projects/new"
                   className="flex items-center gap-3 p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors group"

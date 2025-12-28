@@ -1,6 +1,6 @@
 // apps/backend/src/profile/profile.controller.ts
 import {
-  Controller, Get, Put, Body, Req, UseInterceptors, UploadedFile,
+  Controller, Get, Put, Body, Req, Param, UseInterceptors, UploadedFile,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -17,6 +17,16 @@ export class ProfileController {
   @Get('me')
   me(@Req() req: Request) {
     return this.svc.getMine(req.headers['authorization'] as string | undefined);
+  }
+
+  @Get(':id')
+  async getById(@Param('id') id: string, @Req() req: Request) {
+    try {
+      return await this.svc.getById(id, req.headers['authorization'] as string | undefined);
+    } catch (error: any) {
+      console.error('Error in getById:', error);
+      throw error;
+    }
   }
 
   @Put()

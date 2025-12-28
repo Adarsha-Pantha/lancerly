@@ -25,6 +25,12 @@ model User {
   proposals   Proposal[]    @relation("FreelancerProposals")
   posts       Post[]
   likes       PostLike[]
+  conversationsAsClient    Conversation[] @relation("ClientConversations")
+  conversationsAsFreelancer Conversation[] @relation("FreelancerConversations")
+  sentMessages Message[]
+  friendships      Friendship[] @relation("UserFriendships")
+  friendshipsAsFriend Friendship[] @relation("FriendUserFriendships")
+  notifications      Notification[]
 }
 
 model Profile {
@@ -93,18 +99,35 @@ model Conversation {
   projectId   String?
   project     Project? @relation(fields: [projectId], references: [id])
   clientId    String
+  client      User     @relation("ClientConversations", fields: [clientId], references: [id])
   freelancerId String
+  freelancer  User     @relation("FreelancerConversations", fields: [freelancerId], references: [id])
   messages    Message[]
+  clientLastReadAt     DateTime @default(now())
+  freelancerLastReadAt DateTime @default(now())
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Message {
   id             String        @id @default(uuid())
   conversationId String
-  conversation   Conversation  @relation(fields: [conversationId], references: [id])
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
+  sender         User          @relation(fields: [senderId], references: [id])
   content        String
   createdAt      DateTime      @default(now())
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  user      User     @relation("UserFriendships", fields: [userId], references: [id])
+  friend    User     @relation("FriendUserFriendships", fields: [friendId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, friendId])
 }
 
 model Post {
@@ -145,4 +168,16 @@ enum AuthProvider {
 enum ProjectType {
   CLIENT_REQUEST
   FREELANCER_SHOWCASE
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

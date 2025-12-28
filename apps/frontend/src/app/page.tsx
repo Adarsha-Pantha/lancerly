@@ -9,8 +9,8 @@ export default function IndexRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    if (token) router.replace("/home");     // logged-in → dashboard
-    else router.replace("/landing");        // guest → explore page
+    if (token) router.replace("/feed"); // logged-in → feed home
+    else router.replace("/landing"); // guest → landing page
   }, [token, router]);
 
   return null;
