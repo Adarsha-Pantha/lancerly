@@ -39,16 +39,20 @@ export class ConversationsService {
     }
   }
 
-  /** Get all conversations for a user */
-  async findAll(userId: string) {
+  /** Get all conversations for a user, optionally filtered by projectId */
+  async findAll(userId: string, projectId?: string) {
     try {
+      const where: { OR: Array<{ clientId: string } | { freelancerId: string }>; projectId?: string } = {
+        OR: [
+          { clientId: userId },
+          { freelancerId: userId },
+        ],
+      };
+      if (projectId) {
+        where.projectId = projectId;
+      }
       const conversations = await this.prisma.conversation.findMany({
-        where: {
-          OR: [
-            { clientId: userId },
-            { freelancerId: userId },
-          ],
-        },
+        where,
         select: {
           id: true,
           projectId: true,

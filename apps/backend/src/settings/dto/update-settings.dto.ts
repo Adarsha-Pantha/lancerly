@@ -1,13 +1,31 @@
-// apps/backend/src/settings/dto/update-settings.dto.ts
-import { IsOptional, IsBoolean, IsString, MinLength } from 'class-validator';
+import {
+  IsOptional,
+  IsBoolean,
+  IsString,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
+
+/** Minimum password length for security (marketplace standard) */
+export const PASSWORD_MIN_LENGTH = 8;
+
+/** Password must contain at least one letter and one number */
+export const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).+$/;
 
 export class UpdatePasswordDto {
   @IsString()
-  @MinLength(6)
+  @MinLength(1, { message: 'Current password is required' })
   currentPassword: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(PASSWORD_MIN_LENGTH, {
+    message: `New password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+  })
+  @MaxLength(128, { message: 'Password must not exceed 128 characters' })
+  @Matches(PASSWORD_PATTERN, {
+    message: 'Password must contain at least one letter and one number',
+  })
   newPassword: string;
 }
 
@@ -28,4 +46,3 @@ export class UpdateSettingsDto {
   @IsBoolean()
   availability?: boolean;
 }
-

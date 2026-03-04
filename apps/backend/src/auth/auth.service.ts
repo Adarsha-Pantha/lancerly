@@ -207,7 +207,7 @@ export class AuthService {
         user = await this.prisma.user.create({
           data: {
             email: normalized,
-            // store a hash of providerId just to satisfy non-null password
+            role: 'PENDING',
             password: await bcrypt.hash(providerId, 10),
             profile: {
               create: {
@@ -256,6 +256,7 @@ export class AuthService {
       where: { email: fallbackEmail },
       create: {
         email: fallbackEmail,
+        role: 'PENDING',
         password: await bcrypt.hash(providerId, 10),
         profile: {
           create: {
@@ -352,5 +353,180 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
+  }
+
+  /** Set role (CLIENT or FREELANCER) - used after OAuth when user has PENDING */
+  async setRole(userId: string, role: 'CLIENT' | 'FREELANCER') {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
+    if (user.role === 'ADMIN') throw new BadRequestException('Cannot change admin role');
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        profile: {
+          select: {
+            name: true,
+            avatarUrl: true,
+            dob: true,
+            country: true,
+            phone: true,
+            street: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            isComplete: true,
+          },
+        },
+      },
+    });
+    return { user: this.flattenUser(updated) };
+  }
+
+  /* ------------------------ Admin ------------------------ */
+
+  async adminRegister(dto: { name: string; email: string; password: string }, req?: Request) {
+    if (!dto?.email || !dto?.password || !dto?.name) {
+      throw new BadRequestException('Name, email and password are required');
+    }
+
+    // Check if an admin already exists - only one admin allowed
+    const existingAdmin = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+      select: { id: true },
+    });
+    if (existingAdmin) {
+      throw new BadRequestException('Admin account already exists. Only one admin is allowed.');
+    }
+
+    const email = dto.email.trim().toLowerCase();
+    const exists = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (exists) throw new BadRequestException('Email already registered');
+
+    const hash = await bcrypt.hash(dto.password, 10);
+
+    const created = await this.prisma.user.create({
+      data: {
+        email,
+        password: hash,
+        role: 'ADMIN',
+        profile: {
+          create: {
+            name: dto.name,
+            availability: true,
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        profile: {
+          select: {
+            name: true,
+            avatarUrl: true,
+            dob: true,
+            country: true,
+            phone: true,
+            street: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            isComplete: true,
+          },
+        },
+      },
+    });
+
+    // Record login
+    try {
+      await this.prisma.login.create({
+        data: {
+          userId: created.id,
+          ip: this.getClientIp(req),
+          userAgent: (req?.headers?.['user-agent'] as string) || null,
+        },
+      });
+    } catch {
+      /* noop */
+    }
+
+    const token = await this.jwt.signAsync({
+      sub: created.id,
+      email: created.email,
+      role: created.role,
+    });
+
+    return { user: this.flattenUser(created), token };
+  }
+
+  async adminLogin(dto: { email: string; password: string }, req?: Request) {
+    if (!dto?.email || !dto?.password) {
+      throw new BadRequestException('Email and password are required');
+    }
+    const email = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (user.role !== 'ADMIN') throw new UnauthorizedException('Admin access required');
+
+    const ok = await bcrypt.compare(dto.password, user.password);
+    if (!ok) throw new UnauthorizedException('Invalid credentials');
+
+    // Record login
+    try {
+      await this.prisma.login.create({
+        data: {
+          userId: user.id,
+          ip: this.getClientIp(req),
+          userAgent: (req?.headers?.['user-agent'] as string) || null,
+        },
+      });
+    } catch {
+      /* noop */
+    }
+
+    const withProfile = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        profile: {
+          select: {
+            name: true,
+            avatarUrl: true,
+            dob: true,
+            country: true,
+            phone: true,
+            street: true,
+            city: true,
+            state: true,
+            postalCode: true,
+            isComplete: true,
+          },
+        },
+      },
+    });
+
+    const token = await this.jwt.signAsync({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return { user: this.flattenUser(withProfile!), token };
   }
 }

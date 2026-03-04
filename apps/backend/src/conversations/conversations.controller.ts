@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -15,13 +16,16 @@ export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Get()
-  async findAll(@Req() req: Request) {
+  async findAll(
+    @Req() req: Request,
+    @Query('projectId') projectId?: string,
+  ) {
     try {
       const userId = await this.conversationsService.userIdFromAuth(
         req.headers['authorization'] as string | undefined,
       );
-      return await this.conversationsService.findAll(userId);
-    } catch (error: any) {
+      return await this.conversationsService.findAll(userId, projectId);
+    } catch (error: unknown) {
       console.error('Error in findAll conversations:', error);
       throw error;
     }

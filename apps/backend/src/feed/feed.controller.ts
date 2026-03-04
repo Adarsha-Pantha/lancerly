@@ -13,7 +13,6 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import type { Request } from 'express';
-import type { Multer } from 'multer';
 import { FeedService } from './feed.service';
 
 const mediaStorage = diskStorage({
@@ -44,7 +43,7 @@ export class FeedController {
   )
   async create(
     @Req() req: Request,
-    @UploadedFiles() files: Multer.File[] = [],
+    @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
     try {
       const userId = await this.feedService.userIdFromAuth(

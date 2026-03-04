@@ -3,8 +3,10 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { needsCompletion } from "@/lib/auth";
+import { needsCompletion, needsRoleSelection } from "@/lib/auth";
 import { get } from "@/lib/api";
+
+const REDIRECT_KEY = "postLoginRedirect";
 
 export default function OAuthLanding() {
   const router = useRouter();
@@ -20,17 +22,22 @@ export default function OAuthLanding() {
 
     (async () => {
       try {
-        // fetch current user with the token we just received
         const data = await get<{ user: any }>("/auth/me", token);
-
-        // store token + user in AuthContext/localStorage
         loginWithToken(token, data.user);
-        router.replace(needsCompletion(data.user) ? "/profile/setup" : "/");
+
+        const redirectUrl =
+          typeof window !== "undefined" ? sessionStorage.getItem(REDIRECT_KEY) : null;
+        if (redirectUrl) sessionStorage.removeItem(REDIRECT_KEY);
+
+        if (needsRoleSelection(data.user)) {
+          router.replace(redirectUrl ? `/role-selection?redirect=${encodeURIComponent(redirectUrl)}` : "/role-selection");
+        } else if (needsCompletion(data.user)) {
+          router.replace(redirectUrl ? `/profile/setup?redirect=${encodeURIComponent(redirectUrl)}` : "/profile/setup");
+        } else {
+          router.replace(redirectUrl || "/");
+        }
       } catch (e: any) {
         console.error("OAuth finalize failed:", e);
-        // Better error message for debugging
-        const errorMsg = e?.message || "Failed to complete sign-in";
-        console.error("Error details:", errorMsg);
         router.replace("/login");
       }
     })();

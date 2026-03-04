@@ -16,7 +16,6 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import type { Request } from 'express';
-import type { Multer } from 'multer';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -111,7 +110,7 @@ export class ProjectsController {
   async uploadAssets(
     @Req() req: Request,
     @Param('id') id: string,
-    @UploadedFiles() files: Multer.File[] = [],
+    @UploadedFiles() files: Express.Multer.File[] = [],
   ) {
     const userId = await this.getUserId(req);
     const assetUrls = files.map((file) => `/uploads/${file.filename}`);

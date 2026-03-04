@@ -1,27 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Mail, Lock, LogIn, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AnimatedButton from "@/components/ui/AnimatedButton";
+import LandingNavbar from "@/components/LandingNavbar";
 
 type Errors = { email?: string; password?: string; form?: string };
 
 const apiBase =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:3001";
 
+const REDIRECT_KEY = "postLoginRedirect";
+
 export default function LoginPage() {
   const router = useRouter();
   const sp = useSearchParams();
   const justRegistered = sp.get("registered") === "1";
+  const redirectTo = sp.get("redirect") || "";
 
   const { login, token } = useAuth();
 
   useEffect(() => {
-    if (token) router.replace("/");
-  }, [token, router]);
+    if (token) {
+      const url = typeof window !== "undefined" ? sessionStorage.getItem(REDIRECT_KEY) : null;
+      if (url) sessionStorage.removeItem(REDIRECT_KEY);
+      router.replace(url || redirectTo || "/");
+    }
+  }, [token, router, redirectTo]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -29,6 +37,22 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+
+  const handleGoogleLogin = () => {
+    try {
+      setGoogleError("");
+      if (redirectTo && typeof window !== "undefined") {
+        sessionStorage.setItem(REDIRECT_KEY, redirectTo);
+      }
+      const googleAuthUrl = `${apiBase}/auth/google`;
+      console.log("Redirecting to Google OAuth:", googleAuthUrl);
+      window.location.href = googleAuthUrl;
+    } catch (error) {
+      console.error("Google login error:", error);
+      setGoogleError("Google login is currently unavailable. Please try regular login.");
+    }
+  };
 
   const validate = () => {
     const next: Errors = {};
@@ -47,7 +71,9 @@ export default function LoginPage() {
     setErrors((p) => ({ ...p, form: undefined }));
     try {
       await login(email, password);
-      router.replace("/");
+      const url = typeof window !== "undefined" ? sessionStorage.getItem(REDIRECT_KEY) : null;
+      if (url) sessionStorage.removeItem(REDIRECT_KEY);
+      router.replace(url || redirectTo || "/");
     } catch (err: any) {
       setErrors((p) => ({ ...p, form: err?.message || "Login failed." }));
     } finally {
@@ -57,31 +83,33 @@ export default function LoginPage() {
 
   if (token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F7FA]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Redirecting…</p>
+          <div className="w-16 h-16 border-4 border-[#7C3AED] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[#2C304B] font-medium">Redirecting…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 px-4">
-      <div className="w-full max-w-md animate-slideUp">
+    <React.Fragment>
+      <LandingNavbar />
+      <div className="flex items-center justify-center min-h-screen bg-[#F5F7FA] px-4">
+        <div className="w-full max-w-md animate-slideUp">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl mb-4 shadow-lg">
+          <div className="inline-flex p-3 bg-[#7C3AED] rounded-2xl mb-4 shadow-[0_2px_8px_rgba(124,58,237,0.3)]">
             <Sparkles className="text-white" size={32} />
           </div>
-          <h1 className="text-4xl font-bold gradient-text mb-2">Welcome Back</h1>
-          <p className="text-slate-600">Sign in to continue to Lancerly</p>
+          <h1 className="text-4xl font-bold text-[#2C304B] mb-2">Welcome Back</h1>
+          <p className="text-[#64748B]">Sign in to continue to Lancerly</p>
         </div>
 
         {/* Form Card */}
-        <div className="glass-effect rounded-2xl shadow-soft p-8">
+        <div className="glass-effect rounded-3xl p-8">
           {justRegistered && (
-            <div className="mb-6 rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 animate-fadeIn">
+              <div className="mb-6 rounded-2xl shadow-clay-inner bg-green-50/80 px-4 py-3 text-sm text-green-700 animate-fadeIn border border-green-200/50">
               ✅ Account created successfully. Please sign in.
             </div>
           )}
@@ -89,18 +117,19 @@ export default function LoginPage() {
           <form className="space-y-6" onSubmit={onSubmit} noValidate>
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-brand-purple-dark mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-purple/50" size={20} />
                 <input
                   id="email"
                   autoComplete="email"
                   type="email"
                   placeholder="you@example.com"
-                  className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white/50 ${
-                    submitted && errors.email ? "border-red-400" : "border-slate-200"
+                  suppressHydrationWarning
+                  className={`w-full pl-12 pr-4 py-3 rounded-xl border border-[#E2E8F0] focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED] transition-all bg-white ${
+                    submitted && errors.email ? "!border-red-400 !shadow-none" : ""
                   }`}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -113,18 +142,19 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-brand-purple-dark mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-purple/50" size={20} />
                 <input
                   id="password"
                   autoComplete="current-password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className={`w-full pl-12 pr-12 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white/50 ${
-                    submitted && errors.password ? "border-red-400" : "border-slate-200"
+                  suppressHydrationWarning
+                  className={`w-full pl-12 pr-12 py-3 rounded-xl border border-[#E2E8F0] focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED] transition-all bg-white ${
+                    submitted && errors.password ? "!border-red-400 !shadow-none" : ""
                   }`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -132,7 +162,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-purple/50 hover:text-brand-purple transition-colors"
+                  suppressHydrationWarning
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -144,7 +175,7 @@ export default function LoginPage() {
 
             {/* Form error */}
             {errors.form && (
-              <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 animate-fadeIn">
+              <div className="rounded-2xl shadow-clay-inner bg-red-50/80 px-4 py-3 text-sm text-red-700 animate-fadeIn border border-red-200/50">
                 {errors.form}
               </div>
             )}
@@ -157,6 +188,7 @@ export default function LoginPage() {
               loading={loading}
               icon={<LogIn size={18} />}
               className="w-full"
+              suppressHydrationWarning
             >
               Sign In
             </AnimatedButton>
@@ -165,14 +197,15 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="my-8 flex items-center">
             <div className="h-px flex-1 bg-slate-200" />
-            <span className="mx-4 text-xs uppercase tracking-wide text-slate-400 font-semibold">or</span>
+            <span className="mx-4 text-xs uppercase tracking-wide text-slate-blue/60 font-semibold">or</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
           {/* Google login */}
-          <a
-            href={`${apiBase}/auth/google`}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-all hover:scale-105 active:scale-95"
+          <button
+            onClick={handleGoogleLogin}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl shadow-clay px-4 py-3 font-semibold text-slate-blue hover:shadow-clay-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            suppressHydrationWarning
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -193,16 +226,23 @@ export default function LoginPage() {
               />
             </svg>
             Continue with Google
-          </a>
+          </button>
 
-          <p className="text-center text-sm text-slate-600 mt-8">
-            Don't have an account?{" "}
-            <Link href="/register" className="text-purple-600 hover:text-purple-700 font-semibold hover:underline">
+          {googleError && (
+            <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 animate-fadeIn">
+              {googleError}
+            </div>
+          )}
+
+          <p className="text-center text-sm text-slate-blue/80 mt-8">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-mint hover:text-mint/80 font-semibold hover:underline">
               Register here
             </Link>
           </p>
         </div>
       </div>
     </div>
+    </React.Fragment>
   );
 }

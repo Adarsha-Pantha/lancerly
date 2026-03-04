@@ -7,12 +7,12 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { get, post } from "@/lib/api";
+import { get, post, onAuthFailure } from "@/lib/api";
 
 export type User = {
   id: string;
   email: string;
-  role: "CLIENT" | "FREELANCER" | "ADMIN";
+  role: "PENDING" | "CLIENT" | "FREELANCER" | "ADMIN";
   createdAt: string;
   name?: string | null;
   avatarUrl?: string | null;
@@ -89,6 +89,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, [token, user]);
+
+  // ✅ When API returns 401 / "jwt expired", clear session and redirect to login
+  useEffect(() => {
+    onAuthFailure.set(() => {
+      setUser(null);
+      setToken(null);
+      try {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } catch {}
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname + window.location.search || "/";
+        window.location.href = `/login?redirect=${encodeURIComponent(path)}`;
+      }
+    });
+    return () => {
+      onAuthFailure.set(() => {});
+    };
+  }, []);
 
   const value = useMemo<AuthContextType>(() => {
     const setAuth = (u: User, t: string) => {

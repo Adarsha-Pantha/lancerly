@@ -16,6 +16,19 @@ const tokenFromStorage = () => {
   try { return localStorage.getItem("token") || undefined; } catch { return undefined; }
 };
 
+/** Call when API returns 401 or "expired" so the app can clear auth and redirect to login */
+export const onAuthFailure = (() => {
+  let handler: (() => void) | null = null;
+  return {
+    set(h: () => void) {
+      handler = h;
+    },
+    call() {
+      handler?.();
+    },
+  };
+})();
+
 async function request<T = any>(
   method: HttpMethod,
   path: string,
@@ -59,33 +72,35 @@ async function request<T = any>(
   const data = safeJson(text);
   if (!res.ok) {
     let msg: string | string[] = `HTTP ${res.status}`;
-    
-    if (data) {
-      if (data.message) {
+
+    if (data && typeof data === "object") {
+      if (Array.isArray(data.message)) {
         msg = data.message;
-      } else if (data.error) {
+      } else if (typeof data.message === "string") {
+        msg = data.message;
+      } else if (typeof data.message === "object" && data.message !== null) {
+        // NestJS validation: { field: ["error1", "error2"] }
+        msg = Object.entries(data.message as Record<string, string[]>)
+          .flatMap(([k, v]) => (Array.isArray(v) ? v : [String(v)]).map((e) => `${k}: ${e}`));
+      } else if (typeof data.error === "string") {
         msg = data.error;
-      } else if (Array.isArray(data.message)) {
-        msg = data.message;
-      } else if (data.raw) {
-        msg = data.raw;
-      } else if (typeof data === 'string') {
-        msg = data;
+      } else if (data.raw && typeof data.raw === "string") {
+        msg = data.raw.length > 200 ? data.raw.slice(0, 200) + "…" : data.raw;
       }
-    } else if (text) {
-      msg = text;
+    } else if (text && text.trim()) {
+      msg = text.length > 200 ? text.slice(0, 200) + "…" : text;
     }
-    
-    const errorMessage = Array.isArray(msg) ? msg.join(", ") : String(msg);
-    console.error('API Error:', {
-      status: res.status,
-      statusText: res.statusText,
-      url: urlFor(path),
-      data,
-      text,
-      errorMessage,
-    });
-    throw new Error(errorMessage);
+
+    const errorMessage = Array.isArray(msg) ? msg.join(". ") : String(msg);
+    const finalMessage = errorMessage.trim() || `${res.status} ${res.statusText}`;
+
+    const isAuthError = res.status === 401 || /token expired|jwt expired|invalid token|unauthorized/i.test(finalMessage);
+    if (isAuthError) {
+      onAuthFailure.call();
+    }
+
+    console.error(`API Error [${res.status}] ${urlFor(path)}:`, finalMessage, data);
+    throw new Error(finalMessage);
   }
   return data as T;
 }

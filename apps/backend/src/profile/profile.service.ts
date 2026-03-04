@@ -21,9 +21,19 @@ export class ProfileService {
       throw new UnauthorizedException('Missing token');
     }
     const token = auth.slice(7);
-    const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
-    if (!payload?.sub) throw new UnauthorizedException('Invalid token');
-    return payload.sub;
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
+      if (!payload?.sub) throw new UnauthorizedException('Invalid token');
+      return payload.sub;
+    } catch (err: any) {
+      if (err?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token expired. Please log in again.');
+      }
+      if (err?.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Invalid token');
+      }
+      throw new UnauthorizedException(err?.message ?? 'Authentication failed');
+    }
   }
 
   /** GET /profile (current user) */
@@ -40,6 +50,7 @@ export class ProfileService {
           select: {
             name: true,
             headline: true,
+            bio: true,
             skills: true,
             avatarUrl: true,
             dob: true,
@@ -49,6 +60,7 @@ export class ProfileService {
             city: true,
             state: true,
             postalCode: true,
+            availability: true,
             isComplete: true,
           },
         },
@@ -81,6 +93,7 @@ export class ProfileService {
           select: {
             name: true,
             headline: true,
+            bio: true,
             skills: true,
             avatarUrl: true,
             dob: true,

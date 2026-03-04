@@ -6,7 +6,6 @@ import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import type { File as MulterFile } from 'multer';   // 👈 add this
 import { ProfileService } from './profile.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 
@@ -43,7 +42,7 @@ export class ProfileController {
   update(
     @Req() req: Request,
     @Body() dto: CompleteProfileDto,
-    @UploadedFile() file?: MulterFile,               // 👈 use MulterFile
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     const avatarUrl = file ? `/uploads/${file.filename}` : undefined;
     return this.svc.updateMine(req.headers['authorization'], dto, avatarUrl);

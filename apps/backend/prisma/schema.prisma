@@ -16,6 +16,12 @@ model User {
   password  String
   role      Role      @default(FREELANCER)
   twoFA     Boolean   @default(false)
+  emailNotifications Boolean @default(true)
+  profileVisibility   Boolean @default(true)
+  pendingEmail            String?
+  emailVerificationToken  String?
+  emailVerificationExpires DateTime?
+  deletedAt   DateTime?
   createdAt DateTime  @default(now())
   profile   Profile?
   logins    Login[]
@@ -23,6 +29,10 @@ model User {
   providerId  String?      @unique
   projects    Project[]     @relation("ClientProjects")
   proposals   Proposal[]    @relation("FreelancerProposals")
+  contractsAsFreelancer Contract[] @relation("FreelancerContracts")
+  contractsAsClient     Contract[] @relation("ClientContracts")
+  deliveries  Delivery[]    @relation("FreelancerDeliveries")
+  timeEntries TimeEntry[]   @relation("FreelancerTimeEntries")
   posts       Post[]
   likes       PostLike[]
   conversationsAsClient    Conversation[] @relation("ClientConversations")
@@ -39,11 +49,12 @@ model Profile {
   user         User     @relation(fields: [userId], references: [id])
   name         String
   headline     String?
-  skills       Json?             // <-- Json? works well for arrays
+  bio          String?
+  timezone     String?
+  skills       Json?
   availability Boolean  @default(true)
-  avatarUrl    String?  
-
-   dob         DateTime?
+  avatarUrl    String?
+  dob          DateTime?
   country     String?
   phone       String?
   street      String?
@@ -53,6 +64,9 @@ model Profile {
 
   // convenience flag (optional)
   isComplete  Boolean   @default(false)
+
+  // Stripe Connect – for freelancers to receive payments
+  stripeAccountId String? @unique
 }
 
 model Login {
@@ -80,6 +94,7 @@ model Project {
   updatedAt   DateTime @updatedAt
   proposals   Proposal[]
   conversations Conversation[]
+  contract    Contract?
 }
 
 model Proposal {
@@ -92,6 +107,8 @@ model Proposal {
   proposedBudget Int?
   status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  contract   Contract?
 }
 
 model Conversation {
@@ -154,6 +171,7 @@ model PostLike {
 
 
 enum Role {
+  PENDING   // OAuth users before they choose Client or Freelancer
   CLIENT
   FREELANCER
   ADMIN
@@ -180,4 +198,81 @@ model Notification {
   metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Contract {
+  id            String     @id @default(uuid())
+  projectId     String     @unique
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposalId    String     @unique
+  proposal      Proposal   @relation(fields: [proposalId], references: [id])
+  freelancerId  String
+  freelancer    User       @relation("FreelancerContracts", fields: [freelancerId], references: [id])
+  clientId      String
+  client        User       @relation("ClientContracts", fields: [clientId], references: [id])
+  agreedBudget  Int
+  status        String     @default("ACTIVE") // ACTIVE, COMPLETED, TERMINATED
+  startDate     DateTime   @default(now())
+  endDate       DateTime?
+  // Agreement terms (per project proposal: "contracts are drawn with milestones, deliverables, timelines")
+  terms         String?    // Optional contract terms text
+  clientAcceptedAt   DateTime?  // When client accepted agreement
+  freelancerAcceptedAt DateTime? // When freelancer accepted agreement
+  terminatedBy String?    // User ID who terminated (if status=TERMINATED)
+  terminationReason String? // Reason for termination
+  terminatedAt DateTime?  // When contract was terminated
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  milestones    Milestone[]
+  deliveries    Delivery[]
+  timeEntries   TimeEntry[]
+}
+
+model Milestone {
+  id          String     @id @default(uuid())
+  contractId  String
+  contract    Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  amount      Int        // Payment amount for this milestone (in cents for Stripe)
+  dueDate     DateTime?
+  status      String     @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, APPROVED, PAID
+  stripePaymentIntentId String? // Stripe PaymentIntent for escrow funding
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deliveries  Delivery[]
+}
+
+model Delivery {
+  id          String     @id @default(uuid())
+  contractId  String
+  contract    Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id])
+  freelancerId String
+  freelancer  User       @relation("FreelancerDeliveries", fields: [freelancerId], references: [id])
+  title       String
+  description String
+  attachments String[]   @default([])
+  status      String     @default("SUBMITTED") // SUBMITTED, REVIEWING, APPROVED, REJECTED, REVISION_REQUESTED
+  clientFeedback String?
+  submittedAt DateTime   @default(now())
+  reviewedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model TimeEntry {
+  id          String     @id @default(uuid())
+  contractId  String
+  contract    Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  freelancerId String
+  freelancer  User       @relation("FreelancerTimeEntries", fields: [freelancerId], references: [id])
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?       // Duration in minutes (calculated)
+  isRunning   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }

@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Req,
   Res,
   UseGuards,
@@ -13,6 +14,8 @@ import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
+import { AdminRegisterDto, AdminLoginDto } from '../admin/dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -58,5 +61,32 @@ export class AuthController {
     }
     const token = authHeader.slice(7);
     return this.auth.me(token);
+  }
+
+  /** Set role to CLIENT or FREELANCER (after OAuth role selection) */
+  @Put('role')
+  @UseGuards(JwtAuthGuard)
+  async setRole(
+    @Req() req: Request,
+    @Body() body: { role: 'CLIENT' | 'FREELANCER' },
+  ) {
+    const user = (req as any).user as { sub: string };
+    if (!user?.sub) throw new UnauthorizedException('Not authenticated');
+    if (!body?.role || (body.role !== 'CLIENT' && body.role !== 'FREELANCER')) {
+      throw new UnauthorizedException('Role must be CLIENT or FREELANCER');
+    }
+    return this.auth.setRole(user.sub, body.role);
+  }
+
+  /** Admin register */
+  @Post('admin/register')
+  adminRegister(@Body() dto: AdminRegisterDto, @Req() req: Request) {
+    return this.auth.adminRegister(dto, req);
+  }
+
+  /** Admin login */
+  @Post('admin/login')
+  adminLogin(@Body() dto: AdminLoginDto, @Req() req: Request) {
+    return this.auth.adminLogin(dto, req);
   }
 }

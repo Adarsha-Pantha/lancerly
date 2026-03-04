@@ -1,256 +1,386 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Briefcase,
-  Users,
-  Sparkles,
-  ShieldCheck,
-  Globe2,
-  Star,
+import { 
+  FileSearch, 
+  Handshake, 
+  Rocket, 
+  CheckCircle2, 
+  ArrowRight, 
+  Star, 
+  ShieldCheck, 
+  Users, 
   Zap,
-  MessageCircle,
-  ArrowRight,
+  Globe,
+  Trophy,
+  Search,
+  MessageSquare,
+  CreditCard
 } from "lucide-react";
 
+const categories = [
+  { name: "Design & Creative", icon: "🎨", count: "12k+ Freelancers", color: "from-purple-500/10 to-pink-500/10" },
+  { name: "Development & IT", icon: "💻", count: "18k+ Freelancers", color: "from-blue-500/10 to-cyan-500/10" },
+  { name: "AI & Data Science", icon: "🤖", count: "8k+ Freelancers", color: "from-emerald-500/10 to-teal-500/10" },
+  { name: "Writing & Translation", icon: "✍️", count: "15k+ Freelancers", color: "from-orange-500/10 to-yellow-500/10" },
+  { name: "Marketing & Sales", icon: "📈", count: "10k+ Freelancers", color: "from-rose-500/10 to-red-500/10" },
+  { name: "Business & Finance", icon: "💼", count: "7k+ Freelancers", color: "from-indigo-500/10 to-blue-500/10" },
+];
+
+const howItWorks = [
+  {
+    step: "01",
+    icon: Search,
+    title: "Find Expert Talent",
+    desc: "Browse our curated marketplace of top-tier professionals or post a job to receive personalized proposals.",
+  },
+  {
+    step: "02",
+    icon: MessageSquare,
+    title: "Collaborate Easily",
+    desc: "Use our advanced workspace to communicate, share files, and track project milestones in real-time.",
+  },
+  {
+    step: "03",
+    icon: CreditCard,
+    title: "Secure Payments",
+    desc: "Pay safely with our escrow system. Funds are released only when you're 100% satisfied with the work.",
+  },
+];
+
+const trustStats = [
+  { value: "50M+", label: "Project Value" },
+  { value: "200k+", label: "Verified Talents" },
+  { value: "99.9%", label: "Satisfaction Rate" },
+  { value: "24/7", label: "Expert Support" },
+];
+
 export default function LandingPage() {
+  const { token, loading } = useAuth();
+  const router = useRouter();
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!loading && token) {
+      router.replace("/home");
+    }
+  }, [loading, token, router]);
+
+  if (loading || token) {
+    return null;
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white via-indigo-50 to-purple-50 text-gray-800">
-      {/* 🌟 Hero Section */}
-      <section className="flex flex-col items-center text-center py-24 px-6 bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white">
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-5xl md:text-6xl font-extrabold max-w-3xl leading-tight"
-        >
-          Hire <span className="text-yellow-300">Smart.</span> Work{" "}
-          <span className="text-yellow-300">Faster.</span>
-        </motion.h1>
+    <div ref={containerRef} className="min-h-screen selection:bg-accent/30 selection:text-accent overflow-x-hidden">
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] flex items-center pt-20 pb-32 overflow-hidden">
+        {/* Animated Background Mesh */}
+        <div className="absolute inset-0 -z-10">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 90, 0],
+            }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-accent/10 blur-[120px]" 
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1.2, 1, 1.2],
+              rotate: [0, -90, 0],
+            }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/10 blur-[120px]" 
+          />
+        </div>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-5 text-lg text-white/90 max-w-2xl"
-        >
-          Lancerly connects top freelancers and businesses using AI-powered
-          matching. Build teams that deliver excellence — globally.
-        </motion.p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="text-left">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card-premium border-accent/20 text-accent font-bold text-sm mb-8"
+              >
+                <Zap size={16} className="animate-pulse" />
+                <span>Next-Gen Freelancing Platform</span>
+              </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mt-8 flex flex-wrap justify-center gap-4"
-        >
-          <Button asChild className="px-6 py-3 text-lg bg-yellow-400 text-black hover:bg-yellow-300">
-            <Link href="/register">Join as Freelancer</Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="px-6 py-3 text-lg border-white text-white hover:bg-white/10"
-          >
-            <Link href="/register">Hire Talent</Link>
-          </Button>
-        </motion.div>
-      </section>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-display mb-8"
+              >
+                Hiring elite talent <br />
+                <span className="gradient-text-hero">reimagined.</span>
+              </motion.h1>
 
-      {/* 🏆 Stats Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto grid sm:grid-cols-3 text-center gap-8">
-          {[
-            { value: "10K+", label: "Freelancers Worldwide" },
-            { value: "500+", label: "Companies Trust Us" },
-            { value: "98%", label: "Client Satisfaction" },
-          ].map((item) => (
-            <div key={item.label}>
-              <h3 className="text-4xl font-extrabold text-indigo-600">
-                {item.value}
-              </h3>
-              <p className="text-gray-600 mt-2">{item.label}</p>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-body-lg text-muted-foreground mb-12 max-w-xl"
+              >
+                Lancerly connects ambitious businesses with the world's top 3% of freelance talent through a premium, AI-powered workspace.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex flex-col sm:flex-row gap-6"
+              >
+                <Button asChild className="btn-accent-premium h-16 px-10 text-lg">
+                  <Link href="/register">Hire Top Talent</Link>
+                </Button>
+                <Button asChild variant="outline" className="glass-card-premium h-16 px-10 text-lg border-primary/10 hover:bg-white/50">
+                  <Link href="/projects/browse">Find Work</Link>
+                </Button>
+              </motion.div>
+
+              {/* Trust Micro-Interactions */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-12 flex items-center gap-6"
+              >
+                <div className="flex -space-x-4">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="w-12 h-12 rounded-full border-4 border-white overflow-hidden shadow-lg">
+                      <img src={`https://i.pravatar.cc/150?u=${i}`} alt="user" />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div className="flex text-yellow-400 mb-1">
+                    {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                  </div>
+                  <p className="text-sm font-bold text-primary">Trusted by 10k+ companies</p>
+                </div>
+              </motion.div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* 💼 Categories */}
-      <section className="py-20 bg-gradient-to-b from-white to-indigo-50">
-        <div className="max-w-6xl mx-auto text-center px-6">
-          <h2 className="text-4xl font-bold mb-4 text-gray-900">
-            Explore Popular Categories
-          </h2>
-          <p className="text-gray-600 mb-10">
-            Find professionals across the most in-demand fields.
-          </p>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-            {[
-              { icon: <Globe2 />, name: "Web Development" },
-              { icon: <Sparkles />, name: "Graphic Design" },
-              { icon: <MessageCircle />, name: "Content Writing" },
-              { icon: <Zap />, name: "Digital Marketing" },
-              { icon: <Briefcase />, name: "Data Science" },
-              { icon: <Users />, name: "Virtual Assistance" },
-              { icon: <ShieldCheck />, name: "Cybersecurity" },
-              { icon: <Star />, name: "UI/UX Design" },
-            ].map((cat) => (
+            {/* 3D-Inspired Visual Elements */}
+            <div className="relative hidden lg:block">
               <motion.div
-                key={cat.name}
-                whileHover={{ scale: 1.05 }}
-                className="p-6 rounded-xl bg-white shadow hover:shadow-xl border border-indigo-100 flex flex-col items-center justify-center transition"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="relative z-10"
               >
-                <div className="text-indigo-600 mb-3">{cat.icon}</div>
-                <p className="font-medium text-gray-800">{cat.name}</p>
+                <div className="relative rounded-[3rem] overflow-hidden shadow-3d border-[12px] border-white/50 backdrop-blur-sm">
+                  <Image
+                    src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=800&q=80"
+                    alt="Premium Workspace"
+                    width={800}
+                    height={1000}
+                    className="w-full h-auto"
+                  />
+                </div>
+
+                {/* Floating Glass Cards */}
+                <motion.div 
+                  animate={{ y: [0, -20, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute -top-10 -right-10 glass-card-premium p-6 w-64 animate-float"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <ShieldCheck size={24} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Payment Protection</p>
+                      <p className="font-bold">Escrow Verified</p>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-emerald-500/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 w-[100%] animate-pulse" />
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  animate={{ y: [0, 20, 0] }}
+                  transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+                  className="absolute bottom-10 -left-16 glass-card-premium p-6 w-72 animate-float-slow"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex -space-x-3">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden">
+                          <img src={`https://i.pravatar.cc/100?u=${i+10}`} alt="talent" />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">3 Active Bids</p>
+                      <p className="text-xs text-muted-foreground">Premium Proposals</p>
+                    </div>
+                  </div>
+                </motion.div>
               </motion.div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ⚙️ How It Works */}
-      <section className="py-24 bg-white border-t border-indigo-100">
-        <div className="max-w-6xl mx-auto text-center px-6">
-          <h2 className="text-4xl font-bold mb-12 text-gray-900">
-            How It Works
-          </h2>
-          <div className="grid md:grid-cols-3 gap-10">
-            {[
-              {
-                step: "01",
-                title: "Post a Project",
-                desc: "Describe your needs and set your budget — it takes just a few minutes.",
-              },
-              {
-                step: "02",
-                title: "Get AI-Matched",
-                desc: "Our algorithm connects you with the most relevant freelancers instantly.",
-              },
-              {
-                step: "03",
-                title: "Collaborate Securely",
-                desc: "Chat, share files, and pay securely when the job is done.",
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.2 }}
-                className="p-8 bg-indigo-50 rounded-2xl hover:bg-indigo-100 transition"
-              >
-                <h3 className="text-indigo-600 text-2xl font-bold mb-3">
-                  {item.step}
-                </h3>
-                <h4 className="text-xl font-semibold mb-2 text-gray-900">
-                  {item.title}
-                </h4>
-                <p className="text-gray-600">{item.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 💬 Testimonials */}
-      <section className="py-24 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <h2 className="text-4xl font-bold mb-12">
-            What Our Users Are Saying
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Priya Sharma",
-                role: "Freelance Designer",
-                quote:
-                  "Lancerly helped me land my first 5 clients within two weeks! The AI matching is incredible.",
-              },
-              {
-                name: "David Chen",
-                role: "Startup Founder",
-                quote:
-                  "We found an amazing web developer in hours instead of weeks. Payments are super smooth too.",
-              },
-              {
-                name: "Aisha Khan",
-                role: "Data Analyst",
-                quote:
-                  "The collaboration tools make managing projects so easy — it’s like having an all-in-one office.",
-              },
-            ].map((t, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.2 }}
-                className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-lg"
-              >
-                <p className="text-lg italic mb-4 text-white/90">“{t.quote}”</p>
-                <h4 className="font-bold text-white">{t.name}</h4>
-                <p className="text-sm text-yellow-300">{t.role}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 🚀 CTA */}
-      <section className="py-24 bg-white text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4 }}
-          className="max-w-3xl mx-auto"
-        >
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Ready to Join the Future of Freelancing?
-          </h2>
-          <p className="text-gray-600 mb-8">
-            Discover the platform where AI meets opportunity. Grow your career
-            or business with Lancerly.
-          </p>
-          <Button asChild size="lg" className="px-8 py-3 text-lg">
-            <Link href="/register" className="flex items-center gap-2">
-              Get Started <ArrowRight size={18} />
-            </Link>
-          </Button>
-        </motion.div>
-      </section>
-
-      {/* 🦶 Footer */}
-      <footer className="py-12 bg-gray-900 text-gray-400">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-8">
-          <div>
-            <h3 className="text-2xl font-bold text-white mb-3">Lancerly</h3>
-            <p className="text-gray-400 max-w-md">
-              Empowering freelancers and businesses through AI-driven matching
-              and secure collaboration.
+      {/* Categorized Services Section */}
+      <section className="py-32 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-heading mb-6"
+            >
+              Browse elite talent by <span className="text-accent">category.</span>
+            </motion.h2>
+            <p className="text-body-lg text-muted-foreground max-w-2xl mx-auto">
+              Access a global network of highly-skilled professionals across every major industry.
             </p>
           </div>
-          <div className="flex flex-col md:flex-row justify-end gap-6 text-gray-300">
-            <Link href="/about" className="hover:text-white">
-              About
-            </Link>
-            <Link href="/terms" className="hover:text-white">
-              Terms
-            </Link>
-            <Link href="/privacy" className="hover:text-white">
-              Privacy
-            </Link>
-            <Link href="/contact" className="hover:text-white">
-              Contact
-            </Link>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {categories.map((cat, i) => (
+              <motion.div
+                key={cat.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group cursor-pointer"
+              >
+                <div className={`p-8 rounded-[2.5rem] bg-white border border-border transition-all duration-500 hover:shadow-3d-hover hover:-translate-y-2 relative overflow-hidden`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                  <div className="relative z-10">
+                    <div className="text-5xl mb-6 group-hover:scale-125 transition-transform duration-500 inline-block">{cat.icon}</div>
+                    <h3 className="text-2xl font-black mb-2">{cat.name}</h3>
+                    <p className="text-muted-foreground mb-6">{cat.count}</p>
+                    <div className="flex items-center text-accent font-bold group-hover:gap-2 transition-all">
+                      Explore Talent <ArrowRight size={18} />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
-        <p className="mt-10 text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} Lancerly. All rights reserved.
-        </p>
-      </footer>
-    </main>
+      </section>
+
+      {/* How It Works - Premium Flow */}
+      <section className="py-32 bg-primary text-white rounded-[4rem] mx-4 sm:mx-8 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
+            <div>
+              <h2 className="text-heading text-white mb-8">
+                The most reliable way to <br />
+                <span className="text-accent-light">get work done.</span>
+              </h2>
+              <div className="space-y-12">
+                {howItWorks.map((item, i) => (
+                  <motion.div 
+                    key={item.title}
+                    initial={{ opacity: 0, x: -30 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.2 }}
+                    className="flex gap-8"
+                  >
+                    <div className="text-4xl font-black text-white/20 tracking-tighter">{item.step}</div>
+                    <div>
+                      <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
+                      <p className="text-white/60 leading-relaxed text-lg">{item.desc}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              <div className="glass-card-premium border-white/10 p-4">
+                <Image
+                  src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
+                  alt="Collaboration"
+                  width={800}
+                  height={600}
+                  className="rounded-3xl shadow-2xl"
+                />
+              </div>
+              <div className="absolute -bottom-10 -right-10 glass-card-premium p-8 bg-accent animate-pulse-glow">
+                <Trophy size={48} className="text-white" />
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Stats */}
+      <section className="py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
+            {trustStats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className="text-5xl font-black text-primary mb-2 tracking-tighter">{stat.value}</div>
+                <div className="text-sm font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section - High Impact */}
+      <section className="py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-accent rounded-[3.5rem] p-12 md:p-24 text-center relative overflow-hidden shadow-2xl"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-accent via-accent to-blue-600 animate-gradient-shift" />
+            <div className="relative z-10">
+              <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight">
+                Scale your business with <br /> the world's best talent.
+              </h2>
+              <p className="text-xl text-white/80 mb-12 max-w-2xl mx-auto">
+                Join 10,000+ companies who trust Lancerly to build high-performing remote teams.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                <Button asChild className="bg-white text-accent hover:bg-white/90 h-16 px-12 text-lg font-bold rounded-2xl shadow-xl transition-all hover:scale-105">
+                  <Link href="/register">Get Started Now</Link>
+                </Button>
+                <Button asChild variant="outline" className="border-white/30 text-white hover:bg-white/10 h-16 px-12 text-lg font-bold rounded-2xl transition-all hover:scale-105">
+                  <Link href="/projects/browse">Schedule a Demo</Link>
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+    </div>
   );
 }

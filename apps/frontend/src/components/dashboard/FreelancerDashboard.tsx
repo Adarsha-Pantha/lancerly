@@ -4,13 +4,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { get } from "@/lib/api";
-import DashboardLayout from "./DashboardLayout";
 import ActiveProjectsWidget from "./widgets/ActiveProjectsWidget";
 import NotificationsWidget from "./widgets/NotificationsWidget";
 import CalendarWidget from "./widgets/CalendarWidget";
 import TodayTasksWidget from "./widgets/TodayTasksWidget";
 import StatsWidget from "./widgets/StatsWidget";
 import ActivityWidget from "./widgets/ActivityWidget";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function FreelancerDashboard() {
   const { user, token } = useAuth();
@@ -29,7 +29,7 @@ export default function FreelancerDashboard() {
   const loadDashboardData = async () => {
     try {
       // Load projects
-      const projectsData = await get<any[]>("/projects/mine", token);
+      const projectsData = await get<any[]>("/projects/me", token);
       setProjects(projectsData || []);
 
       // Generate notifications
@@ -81,6 +81,24 @@ export default function FreelancerDashboard() {
 
   if (!token || !user) return null;
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-64 lg:col-span-2" />
+          <div className="space-y-4">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-48" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Transform projects for ActiveProjectsWidget
   const activeProjects = projects
     .filter((p: any) => p.status === "OPEN" || p.status === "IN_PROGRESS")
@@ -129,7 +147,7 @@ export default function FreelancerDashboard() {
   ];
 
   return (
-    <DashboardLayout role="FREELANCER">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
@@ -170,6 +188,6 @@ export default function FreelancerDashboard() {
           <ActivityWidget messages={messages} />
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
