@@ -1,0 +1,278 @@
+// --- generator: REQUIRED so `@prisma/client` gets generated
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- datasource: points to your Postgres from .env
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- models
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(FREELANCER)
+  twoFA     Boolean   @default(false)
+  emailNotifications Boolean @default(true)
+  profileVisibility   Boolean @default(true)
+  pendingEmail            String?
+  emailVerificationToken  String?
+  emailVerificationExpires DateTime?
+  deletedAt   DateTime?
+  createdAt DateTime  @default(now())
+  profile   Profile?
+  logins    Login[]
+  provider    AuthProvider @default(CREDENTIALS)
+  providerId  String?      @unique
+  projects    Project[]     @relation("ClientProjects")
+  proposals   Proposal[]    @relation("FreelancerProposals")
+  contractsAsFreelancer Contract[] @relation("FreelancerContracts")
+  contractsAsClient     Contract[] @relation("ClientContracts")
+  deliveries  Delivery[]    @relation("FreelancerDeliveries")
+  timeEntries TimeEntry[]   @relation("FreelancerTimeEntries")
+  posts       Post[]
+  likes       PostLike[]
+  conversationsAsClient    Conversation[] @relation("ClientConversations")
+  conversationsAsFreelancer Conversation[] @relation("FreelancerConversations")
+  sentMessages Message[]
+  friendships      Friendship[] @relation("UserFriendships")
+  friendshipsAsFriend Friendship[] @relation("FriendUserFriendships")
+  notifications      Notification[]
+}
+
+model Profile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  name         String
+  headline     String?
+  bio          String?
+  timezone     String?
+  skills       Json?
+  availability Boolean  @default(true)
+  avatarUrl    String?
+  dob          DateTime?
+  country     String?
+  phone       String?
+  street      String?
+  city        String?
+  state       String?
+  postalCode  String?
+
+  // convenience flag (optional)
+  isComplete  Boolean   @default(false)
+
+  // Stripe Connect – for freelancers to receive payments
+  stripeAccountId String? @unique
+}
+
+model Login {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  clientId    String
+  client      User     @relation("ClientProjects", fields: [clientId], references: [id])
+  title       String
+  description String
+  budgetMin   Int?
+  budgetMax   Int?
+  skills      String[] // or separate Skill model later
+  attachments String[] @default([])
+  projectType ProjectType @default(CLIENT_REQUEST)
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  proposals   Proposal[]
+  conversations Conversation[]
+  contract    Contract?
+}
+
+model Proposal {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+  freelancerId String
+  freelancer  User     @relation("FreelancerProposals", fields: [freelancerId], references: [id])
+  coverLetter String
+  proposedBudget Int?
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  contract   Contract?
+}
+
+model Conversation {
+  id          String   @id @default(uuid())
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  clientId    String
+  client      User     @relation("ClientConversations", fields: [clientId], references: [id])
+  freelancerId String
+  freelancer  User     @relation("FreelancerConversations", fields: [freelancerId], references: [id])
+  messages    Message[]
+  clientLastReadAt     DateTime @default(now())
+  freelancerLastReadAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User          @relation(fields: [senderId], references: [id])
+  content        String
+  createdAt      DateTime      @default(now())
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  user      User     @relation("UserFriendships", fields: [userId], references: [id])
+  friend    User     @relation("FriendUserFriendships", fields: [friendId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, friendId])
+}
+
+model Post {
+  id        String    @id @default(uuid())
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  content   String?
+  mediaUrls String[]  @default([]) // images and videos
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  likes     PostLike[]
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+
+enum Role {
+  PENDING   // OAuth users before they choose Client or Freelancer
+  CLIENT
+  FREELANCER
+  ADMIN
+}
+
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+  FACEBOOK
+}
+
+enum ProjectType {
+  CLIENT_REQUEST
+  FREELANCER_SHOWCASE
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Contract {
+  id            String     @id @default(uuid())
+  projectId     String     @unique
+  project       Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  proposalId    String     @unique
+  proposal      Proposal   @relation(fields: [proposalId], references: [id])
+  freelancerId  String
+  freelancer    User       @relation("FreelancerContracts", fields: [freelancerId], references: [id])
+  clientId      String
+  client        User       @relation("ClientContracts", fields: [clientId], references: [id])
+  agreedBudget  Int
+  status        String     @default("ACTIVE") // ACTIVE, COMPLETED, TERMINATED
+  startDate     DateTime   @default(now())
+  endDate       DateTime?
+  // Agreement terms (per project proposal: "contracts are drawn with milestones, deliverables, timelines")
+  terms         String?    // Optional contract terms text
+  clientAcceptedAt   DateTime?  // When client accepted agreement
+  freelancerAcceptedAt DateTime? // When freelancer accepted agreement
+  terminatedBy String?    // User ID who terminated (if status=TERMINATED)
+  terminationReason String? // Reason for termination
+  terminatedAt DateTime?  // When contract was terminated
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  milestones    Milestone[]
+  deliveries    Delivery[]
+  timeEntries   TimeEntry[]
+}
+
+model Milestone {
+  id          String     @id @default(uuid())
+  contractId  String
+  contract    Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  amount      Int        // Payment amount for this milestone (in cents for Stripe)
+  dueDate     DateTime?
+  status      String     @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, APPROVED, PAID
+  stripePaymentIntentId String? // Stripe PaymentIntent for escrow funding
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deliveries  Delivery[]
+}
+
+model Delivery {
+  id          String     @id @default(uuid())
+  contractId  String
+  contract    Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id])
+  freelancerId String
+  freelancer  User       @relation("FreelancerDeliveries", fields: [freelancerId], references: [id])
+  title       String
+  description String
+  attachments String[]   @default([])
+  status      String     @default("SUBMITTED") // SUBMITTED, REVIEWING, APPROVED, REJECTED, REVISION_REQUESTED
+  clientFeedback String?
+  submittedAt DateTime   @default(now())
+  reviewedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model TimeEntry {
+  id          String     @id @default(uuid())
+  contractId  String
+  contract    Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  freelancerId String
+  freelancer  User       @relation("FreelancerTimeEntries", fields: [freelancerId], references: [id])
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?       // Duration in minutes (calculated)
+  isRunning   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
