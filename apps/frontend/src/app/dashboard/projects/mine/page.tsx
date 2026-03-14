@@ -29,11 +29,21 @@ interface Project {
   _count: { proposals: number };
 }
 
+const VIOLET       = "#4f3fe0";
+const VIOLET_LIGHT = "#eeecfc";
+
+const statusConfig: Record<string, { bg: string; color: string; dot: string; label: string }> = {
+  OPEN:        { bg: "#f0fdf4", color: "#15803d", dot: "#22c55e",  label: "Open"        },
+  IN_PROGRESS: { bg: "#eff6ff", color: "#1d4ed8", dot: "#3b82f6",  label: "In Progress" },
+  COMPLETED:   { bg: "#f8fafc", color: "#475569", dot: "#94a3b8",  label: "Completed"   },
+  CANCELLED:   { bg: "#fef2f2", color: "#b91c1c", dot: "#ef4444",  label: "Cancelled"   },
+};
+
 export default function MyProjectsPage() {
   const { token, user } = useAuth();
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects]     = useState<Project[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -68,111 +78,177 @@ export default function MyProjectsPage() {
       p.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const statusColors: Record<string, string> = {
-    OPEN: "bg-emerald-100 text-emerald-800",
-    IN_PROGRESS: "bg-blue-100 text-blue-800",
-    COMPLETED: "bg-slate-100 text-slate-800",
-    CANCELLED: "bg-red-100 text-red-800",
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8 py-2">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Projects</h1>
-          <p className="text-slate-600 mt-1">Manage and track your posted projects</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-1">My Projects</h1>
+          <p className="text-gray-400 text-sm">Manage and track your posted projects</p>
         </div>
-        <Link href="/dashboard/projects/new">
-          <Button className="gap-2">
-            <Plus size={18} />
-            Post New Project
-          </Button>
+        <Link
+          href="/dashboard/projects/new"
+          className="inline-flex items-center gap-2 h-11 px-6 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 hover:-translate-y-0.5 shrink-0"
+          style={{ background: VIOLET, boxShadow: `0 6px 20px -4px ${VIOLET}55` }}
+        >
+          <Plus size={16} />
+          Post New Project
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <div className="relative max-w-md mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search your projects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none"
-          />
+      {/* ── Search ── */}
+      <div className="relative max-w-lg">
+        <Search
+          size={17}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
+        <input
+          type="text"
+          placeholder="Search your projects…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full h-12 pl-11 pr-4 rounded-2xl border-2 border-gray-100 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none transition-all"
+          onFocus={(e)  => (e.currentTarget.style.borderColor = "#c9c3f5")}
+          onBlur={(e)   => (e.currentTarget.style.borderColor = "")}
+        />
+      </div>
+
+      {/* ── Content ── */}
+      {loading ? (
+
+        /* Loading */
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <Loader2 className="animate-spin" size={32} style={{ color: VIOLET }} />
+          <p className="text-sm text-gray-400 font-medium">Loading your projects…</p>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="animate-spin text-accent" size={40} />
+      ) : filteredProjects.length === 0 ? (
+
+        /* Empty state */
+        <div className="bg-white border-2 border-gray-100 rounded-3xl p-16 text-center">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
+            style={{ background: VIOLET_LIGHT }}
+          >
+            <Briefcase size={28} style={{ color: VIOLET }} />
           </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="text-center py-16">
-            <Briefcase className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">No projects yet</h3>
-            <p className="text-slate-600 mb-6">Post your first project to get proposals from talented freelancers.</p>
-            <Link href="/dashboard/projects/new">
-              <Button className="gap-2">
-                <Plus size={18} />
-                Post a Project
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {filteredProjects.map((project) => (
+          <h3 className="text-lg font-bold text-gray-900 mb-2">No projects yet</h3>
+          <p className="text-gray-400 text-sm mb-8 max-w-xs mx-auto">
+            Post your first project to get proposals from talented freelancers.
+          </p>
+          <Link
+            href="/dashboard/projects/new"
+            className="inline-flex items-center gap-2 h-11 px-7 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+            style={{ background: VIOLET }}
+          >
+            <Plus size={16} />
+            Post a Project
+          </Link>
+        </div>
+
+      ) : (
+
+        /* Project list */
+        <div className="grid gap-4">
+          {filteredProjects.map((project) => {
+            const s = statusConfig[project.status] ?? { bg: "#f9fafb", color: "#6b7280", dot: "#9ca3af", label: project.status };
+            return (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
-                className="block p-6 rounded-xl border border-slate-200 hover:border-accent/30 hover:shadow-md transition-all"
+                className="block bg-white border-2 border-gray-100 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-0.5 group"
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "#c9c3f5";
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 16px 40px -8px ${VIOLET}1a`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "";
+                }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+
+                  {/* Left — info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-slate-900 mb-1 truncate">{project.title}</h3>
-                    <p className="text-slate-600 text-sm line-clamp-2 mb-3">{project.description}</p>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <DollarSign size={14} />
-                        {project.budgetMin != null || project.budgetMax != null
-                          ? `$${project.budgetMin ?? 0} - $${project.budgetMax ?? project.budgetMin ?? 0}`
-                          : "Budget not set"}
+
+                    {/* Title row */}
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <h3 className="font-bold text-gray-900 text-base truncate leading-snug">
+                        {project.title}
+                      </h3>
+                      {/* Status badge — shown inline on mobile */}
+                      <div
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 sm:hidden"
+                        style={{ background: s.bg, color: s.color }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+                        {s.label}
+                      </div>
+                    </div>
+
+                    <p className="text-gray-400 text-sm line-clamp-2 mb-4 leading-relaxed">
+                      {project.description}
+                    </p>
+
+                    {/* Meta chips */}
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-400 mb-4">
+                      <span className="flex items-center gap-1.5">
+                        <DollarSign size={13} />
+                        <span className="font-semibold text-gray-700">
+                          {project.budgetMin != null || project.budgetMax != null
+                            ? `$${project.budgetMin ?? 0} – $${project.budgetMax ?? project.budgetMin ?? 0}`
+                            : "Budget not set"}
+                        </span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Users size={14} />
+                      <span className="flex items-center gap-1.5">
+                        <Users size={13} />
                         {project._count?.proposals ?? 0} proposals
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={14} />
+                      <span className="flex items-center gap-1.5">
+                        <Clock size={13} />
                         {new Date(project.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-3">
+
+                    {/* Skill tags */}
+                    <div className="flex flex-wrap gap-2">
                       {project.skills?.slice(0, 4).map((skill) => (
                         <span
                           key={skill}
-                          className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
+                          className="text-xs font-medium px-3 py-1 rounded-full border"
+                          style={{ background: VIOLET_LIGHT, color: VIOLET, borderColor: "#c9c3f5" }}
                         >
                           {skill}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        statusColors[project.status] ?? "bg-slate-100 text-slate-700"
-                      }`}
+
+                  {/* Right — status + arrow (desktop) */}
+                  <div className="hidden sm:flex flex-col items-end justify-between gap-6 shrink-0 self-stretch">
+                    <div
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                      style={{ background: s.bg, color: s.color }}
                     >
-                      {project.status}
-                    </span>
-                    <ArrowRight size={18} className="text-slate-400" />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dot }} />
+                      {s.label}
+                    </div>
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:translate-x-0.5"
+                      style={{ background: VIOLET_LIGHT, color: VIOLET }}
+                    >
+                      <ArrowRight size={16} />
+                    </div>
                   </div>
+
                 </div>
               </Link>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+
+      )}
     </div>
   );
 }

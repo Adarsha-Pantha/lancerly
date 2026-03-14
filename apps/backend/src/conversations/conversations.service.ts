@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateConversationDto, SendMessageDto } from './dto';
+import { ModerationService } from '../common/moderation/moderation.service';
 
 @Injectable()
 export class ConversationsService {
@@ -16,6 +17,7 @@ export class ConversationsService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly notificationsService: NotificationsService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   /** Extract userId from "Authorization: Bearer <token>" header */
@@ -392,14 +394,29 @@ export class ConversationsService {
 
     const now = new Date();
 
+    // AI Content Moderation scan BEFORE creation
+    let moderation = await this.moderationService.analyzeContent(dto.content);
+
+    if (moderation.status === 'BLOCKED') {
+      throw new BadRequestException(`Message blocked: ${moderation.notes}`);
+    }
+
+    let content = dto.content;
+    if (moderation.status === 'FLAGGED') {
+      content = await this.moderationService.sanitizeContent(dto.content);
+      moderation = await this.moderationService.analyzeContent(content);
+    }
+
     // Create message
     const message = await this.prisma.message.create({
       data: {
         conversationId,
         senderId: userId,
-        content: dto.content,
+        content,
         createdAt: now,
-      },
+        moderationStatus: moderation.status,
+        moderationNotes: moderation.notes,
+      } as any,
       include: {
         sender: {
           include: {

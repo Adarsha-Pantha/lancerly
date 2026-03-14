@@ -41,6 +41,8 @@ model User {
   friendships      Friendship[] @relation("UserFriendships")
   friendshipsAsFriend Friendship[] @relation("FriendUserFriendships")
   notifications      Notification[]
+  sentReviews        Review[]      @relation("SentReviews")
+  receivedReviews    Review[]      @relation("ReceivedReviews")
 }
 
 model Profile {
@@ -86,10 +88,12 @@ model Project {
   description String
   budgetMin   Int?
   budgetMax   Int?
-  skills      String[] // or separate Skill model later
+  skills      String[]
   attachments String[] @default([])
   projectType ProjectType @default(CLIENT_REQUEST)
   status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+  moderationStatus ModerationStatus @default(APPROVED)
+  moderationNotes  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   proposals   Proposal[]
@@ -106,6 +110,8 @@ model Proposal {
   coverLetter String
   proposedBudget Int?
   status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  moderationStatus ModerationStatus @default(APPROVED)
+  moderationNotes  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   contract   Contract?
@@ -133,6 +139,8 @@ model Message {
   senderId       String
   sender         User          @relation(fields: [senderId], references: [id])
   content        String
+  moderationStatus ModerationStatus @default(APPROVED)
+  moderationNotes  String?
   createdAt      DateTime      @default(now())
 }
 
@@ -152,7 +160,7 @@ model Post {
   authorId  String
   author    User      @relation(fields: [authorId], references: [id])
   content   String?
-  mediaUrls String[]  @default([]) // images and videos
+  mediaUrls String[]  @default([])
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   likes     PostLike[]
@@ -167,6 +175,13 @@ model PostLike {
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
+}
+
+enum ModerationStatus {
+  APPROVED
+  PENDING
+  FLAGGED
+  BLOCKED
 }
 
 
@@ -226,6 +241,23 @@ model Contract {
   milestones    Milestone[]
   deliveries    Delivery[]
   timeEntries   TimeEntry[]
+  review        Review?
+}
+
+model Review {
+  id              String           @id @default(uuid())
+  contractId      String           @unique
+  contract        Contract         @relation(fields: [contractId], references: [id])
+  reviewerId      String
+  reviewer        User             @relation("SentReviews", fields: [reviewerId], references: [id])
+  revieweeId      String
+  reviewee        User             @relation("ReceivedReviews", fields: [revieweeId], references: [id])
+  rating          Int
+  comment         String?
+  moderationStatus ModerationStatus @default(APPROVED)
+  moderationNotes  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Milestone {
@@ -238,6 +270,9 @@ model Milestone {
   dueDate     DateTime?
   status      String     @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, APPROVED, PAID
   stripePaymentIntentId String? // Stripe PaymentIntent for escrow funding
+  isFunded    Boolean    @default(false)
+  clientFee   Int        @default(0)   // Calculated fee paid by client (in cents)
+  freelancerFee Int      @default(0)   // Calculated fee deducted from freelancer (in cents)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   deliveries  Delivery[]
@@ -253,7 +288,7 @@ model Delivery {
   freelancer  User       @relation("FreelancerDeliveries", fields: [freelancerId], references: [id])
   title       String
   description String
-  attachments String[]   @default([])
+  attachments String[] @default([])
   status      String     @default("SUBMITTED") // SUBMITTED, REVIEWING, APPROVED, REJECTED, REVISION_REQUESTED
   clientFeedback String?
   submittedAt DateTime   @default(now())
@@ -275,4 +310,11 @@ model TimeEntry {
   isRunning   Boolean    @default(false)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+}
+
+model PlatformSettings {
+  id                    String   @id @default("singleton")
+  freelancerServiceFee  Float    @default(10.0) // Percentage (e.g. 10.0 for 10%)
+  clientProcessingFee   Float    @default(3.0)  // Percentage (e.g. 3.0 for 3%)
+  updatedAt             DateTime @updatedAt
 }

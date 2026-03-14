@@ -4,10 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ModerationModule } from '../common/moderation/moderation.module';
 
 @Module({
   imports: [
     PrismaModule,
+    ModerationModule,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -30,6 +30,15 @@ type ProfileData = {
     availability?: boolean | null;
     isComplete?: boolean | null;
   } | null;
+  earnings?: {
+    totalEarnings: number;
+    paymentHistory: {
+      id: string;
+      amount: number;
+      projectTitle: string;
+      date: string;
+    }[];
+  };
 };
 
 export default function ProfilePage() {
@@ -45,6 +54,16 @@ export default function ProfilePage() {
         await refreshUser();
         if (token) {
           const data = await get<ProfileData>("/profile/me", token);
+          
+          if (data.role === "FREELANCER") {
+            try {
+              const earnings = await get<ProfileData["earnings"]>("/stripe/earnings", token);
+              data.earnings = earnings;
+            } catch (e) {
+              console.error("Failed to fetch earnings", e);
+            }
+          }
+          
           setProfileData(data);
         }
       } catch {
@@ -131,6 +150,8 @@ export default function ProfilePage() {
           createdAt: profileData?.createdAt,
           country: profile?.country,
           city: profile?.city,
+          totalEarnings: profileData?.earnings?.totalEarnings,
+          paymentHistory: profileData?.earnings?.paymentHistory,
         }}
         fallbackAvatar={fallbackAvatar}
         toPublicUrl={toPublicUrl}

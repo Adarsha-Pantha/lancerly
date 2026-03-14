@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AiBriefRefiner } from "./AiBriefRefiner";
+import { ModerationError } from "@/components/ui/ModerationError";
 
 type Errors = Partial<Record<"title" | "description" | "budgetMin" | "budgetMax" | "form", string>>;
 type ProjectResponse = { id: string };
@@ -215,12 +216,7 @@ export default function PostProjectWizard() {
 
       {/* Form */}
       <form onSubmit={onSubmit} className="space-y-6">
-        {errors.form && (
-          <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2">
-            <AlertCircle size={18} />
-            {errors.form}
-          </div>
-        )}
+        <ModerationError message={errors.form} className="mb-6" />
 
         {/* Step 1: Overview */}
         {step === 1 && (

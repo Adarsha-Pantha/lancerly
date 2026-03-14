@@ -31,13 +31,16 @@ interface ApiProject {
   _count: { proposals: number };
 }
 
+const VIOLET       = "#4f3fe0";
+const VIOLET_LIGHT = "#eeecfc";
+
 export default function DashboardBrowsePage() {
   const { token } = useAuth();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [projects, setProjects] = useState<ApiProject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [projects, setProjects]     = useState<ApiProject[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -70,116 +73,200 @@ export default function DashboardBrowsePage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Browse Projects</h1>
-        <p className="text-slate-500 text-sm mt-1">Find work that matches your skills</p>
+    <div className="space-y-8 py-2">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-1">Browse Projects</h1>
+          <p className="text-gray-400 text-sm">Find work that matches your skills</p>
+        </div>
+        {/* Result count pill */}
+        {!loading && (
+          <div
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold self-start sm:self-auto"
+            style={{ background: VIOLET_LIGHT, color: VIOLET }}
+          >
+            <Briefcase size={14} />
+            {filtered.length} open project{filtered.length !== 1 ? "s" : ""}
+          </div>
+        )}
       </div>
 
-      {/* Search */}
+      {/* ── Search ── */}
       <div className="relative max-w-lg">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <Search
+          size={17}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+        />
         <input
           type="text"
-          placeholder="Search by title, description, or skill..."
+          placeholder="Search by title, description, or skill…"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none text-sm"
+          className="w-full h-12 pl-11 pr-4 rounded-2xl border-2 border-gray-100 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none transition-all"
+          onFocus={(e) => (e.currentTarget.style.borderColor = "#c9c3f5")}
+          onBlur={(e)  => (e.currentTarget.style.borderColor = "")}
         />
       </div>
 
-      {/* Results count */}
-      <p className="text-sm text-slate-500">
-        {loading ? "Loading..." : `${filtered.length} open projects`}
-      </p>
-
-      {/* Projects list */}
+      {/* ── States ── */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="animate-spin text-accent" size={32} />
+
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <Loader2 className="animate-spin" size={32} style={{ color: VIOLET }} />
+          <p className="text-sm text-gray-400 font-medium">Loading projects…</p>
         </div>
+
       ) : error ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-          <p className="text-red-600 mb-3">{error}</p>
+
+        <div className="bg-white border-2 border-gray-100 rounded-3xl py-16 px-8 text-center">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+            style={{ background: "#fef2f2" }}
+          >
+            <Briefcase size={24} className="text-red-400" />
+          </div>
+          <p className="text-gray-700 font-semibold mb-1">Something went wrong</p>
+          <p className="text-red-500 text-sm mb-6">{error}</p>
           <button
             type="button"
             onClick={loadProjects}
-            className="text-sm text-accent hover:underline"
+            className="inline-flex items-center gap-2 h-10 px-7 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+            style={{ background: VIOLET }}
           >
             Try again
           </button>
         </div>
+
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-          <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-600">
-            {searchTerm ? "No projects match your search." : "No open projects right now."}
+
+        <div className="bg-white border-2 border-gray-100 rounded-3xl py-16 px-8 text-center">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+            style={{ background: VIOLET_LIGHT }}
+          >
+            <Briefcase size={24} style={{ color: VIOLET }} />
+          </div>
+          <p className="font-bold text-gray-900 mb-1">
+            {searchTerm ? "No projects match your search" : "No open projects right now"}
+          </p>
+          <p className="text-gray-400 text-sm mb-6">
+            {searchTerm ? "Try different keywords or clear the search." : "Check back soon for new opportunities."}
           </p>
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm("")}
-              className="mt-2 text-sm text-accent hover:underline"
+              className="inline-flex items-center gap-2 h-10 px-7 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+              style={{ background: VIOLET_LIGHT, color: VIOLET }}
             >
               Clear search
             </button>
           )}
         </div>
+
       ) : (
-        <div className="space-y-3">
+
+        <div className="grid gap-4">
           {filtered.map((project) => (
             <Link
               key={project.id}
-              href={`/projects/${project.id}`}
-              className="block p-5 bg-white rounded-xl border border-slate-200 hover:border-accent/30 hover:shadow-sm transition-all"
+              href={`/projects/${project.id}?from=browse`}
+              className="block bg-white border-2 border-gray-100 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-0.5 group"
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "#c9c3f5";
+                (e.currentTarget as HTMLElement).style.boxShadow = `0 16px 40px -8px ${VIOLET}1a`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "";
+                (e.currentTarget as HTMLElement).style.boxShadow = "";
+              }}
             >
-              <h3 className="font-semibold text-slate-800 mb-1.5 line-clamp-1">{project.title}</h3>
-              <p className="text-slate-600 text-sm line-clamp-2 mb-3">{project.description}</p>
+              {/* Title + client row */}
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-1 flex-1">
+                  {project.title}
+                </h3>
+                {/* Open badge */}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 bg-emerald-50 text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Open
+                </div>
+              </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 mb-3">
-                <span className="flex items-center gap-1">
-                  <DollarSign size={14} />
-                  {project.budgetMin != null || project.budgetMax != null
-                    ? `$${(project.budgetMin ?? 0).toLocaleString()} - $${(project.budgetMax ?? project.budgetMin ?? 0).toLocaleString()}`
-                    : "Budget not set"}
+              {/* Client name */}
+              <p className="text-xs text-gray-400 font-medium mb-3">
+                Posted by{" "}
+                <span className="text-gray-600 font-semibold">
+                  {project.client?.profile?.name ?? "Client"}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Users size={14} />
+              </p>
+
+              {/* Description */}
+              <p className="text-gray-400 text-sm line-clamp-2 mb-4 leading-relaxed">
+                {project.description}
+              </p>
+
+              {/* Meta row */}
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-400 mb-4">
+                <span className="flex items-center gap-1.5">
+                  <DollarSign size={13} />
+                  <span className="font-semibold text-gray-700">
+                    {project.budgetMin != null || project.budgetMax != null
+                      ? `$${(project.budgetMin ?? 0).toLocaleString()} – $${(project.budgetMax ?? project.budgetMin ?? 0).toLocaleString()}`
+                      : "Budget not set"}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Users size={13} />
                   {project._count?.proposals ?? 0} proposals
                 </span>
-                <span className="flex items-center gap-1">
-                  <Clock size={14} />
+                <span className="flex items-center gap-1.5">
+                  <Clock size={13} />
                   {new Date(project.createdAt).toLocaleDateString()}
-                </span>
-                <span className="text-slate-700 font-medium">
-                  {project.client?.profile?.name ?? "Client"}
                 </span>
               </div>
 
+              {/* Skills */}
               {(project.skills?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2 mb-5">
                   {project.skills.slice(0, 5).map((skill) => (
                     <span
                       key={skill}
-                      className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-md"
+                      className="text-xs font-medium px-3 py-1 rounded-full border"
+                      style={{ background: VIOLET_LIGHT, color: VIOLET, borderColor: "#c9c3f5" }}
                     >
                       {skill}
                     </span>
                   ))}
                   {project.skills.length > 5 && (
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-md">
-                      +{project.skills.length - 5}
+                    <span
+                      className="text-xs font-medium px-3 py-1 rounded-full border"
+                      style={{ background: "#f3f4f6", color: "#6b7280", borderColor: "#e5e7eb" }}
+                    >
+                      +{project.skills.length - 5} more
                     </span>
                   )}
                 </div>
               )}
 
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1 text-accent text-sm font-medium">
-                View details <ArrowRight size={14} />
+              {/* Footer CTA */}
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-sm font-semibold flex items-center gap-1.5 transition-all group-hover:gap-2.5" style={{ color: VIOLET }}>
+                  View details <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                  style={{ background: VIOLET_LIGHT, color: VIOLET }}
+                >
+                  <ArrowRight size={14} />
+                </div>
               </div>
             </Link>
           ))}
         </div>
+
       )}
     </div>
   );

@@ -5,12 +5,15 @@ import { Send, X, DollarSign, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AiProposalAssistant } from "./AiProposalAssistant";
+import { ModerationError } from "@/components/ui/ModerationError";
 
 type ProposalFormProps = {
   projectTitle?: string;
   projectDescription?: string;
+  projectSkills?: string[];
   budgetMin?: number;
   budgetMax?: number;
+  token?: string;
   onSubmit: (data: { coverLetter: string; proposedBudget: number }) => Promise<void>;
   onCancel: () => void;
 };
@@ -18,8 +21,10 @@ type ProposalFormProps = {
 export function ProposalForm({
   projectTitle,
   projectDescription,
+  projectSkills,
   budgetMin = 0,
   budgetMax = 0,
+  token,
   onSubmit,
   onCancel,
 }: ProposalFormProps) {
@@ -60,7 +65,7 @@ export function ProposalForm({
     if (!validate()) return;
 
     setSubmitting(true);
-    setErrors((prev) => ({ ...prev, submit: undefined }));
+    setErrors((prev) => { const { submit: _, ...rest } = prev; return rest; });
 
     try {
       await onSubmit({
@@ -86,12 +91,7 @@ export function ProposalForm({
         Tell the client why you&apos;re the right fit. A strong proposal increases your chances.
       </p>
 
-      {errors.submit && (
-        <div className="mb-4 p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive flex items-center gap-2">
-          <AlertCircle size={18} />
-          {errors.submit}
-        </div>
-      )}
+      <ModerationError message={errors.submit} className="mb-6" />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -144,6 +144,8 @@ export function ProposalForm({
             onChange={setCoverLetter}
             projectTitle={projectTitle}
             projectDescription={projectDescription}
+            skills={projectSkills}
+            token={token}
             placeholder="Explain why you're the perfect fit, your relevant experience, and how you'll approach this project..."
             error={errors.coverLetter}
             minLength={50}

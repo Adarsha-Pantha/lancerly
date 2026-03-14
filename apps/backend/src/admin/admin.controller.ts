@@ -71,4 +71,22 @@ export class AdminController {
   async getUserActivity(@Param('id') userId: string) {
     return this.adminService.getUserActivity(userId);
   }
+
+  @Get('settings/platform')
+  @UseGuards(AdminGuard)
+  async getPlatformSettings() {
+    return this.adminService.getPlatformSettings();
+  }
+
+  @Post('settings/platform')
+  @UseGuards(AdminGuard)
+  async updatePlatformSettings(@Body() data: { freelancerServiceFee?: number; clientProcessingFee?: number }) {
+    return this.adminService.updatePlatformSettings(data);
+  }
+
+  @Get('finance/stats')
+  @UseGuards(AdminGuard)
+  async getFinanceStats() {
+    return this.adminService.getFinanceStats();
+  }
 }
