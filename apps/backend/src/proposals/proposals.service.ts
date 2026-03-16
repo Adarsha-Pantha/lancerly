@@ -4,20 +4,27 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
+import { GenerateDraftDto } from './dto/generate-draft.dto';
+export { GenerateDraftDto };
+import { ModerationService } from '../common/moderation/moderation.service';
 
 @Injectable()
 export class ProposalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly config: ConfigService,
     private readonly notificationsService: NotificationsService,
     private readonly conversationsService: ConversationsService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   async userIdFromAuth(auth?: string) {
@@ -68,15 +75,30 @@ export class ProposalsService {
       throw new ForbiddenException('Only freelancers can submit proposals');
     }
 
+    // AI Content Moderation scan BEFORE creation
+    let moderation = await this.moderationService.analyzeContent(dto.coverLetter);
+
+    if (moderation.status === 'BLOCKED') {
+      throw new BadRequestException(`Proposal rejected: ${moderation.notes}`);
+    }
+
+    let coverLetter = dto.coverLetter;
+    if (moderation.status === 'FLAGGED') {
+      coverLetter = await this.moderationService.sanitizeContent(dto.coverLetter);
+      moderation = await this.moderationService.analyzeContent(coverLetter);
+    }
+
     // Create proposal
     const proposal = await this.prisma.proposal.create({
       data: {
         projectId,
         freelancerId,
-        coverLetter: dto.coverLetter,
+        coverLetter,
         proposedBudget: dto.proposedBudget,
         status: 'PENDING',
-      },
+        moderationStatus: moderation.status,
+        moderationNotes: moderation.notes,
+      } as any,
       include: {
         freelancer: {
           include: {
@@ -360,6 +382,80 @@ export class ProposalsService {
     }
 
     return proposal;
+  }
+
+  /** Generate a proposal draft using Groq (Llama 3.1 — free) */
+  async generateProposalDraft(dto: GenerateDraftDto): Promise<{ draft: string }> {
+    const apiKey = this.config.get<string>('GROQ_API_KEY');
+    if (!apiKey) {
+      throw new InternalServerErrorException(
+        'GROQ_API_KEY is not configured. Add it to your .env file. Get a free key at console.groq.com',
+      );
+    }
+
+    const skillsList = dto.skills?.length ? dto.skills.join(', ') : 'general professional skills';
+    const existingNote = dto.existingText?.trim()
+      ? `\n\nThe freelancer has also started writing:\n"${dto.existingText.trim()}"\nImprove upon this and make it more compelling.`
+      : '';
+
+    const systemPrompt = `You are an expert freelance proposal writer. Your task is to write a compelling, professional proposal for a freelancer applying to a project. Write the proposal IN FIRST PERSON as if you are the freelancer.
+
+Structure the proposal EXACTLY in these four sections with markdown headers:
+
+## Introduction
+(2-3 sentences: who you are, your excitement for this specific project, relevant experience highlight)
+
+## My Plan
+(3-5 bullet points: specific approach, methodology, and how you'll deliver the project successfully)
+
+## Timeline
+(Realistic delivery estimate broken into phases/milestones. Be specific but achievable.)
+
+## Clarifying Questions
+(2-3 smart questions that show you've read the brief carefully and care about getting it right)
+
+Keep the tone confident, professional, and personalized to the project. Do NOT use placeholder text. Make it feel authentic. Maximum 350 words total.`;
+
+    const userPrompt = `Project Title: ${dto.projectTitle}
+Project Description: ${dto.projectDescription || 'Not provided'}
+Required Skills: ${skillsList}${existingNote}
+
+Write the proposal now:`;
+
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 600,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new InternalServerErrorException(`Groq API error: ${err}`);
+      }
+
+      const data = (await response.json()) as {
+        choices: { message: { content: string } }[];
+      };
+      const draft = data.choices?.[0]?.message?.content?.trim();
+
+      if (!draft) throw new InternalServerErrorException('No response from AI');
+      return { draft };
+    } catch (err: unknown) {
+      if (err instanceof InternalServerErrorException) throw err;
+      throw new InternalServerErrorException('Failed to connect to AI service');
+    }
   }
 }
 

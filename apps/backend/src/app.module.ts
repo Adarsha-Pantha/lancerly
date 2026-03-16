@@ -13,6 +13,8 @@ import { AdminModule } from './admin/admin.module';
 import { ProposalsModule } from './proposals/proposals.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { EstimationModule } from './projects/estimation/estimation.module';
+import { ModerationModule } from './common/moderation/moderation.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -32,6 +34,8 @@ import { AppService } from './app.service';
     NotificationsModule,
     AdminModule,
     StripeModule,
+    EstimationModule,
+    ModerationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

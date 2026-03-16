@@ -2,21 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { get } from "@/lib/api";
-import {
-  Users,
-  Briefcase,
-  MessageSquare,
-  FileText,
-  TrendingUp,
-  UserCheck,
-  UserX,
-  LogOut,
-  Shield,
-  Activity,
-  Eye,
-} from "lucide-react";
 
 type Stats = {
   totalUsers: number;
@@ -34,305 +22,266 @@ type User = {
   role: string;
   createdAt: string;
   profile: any;
-  stats: {
-    projects: number;
-    proposals: number;
-    posts: number;
-    conversations: number;
-  };
+  stats: { projects: number; proposals: number; posts: number; conversations: number };
 };
 
-export default function AdminDashboard() {
+const Icon = ({ d, size = 18, stroke = "currentColor", fill = "none", strokeWidth = 1.8 }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    {Array.isArray(d) ? d.map((p: string, i: number) => <path key={i} d={p} />) : <path d={d} />}
+  </svg>
+);
+
+const icons = {
+  users: ["M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2", "M23 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"],
+  projects: ["M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"],
+  proposals: ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8"],
+  disputes: ["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z", "M12 9v4", "M12 17h.01"],
+  eye: ["M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", "M12 12m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0"],
+  trending: ["M23 6l-9.5 9.5-5-5L1 18", "M17 6h6v6"],
+};
+
+const activityFeed = [
+  { text: "New user Sarah Chen registered", time: "2m ago", type: "user" },
+  { text: "Project #3891 received 3 new proposals", time: "9m ago", type: "project" },
+  { text: "Dispute #D-0041 opened by Tom Okafor", time: "22m ago", type: "dispute" },
+  { text: "Withdrawal of $840 processed for Marcus Bell", time: "1h ago", type: "finance" },
+  { text: "AI Proposal Assistant generated 12 drafts", time: "2h ago", type: "ai" },
+  { text: "Project #3888 complete — escrow released", time: "3h ago", type: "finance" },
+];
+
+const categories = [
+  { name: "Web Development", projects: 1204, growth: "+14%", color: "#2563eb" },
+  { name: "UI/UX Design", projects: 874, growth: "+9%", color: "#7c3aed" },
+  { name: "Mobile Dev", projects: 612, growth: "+21%", color: "#059669" },
+  { name: "AI / ML", projects: 388, growth: "+38%", color: "#d97706" },
+  { name: "Content Writing", projects: 341, growth: "+6%", color: "#db2777" },
+  { name: "Marketing", projects: 298, growth: "+4%", color: "#0891b2" },
+];
+
+const staticDisputes = [
+  { id: "#D-0041", parties: "Tom O. vs Priya S.", amount: "$1,200", status: "open" },
+  { id: "#D-0039", parties: "Marcus B. vs Elena V.", amount: "$450", status: "reviewing" },
+  { id: "#D-0037", parties: "Jay Kim vs Acme Corp", amount: "$2,100", status: "resolved" },
+];
+
+function MiniBar({ color }: { color: string }) {
+  const bars = [35, 55, 42, 70, 58, 80, 65, 88, 50, 92, 72, 100];
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 28 }}>
+      {bars.map((h, i) => (
+        <div key={i} style={{ width: 4, height: `${h}%`, borderRadius: 2, background: i === bars.length - 1 ? color : `${color}30` }} />
+      ))}
+    </div>
+  );
+}
+
+function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
+  return (
+    <div style={{ height: 5, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${(value / max) * 100}%`, background: color, borderRadius: 3 }} />
+    </div>
+  );
+}
+
+const AV_COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2"];
+
+export default function AdminDashboardPage() {
   const router = useRouter();
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "projects" | "posts">("overview");
 
   useEffect(() => {
-    if (!token || user?.role !== "ADMIN") {
-      router.replace("/admin/login");
-      return;
-    }
+    if (!token || user?.role !== "ADMIN") { router.replace("/admin/login"); return; }
     loadData();
-  }, [token, user, router]);
+  }, [token, user]);
 
   const loadData = async () => {
     try {
-      setLoading(true);
-      const [statsData, usersData] = await Promise.all([
+      const [s, u] = await Promise.all([
         get<Stats>("/admin/dashboard/stats", token),
-        get<{ users: User[] }>("/admin/users?limit=10", token),
+        get<{ users: User[] }>("/admin/users?limit=5", token),
       ]);
-      setStats(statsData);
-      setUsers(usersData.users);
-    } catch (error) {
-      console.error("Failed to load admin data:", error);
+      setStats(s);
+      setDbUsers(u.users);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    router.replace("/admin/login");
-  };
-
-  if (!token || user?.role !== "ADMIN") {
-    return null;
-  }
-
+  if (!token || user?.role !== "ADMIN") return null;
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Loading dashboard...</p>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+        <div style={{ width: 36, height: 36, border: "3px solid #2563eb", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); }}`}</style>
       </div>
     );
   }
 
+  const statCards = stats ? [
+    { label: "Total Users", value: stats.totalUsers.toLocaleString(), change: "+8.2%", positive: true, icon: "users", color: "#2563eb" },
+    { label: "Active Projects", value: stats.totalProjects.toLocaleString(), change: "+12%", positive: true, icon: "projects", color: "#059669" },
+    { label: "Proposals Sent", value: stats.totalProposals.toLocaleString(), change: "+5.8%", positive: true, icon: "proposals", color: "#d97706" },
+    { label: "Conversations", value: stats.totalConversations.toLocaleString(), change: "+3%", positive: true, icon: "disputes", color: "#7c3aed" },
+  ] : [];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg">
-                <Shield className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
-                <p className="text-sm text-slate-600">Welcome back, {user?.name || "Admin"}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </div>
+    <>
+      <style>{`
+        .adm-ph { margin-bottom: 20px; }
+        .adm-ph h1 { font-size: 18px; font-weight: 700; color: #111827; }
+        .adm-ph p { font-size: 13px; color: #9ca3af; margin-top: 2px; }
+        .adm-sg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+        @media (max-width: 1100px) { .adm-sg { grid-template-columns: repeat(2,1fr); } }
+        .adm-sc { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.07); transition: box-shadow .15s, transform .15s; }
+        .adm-sc:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateY(-1px); }
+        .adm-g31 { display: grid; grid-template-columns: 1fr 320px; gap: 14px; margin-bottom: 18px; }
+        .adm-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+        @media (max-width: 1050px) { .adm-g31, .adm-g2 { grid-template-columns: 1fr; } }
+        .adm-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+        .adm-ch { padding: 14px 18px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+        .adm-ct { font-size: 13.5px; font-weight: 700; color: #111827; }
+        .adm-cs { font-size: 12px; color: #9ca3af; margin-top: 1px; }
+        .adm-tbl { width: 100%; border-collapse: collapse; }
+        .adm-tbl th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .08em; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+        .adm-tbl td { padding: 12px 16px; font-size: 13px; color: #4b5563; border-bottom: 1px solid #f3f4f6; }
+        .adm-tbl tbody tr:last-child td { border-bottom: none; }
+        .adm-tbl tbody tr:hover td { background: #fafafa; }
+        .adm-bdg { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .adm-bdg.client { background: #dbeafe; color: #1d4ed8; }
+        .adm-bdg.freelancer { background: #ede9fe; color: #6d28d9; }
+        .adm-bdg.active { background: #dbeafe; color: #1d4ed8; }
+        .adm-bdg.open { background: #fee2e2; color: #b91c1c; }
+        .adm-bdg.reviewing { background: #fef3c7; color: #b45309; }
+        .adm-bdg.resolved { background: #dcfce7; color: #15803d; }
+        .adm-fi { display: flex; align-items: flex-start; gap: 11px; padding: 11px 18px; border-bottom: 1px solid #f3f4f6; }
+        .adm-fi:last-child { border-bottom: none; }
+        .adm-fi:hover { background: #fafafa; }
+        .adm-cr { padding: 12px 18px; border-bottom: 1px solid #f3f4f6; }
+        .adm-cr:last-child { border-bottom: none; }
+        .adm-av { width: 30px; height: 30px; border-radius: 7px; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .adm-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .13s; border: 1px solid #e5e7eb; background: transparent; color: #4b5563; }
+        .adm-btn:hover { background: #f9fafb; color: #111827; }
+        @keyframes adm-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .adm-fa { animation: adm-in .22s ease both; }
+      `}</style>
+
+      <div className="adm-fa">
+        <div className="adm-ph">
+          <h1>Overview</h1>
+          <p>Platform performance — Realtime</p>
         </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Grid */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              title="Total Users"
-              value={stats.totalUsers}
-              icon={Users}
-              color="blue"
-              change={`${stats.clients + stats.freelancers} active`}
-            />
-            <StatCard
-              title="Clients"
-              value={stats.clients}
-              icon={UserCheck}
-              color="green"
-            />
-            <StatCard
-              title="Freelancers"
-              value={stats.freelancers}
-              icon={UserX}
-              color="purple"
-            />
-            <StatCard
-              title="Projects"
-              value={stats.totalProjects}
-              icon={Briefcase}
-              color="orange"
-            />
-            <StatCard
-              title="Posts"
-              value={stats.totalPosts}
-              icon={FileText}
-              color="indigo"
-            />
-            <StatCard
-              title="Conversations"
-              value={stats.totalConversations}
-              icon={MessageSquare}
-              color="pink"
-            />
-            <StatCard
-              title="Proposals"
-              value={stats.totalProposals}
-              icon={TrendingUp}
-              color="teal"
-            />
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
-          <div className="border-b border-slate-200">
-            <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {[
-                { id: "overview", label: "Overview", icon: Activity },
-                { id: "users", label: "Users", icon: Users },
-                { id: "projects", label: "Projects", icon: Briefcase },
-                { id: "posts", label: "Posts", icon: FileText },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? "border-purple-500 text-purple-600"
-                      : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5" />
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="p-6">
-            {activeTab === "overview" && (
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Recent Users</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          User
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          Role
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          Stats
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
-                      {users.map((u) => (
-                        <tr key={u.id} className="hover:bg-slate-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-medium">
-                                  {u.profile?.name?.[0]?.toUpperCase() || u.email[0].toUpperCase()}
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {u.profile?.name || "No name"}
-                                </div>
-                                <div className="text-sm text-slate-500">{u.email}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                u.role === "CLIENT"
-                                  ? "bg-green-100 text-green-800"
-                                  : u.role === "FREELANCER"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-blue-100 text-blue-800"
-                              }`}
-                            >
-                              {u.role}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                            <div className="flex space-x-4">
-                              <span>P: {u.stats.projects}</span>
-                              <span>Po: {u.stats.posts}</span>
-                              <span>C: {u.stats.conversations}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => router.push(`/admin/users/${u.id}`)}
-                              className="text-purple-600 hover:text-purple-900 flex items-center space-x-1"
-                            >
-                              <Eye className="w-4 h-4" />
-                              <span>View</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {/* Stats */}
+        <div className="adm-sg">
+          {statCards.map((s, i) => (
+            <div className="adm-sc" key={s.label} style={{ animationDelay: `${i * 0.05}s` }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon d={icons[s.icon as keyof typeof icons]} size={17} stroke={s.color} />
                 </div>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: s.positive ? "#dcfce7" : "#fee2e2", color: s.positive ? "#16a34a" : "#dc2626" }}>{s.change}</span>
               </div>
-            )}
+              <div style={{ fontSize: 24, fontWeight: 800, color: "#111827", letterSpacing: "-.04em", lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 12.5, color: "#4b5563", marginTop: 3, fontWeight: 500 }}>{s.label}</div>
+              <div style={{ marginTop: 10 }}><MiniBar color={s.color} /></div>
+            </div>
+          ))}
+        </div>
 
-            {activeTab === "users" && (
-              <div>
-                <p className="text-slate-600">Users management coming soon...</p>
-              </div>
-            )}
+        {/* Main grid */}
+        <div className="adm-g31">
+          <div className="adm-card">
+            <div className="adm-ch">
+              <div><div className="adm-ct">Recent Users</div><div className="adm-cs">Latest registrations</div></div>
+              <Link href="/admin/users" className="adm-btn" style={{ textDecoration: "none" }}>View all</Link>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="adm-tbl">
+                <thead><tr><th>User</th><th>Role</th><th>Joined</th></tr></thead>
+                <tbody>
+                  {dbUsers.map((u, i) => (
+                    <tr key={u.id}>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                          <div className="adm-av" style={{ background: AV_COLORS[i % AV_COLORS.length] }}>{u.profile?.name?.[0] || u.email[0]}</div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{u.profile?.name || "Unknown"}</div>
+                            <div style={{ fontSize: 11.5, color: "#9ca3af" }}>{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className={`adm-bdg ${u.role.toLowerCase()}`}>{u.role}</span></td>
+                      <td style={{ fontSize: 12, color: "#9ca3af" }}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-            {activeTab === "projects" && (
-              <div>
-                <p className="text-slate-600">Projects management coming soon...</p>
-              </div>
-            )}
+          <div className="adm-card">
+            <div className="adm-ch">
+              <div className="adm-ct">Live Activity</div>
+              <span className="adm-bdg active">Live</span>
+            </div>
+            {activityFeed.map((a, i) => {
+              const dc: Record<string, string> = { user: "#2563eb", project: "#059669", dispute: "#dc2626", finance: "#d97706", ai: "#7c3aed" };
+              return (
+                <div className="adm-fi" key={i}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: dc[a.type], marginTop: 4, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, color: "#4b5563", flex: 1, lineHeight: 1.5 }}>{a.text}</span>
+                  <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>{a.time}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-            {activeTab === "posts" && (
-              <div>
-                <p className="text-slate-600">Posts management coming soon...</p>
+        <div className="adm-g2">
+          <div className="adm-card">
+            <div className="adm-ch"><div className="adm-ct">Category Health</div><div className="adm-cs">By active project volume</div></div>
+            {categories.map(c => (
+              <div className="adm-cr" key={c.name}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{c.name}</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#16a34a" }}>{c.growth}</span>
+                    <span style={{ fontSize: 12, color: "#9ca3af" }}>{c.projects.toLocaleString()}</span>
+                  </div>
+                </div>
+                <ProgressBar value={c.projects} max={1204} color={c.color} />
               </div>
-            )}
+            ))}
+          </div>
+
+          <div className="adm-card">
+            <div className="adm-ch">
+              <div className="adm-ct">Disputes</div>
+              <div className="adm-cs">Requires admin review</div>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="adm-tbl">
+                <thead><tr><th>ID</th><th>Parties</th><th>Amount</th><th>Status</th></tr></thead>
+                <tbody>
+                  {staticDisputes.map(d => (
+                    <tr key={d.id}>
+                      <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }}>{d.id}</td>
+                      <td style={{ fontSize: 12 }}>{d.parties}</td>
+                      <td style={{ fontWeight: 700 }}>{d.amount}</td>
+                      <td><span className={`adm-bdg ${d.status}`}>{d.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  change,
-}: {
-  title: string;
-  value: number;
-  icon: any;
-  color: string;
-  change?: string;
-}) {
-  const colorClasses = {
-    blue: "bg-blue-100 text-blue-600",
-    green: "bg-green-100 text-green-600",
-    purple: "bg-purple-100 text-purple-600",
-    orange: "bg-orange-100 text-orange-600",
-    indigo: "bg-indigo-100 text-indigo-600",
-    pink: "bg-pink-100 text-pink-600",
-    teal: "bg-teal-100 text-teal-600",
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-slate-900">{value.toLocaleString()}</p>
-          {change && <p className="text-xs text-slate-500 mt-1">{change}</p>}
-        </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color as keyof typeof colorClasses]}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-    </div>
-  );
-}
-

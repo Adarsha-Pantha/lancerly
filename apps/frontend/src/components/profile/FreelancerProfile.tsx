@@ -24,6 +24,13 @@ export type FreelancerProfileData = {
   createdAt?: string;
   country?: string | null;
   city?: string | null;
+  totalEarnings?: number;
+  paymentHistory?: {
+    id: string;
+    amount: number;
+    projectTitle: string;
+    date: string;
+  }[];
 };
 
 type FreelancerProfileProps = {
@@ -138,6 +145,17 @@ export function FreelancerProfile({
             </p>
           </div>
         )}
+        {data.totalEarnings !== undefined && (
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <DollarSign className="size-4" />
+              <span className="text-xs font-medium">Total Earnings</span>
+            </div>
+            <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
+              ${data.totalEarnings.toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Skills */}
@@ -210,6 +228,36 @@ export function FreelancerProfile({
           )}
         />
       </ProfileCard>
+
+      {/* Payment History */}
+      {isOwnProfile && data.paymentHistory && data.paymentHistory.length > 0 && (
+        <ProfileCard title="Payment History" icon={<DollarSign className="size-5" />}>
+          <div className="space-y-3">
+            {data.paymentHistory.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30"
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {payment.projectTitle}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(payment.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  +${payment.amount.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </ProfileCard>
+      )}
 
       {/* Reviews placeholder */}
       {(rating != null || reviewCount > 0) && (

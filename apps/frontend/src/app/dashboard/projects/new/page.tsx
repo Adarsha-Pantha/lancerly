@@ -7,6 +7,7 @@ import Link from "next/link";
 import { post } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import AiBudgetEstimator from "@/components/ai/AiBudgetEstimator";
 
 export default function PostProjectPage() {
   const { token, user } = useAuth();
@@ -62,13 +63,13 @@ export default function PostProjectPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <Link
+      {/* <Link
         href="/dashboard/projects/mine"
         className="inline-flex items-center gap-2 text-slate-600 hover:text-accent mb-6 transition-colors"
       >
         <ArrowLeft size={18} />
         Back to My Projects
-      </Link>
+      </Link> */}
 
       <div className="bg-white rounded-2xl border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">Post a Project</h1>
@@ -105,9 +106,14 @@ export default function PostProjectPage() {
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="Describe your project in detail. Include requirements, deliverables, and timeline."
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none resize-none"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none"
             />
           </div>
+
+          <AiBudgetEstimator 
+            formData={form} 
+            onApplyEstimates={(min, max) => setForm(f => ({ ...f, budgetMin: min, budgetMax: max }))} 
+          />
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>

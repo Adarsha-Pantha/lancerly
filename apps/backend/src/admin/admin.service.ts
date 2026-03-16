@@ -255,5 +255,58 @@ export class AdminService {
       },
     };
   }
+
+  async getPlatformSettings() {
+    return this.prisma.platformSettings.upsert({
+      where: { id: 'singleton' },
+      update: {},
+      create: { id: 'singleton' },
+    });
+  }
+
+  async updatePlatformSettings(data: { freelancerServiceFee?: number; clientProcessingFee?: number }) {
+    return this.prisma.platformSettings.update({
+      where: { id: 'singleton' },
+      data,
+    });
+  }
+
+  async getFinanceStats() {
+    const [paidMilestones, escrowMilestones] = await Promise.all([
+      this.prisma.milestone.findMany({
+        where: { status: 'PAID' },
+        include: { contract: { select: { project: { select: { title: true } } } } },
+      }),
+      this.prisma.milestone.findMany({
+        where: { isFunded: true, status: { not: 'PAID' } },
+      }),
+    ]);
+
+    const totalVolumeCents = paidMilestones.reduce((acc, m) => acc + m.amount + (m.clientFee || 0), 0);
+    const platformRevenueCents = paidMilestones.reduce((acc, m) => acc + (m.clientFee || 0) + (m.freelancerFee || 0), 0);
+    const inEscrowCents = escrowMilestones.reduce((acc, m) => acc + m.amount + (m.clientFee || 0), 0);
+    
+    // Recent transactions (last 10 paid)
+    const recentTransactions = paidMilestones
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .slice(0, 10)
+      .map(m => ({
+        id: m.id,
+        projectTitle: m.contract.project.title,
+        amount: m.amount,
+        clientFee: m.clientFee,
+        freelancerFee: m.freelancerFee,
+        totalCharged: m.amount + m.clientFee,
+        platformRevenue: m.clientFee + m.freelancerFee,
+        date: m.updatedAt,
+      }));
+
+    return {
+      totalVolume: totalVolumeCents,
+      platformRevenue: platformRevenueCents,
+      inEscrow: inEscrowCents,
+      recentTransactions,
+    };
+  }
 }
 

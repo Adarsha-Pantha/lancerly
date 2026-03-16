@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ModerationModule } from '../common/moderation/moderation.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ProposalsController } from './proposals.controller';
@@ -13,6 +14,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
     ConfigModule,
     NotificationsModule,
     ConversationsModule,
+    ModerationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -23,7 +25,7 @@ import { ConversationsModule } from '../conversations/conversations.module';
     }),
   ],
   controllers: [ProposalsController],
-  providers: [ProposalsService],
+  providers: [ProposalsService, ConfigService],
   exports: [ProposalsService],
 })
 export class ProposalsModule {}

@@ -72,7 +72,7 @@ export default function AppShell({ children, role }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen overflow-hidden bg-background flex">
       {/* Sidebar - Collapsible, hidden on mobile */}
       <aside
         className={cn(
@@ -138,7 +138,7 @@ export default function AppShell({ children, role }: AppShellProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar - Navbar (different from sidebar): Home + work CTA */}
-        <header className="h-16 border-b border-border bg-white flex items-center justify-between gap-2 md:gap-4 px-4 md:px-6 shrink-0">
+        <header className="h-16 border-b border-border bg-white/80 backdrop-blur-md flex items-center justify-between gap-2 md:gap-4 px-4 md:px-6 shrink-0 sticky top-0 z-40">
           <div className="flex items-center gap-2 md:gap-4 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -154,13 +154,13 @@ export default function AppShell({ children, role }: AppShellProps) {
               <Home size={18} />
               <span className="text-sm font-medium">Home</span>
             </Link>
-            <Link
+            {/* <Link
               href={primaryCta.href}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent text-white rounded-xl text-sm font-semibold hover:bg-accent-hover transition-all shadow-[0_2px_8px_rgba(124,58,237,0.3)] shrink-0"
             >
               <primaryCta.icon size={18} className="shrink-0" />
               {primaryCta.label}
-            </Link>
+            </Link> */}
           </div>
 
           {/* Search - hidden on small screens */}

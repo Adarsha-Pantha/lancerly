@@ -6,12 +6,14 @@ import { ConversationsService } from './conversations.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ChatGateway } from './chat.gateway';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ModerationModule } from '../common/moderation/moderation.module';
 
 @Module({
   imports: [
     PrismaModule,
     ConfigModule,
     NotificationsModule,
+    ModerationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

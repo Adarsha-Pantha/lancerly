@@ -4,19 +4,24 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { ModerationService } from '../common/moderation/moderation.service';
 
 type ProjectKind = 'CLIENT_REQUEST' | 'FREELANCER_SHOWCASE';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly moderationService: ModerationService,
   ) {}
 
 
@@ -44,20 +49,42 @@ export class ProjectsService {
 
   /** Create a new project */
   async create(clientId: string, dto: CreateProjectDto, assetUrls: string[] = []) {
+    console.log('--- CRITICAL: ProjectsService.create called ---');
+    console.log('Title:', dto.title);
+    console.log('Description:', dto.description);
+    
     const role = await this.resolveUserRole(clientId);
     const projectType: ProjectKind =
       role === 'FREELANCER' ? 'FREELANCER_SHOWCASE' : 'CLIENT_REQUEST';
 
+    // AI Content Moderation scan BEFORE creation
+    let moderation = await this.moderationService.analyzeContent(`${dto.title} ${dto.description}`);
+
+    if (moderation.status === 'BLOCKED') {
+      throw new BadRequestException(`Project creation rejected: ${moderation.notes}`);
+    }
+
+    let { title, description } = dto;
+    if (moderation.status === 'FLAGGED') {
+      this.logger.warn(`Project flagged for ${moderation.notes}. Attempting automatic cleaning...`);
+      title = await this.moderationService.sanitizeContent(dto.title);
+      description = await this.moderationService.sanitizeContent(dto.description);
+      // Re-scan sanitized content to be safe
+      moderation = await this.moderationService.analyzeContent(`${title} ${description}`);
+    }
+
     const data: any = {
       clientId,
-      title: dto.title,
-      description: dto.description,
+      title,
+      description,
       budgetMin: dto.budgetMin,
       budgetMax: dto.budgetMax,
       skills: dto.skills || [],
       attachments: assetUrls,
       projectType,
       status: 'OPEN',
+      moderationStatus: moderation.status,
+      moderationNotes: moderation.notes,
     };
 
     const project = await this.prisma.project.create({
@@ -89,7 +116,9 @@ export class ProjectsService {
     clientId?: string;
     type?: ProjectKind;
   }) {
-    const where: any = {};
+    const where: any = {
+      moderationStatus: 'APPROVED'
+    };
 
     if (filters?.status) {
       where.status = filters.status;
@@ -228,6 +257,26 @@ export class ProjectsService {
         },
       },
     });
+
+    // AI Content Moderation re-scan
+    if (dto.title || dto.description) {
+      const moderation = await this.moderationService.analyzeContent(`${updated.title} ${updated.description}`);
+      
+      if (moderation.status === 'FLAGGED' || moderation.status === 'BLOCKED') {
+        // We revert or flag it if it was already updated? 
+        // For update, we definitely set it to FLAGGED so it disappears from browse.
+      }
+
+      await (this.prisma.project as any).update({
+        where: { id: updated.id },
+        data: {
+          moderationStatus: moderation.status,
+          moderationNotes: moderation.notes,
+        }
+      });
+      // Refresh the updated object
+      return await this.findOne(updated.id);
+    }
 
     return updated;
   }

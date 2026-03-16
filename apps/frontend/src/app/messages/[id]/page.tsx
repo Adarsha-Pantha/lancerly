@@ -15,6 +15,7 @@ import {
   Briefcase,
   MessageCircle,
 } from "lucide-react";
+import { ModerationError } from "@/components/ui/ModerationError";
 
 type Message = {
   id: string;
@@ -54,6 +55,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [messageContent, setMessageContent] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -203,7 +205,7 @@ export default function ChatPage() {
       }
     } catch (err: any) {
       console.error("Failed to send message:", err);
-      alert(err?.message || "Failed to send message");
+      setError(err?.message || "Failed to send message");
       setMessageContent(content); // Restore message on error
       setSending(false);
     }
@@ -352,6 +354,10 @@ export default function ChatPage() {
               })
             )}
             <div ref={messagesEndRef} />
+          </div>
+
+          <div className="px-4 pt-4">
+            <ModerationError message={error || undefined} />
           </div>
 
           {/* Message Input */}

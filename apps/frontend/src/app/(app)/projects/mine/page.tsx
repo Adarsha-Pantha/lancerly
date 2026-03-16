@@ -308,6 +308,7 @@ function ProjectCard({
   onDelete: () => void;
   delay: string;
 }) {
+  const router = useRouter();
   return (
     <div
       className="px-6 py-6 hover:bg-slate-50/50 transition-all animate-slideUp"
@@ -333,7 +334,7 @@ function ProjectCard({
               <div className="flex items-center gap-1.5">
                 <Users size={16} />
                 <button
-                  onClick={() => router.push(`/projects/${project.id}`)}
+                  onClick={() => router.push(`/projects/${project.id}?from=mine`)}
                   className="font-semibold hover:text-purple-600 underline"
                 >
                   {project._count.proposals} proposals

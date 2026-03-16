@@ -116,6 +116,7 @@ export default function MessagesPage() {
   }
 
   return (
+    
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -125,7 +126,7 @@ export default function MessagesPage() {
           </div>
           <Link
             href="/friends"
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus size={18} />
             <span>New Chat</span>

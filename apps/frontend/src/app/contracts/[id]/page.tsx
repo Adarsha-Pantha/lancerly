@@ -39,6 +39,7 @@ type Contract = {
     profile: {
       name: string;
       avatarUrl?: string;
+      stripeAccountId?: string | null;
     };
   };
   client: {
@@ -63,6 +64,7 @@ type Milestone = {
   status: string;
   createdAt: string;
   stripePaymentIntentId?: string | null;
+  isFunded?: boolean;
 };
 
 export default function ContractPage() {
@@ -87,12 +89,18 @@ export default function ContractPage() {
   const [showTerminateModal, setShowTerminateModal] = useState(false);
   const [projectConversationId, setProjectConversationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
+  const [platformSettings, setPlatformSettings] = useState<{ freelancerServiceFee: number; clientProcessingFee: number } | null>(null);
 
   useEffect(() => {
     if (!token || !user) {
       router.replace("/login");
       return;
     }
+    // Fetch platform fees
+    get<{ freelancerServiceFee: number; clientProcessingFee: number }>("/admin/settings/platform", token)
+      .then(setPlatformSettings)
+      .catch(() => setPlatformSettings({ freelancerServiceFee: 10, clientProcessingFee: 3 })); // Fallback
+    
     // Handle Stripe redirect after 3DS
     const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
     if (params.get("redirect_status") === "succeeded") {
@@ -110,6 +118,25 @@ export default function ContractPage() {
     try {
       const data = await get<Contract>(`/contracts/${contractId}`, token);
       setContract(data);
+      
+      // Auto-sync milestones that have an intent but aren't marked funded yet
+      if (data?.milestones) {
+        for (const m of data.milestones) {
+          if (m.stripePaymentIntentId && !m.isFunded && m.status !== "PAID") {
+            try {
+              await post(`/stripe/milestones/${m.id}/sync`, {}, token);
+            } catch (e) {
+              console.error("Failed to sync milestone", m.id, e);
+            }
+          }
+        }
+        // If we synced anything, reload once
+        if (data.milestones.some(m => m.stripePaymentIntentId && !m.isFunded)) {
+          const syncedData = await get<Contract>(`/contracts/${contractId}`, token);
+          setContract(syncedData);
+        }
+      }
+
       const pid = data?.project && "id" in data.project ? (data.project as { id: string }).id : null;
       if (pid) {
         const convs = await get<Array<{ id: string }>>(`/conversations?projectId=${pid}`, token);
@@ -132,7 +159,7 @@ export default function ContractPage() {
         {
           title: milestoneTitle,
           description: milestoneDescription || undefined,
-          amount: parseInt(milestoneAmount),
+          amount: Math.round(parseFloat(milestoneAmount) * 100),
           dueDate: milestoneDueDate || undefined,
         },
         token
@@ -148,21 +175,8 @@ export default function ContractPage() {
     }
   }
 
-  async function startFundMilestone(milestone: Milestone) {
-    if (!token || !stripePromise) return;
-    setFundingError(null);
-    setFundingMilestone({ id: milestone.id, amount: milestone.amount });
-    try {
-      const { clientSecret } = await post<{ clientSecret: string }>(
-        `/stripe/milestones/${milestone.id}/fund`,
-        {},
-        token
-      );
-      setFundClientSecret(clientSecret);
-    } catch (err: unknown) {
-      setFundingError((err as Error)?.message || "Failed to start payment");
-      setFundingMilestone(null);
-    }
+  function startFundMilestone(milestone: Milestone) {
+    router.push(`/settings/payments/${milestone.id}`);
   }
 
   function closeFundModal() {
@@ -179,7 +193,14 @@ export default function ContractPage() {
       await patch(`/contracts/milestones/${milestoneId}/approve`, undefined, token);
       await loadContract();
     } catch (err: unknown) {
-      alert((err as Error)?.message || "Failed to approve milestone");
+      const msg = (err as Error)?.message || "";
+      if (msg.includes("not funded") || msg.includes("requires_payment_method")) {
+        if (confirm("This milestone hasn't been fully funded yet. Would you like to complete the payment now?")) {
+          router.push(`/settings/payments/${milestoneId}`);
+        }
+      } else {
+        alert(msg || "Failed to approve milestone");
+      }
     }
   }
 
@@ -251,27 +272,43 @@ export default function ContractPage() {
   const escrowStage =
     contract.milestones.some((m) => m.status === "PAID")
       ? "freelancer"
-      : contract.milestones.some((m) => m.status === "APPROVED")
+      : contract.milestones.some((m) => m.stripePaymentIntentId && m.status !== "PAID")
         ? "escrow"
         : "client";
   const fundedCount = contract.milestones.filter((m) => m.status !== "PENDING" || m.stripePaymentIntentId).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => router.push(isClient ? "/projects/mine" : "/contracts/me")}
+            onClick={() => router.push("/contracts/me")}
             className="mb-4 -ml-2 text-muted-foreground hover:text-foreground"
           >
-            ← Back to {isClient ? "Projects" : "Contracts"}
+            ← Back to Contracts
           </Button>
           <div className="flex items-center gap-2 mb-2">
             <h1 className="text-3xl font-bold text-foreground">{contract.project.title}</h1>
             <KYCVerifiedBadge />
           </div>
           <p className="text-muted-foreground mb-6">{contract.project.description}</p>
+          
+          {!isClient && !contract.freelancer.profile.stripeAccountId && (
+            <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+              <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+              <div>
+                <h4 className="font-semibold text-amber-900">Connect Stripe to receive payments</h4>
+                <p className="text-sm text-amber-700 mt-1 mb-3">
+                  You need to connect your Stripe account before the client can fund milestones or release payments.
+                </p>
+                <Button size="sm" onClick={() => router.push("/settings")}>
+                  Go to Settings
+                  <ArrowRight size={16} className="ml-2" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           <WorkspaceLayout activeTab={activeTab} onTabChange={setActiveTab}>
             {activeTab === "overview" && (
@@ -283,6 +320,51 @@ export default function ContractPage() {
                     fundedCount={fundedCount}
                     totalMilestones={contract.milestones.length}
                   />
+                  {/* Next Step / Active Milestone */}
+                  {(contract.status === "ACTIVE") && (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-6 shadow-sm border-dashed">
+                      <h3 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                        <ArrowRight size={18} />
+                        Next Step
+                      </h3>
+                      {(() => {
+                        const nextMilestone = contract.milestones.find(m => m.status !== "PAID");
+                        if (!nextMilestone) return <p className="text-sm text-muted-foreground">All milestones are completed and paid!</p>;
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div>
+                              <p className="font-medium text-foreground">{nextMilestone.title}</p>
+                              <p className="text-sm text-muted-foreground line-clamp-1">{nextMilestone.description || "Active milestone"}</p>
+                            </div>
+                            <MilestoneCard
+                              milestone={nextMilestone} 
+                              isClient={isClient}
+                              onApprove={() => approveMilestone(nextMilestone.id)}
+                              onFund={() => startFundMilestone(nextMilestone)}
+                              onComplete={() => completeMilestone(nextMilestone.id)}
+                              platformSettings={platformSettings}
+                            />
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {!isClient && contract.status === "ACTIVE" && contract.milestones.length === 0 && (
+                     <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm flex flex-col items-center text-center">
+                        <Clock className="text-amber-500 mb-2" size={32} />
+                        <h3 className="font-semibold">Awaiting Milestones</h3>
+                        <p className="text-sm text-muted-foreground">The client needs to add milestones before you can start tracking progress and earnings.</p>
+                     </div>
+                  )}
+                  {isClient && contract.status === "ACTIVE" && contract.milestones.length === 0 && (
+                     <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-sm flex flex-col items-center text-center">
+                        <Plus className="text-primary mb-2" size={32} />
+                        <h3 className="font-semibold">Add Your First Milestone</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Break the work into clear steps and fund them to start the project.</p>
+                        <Button size="sm" onClick={() => setActiveTab("milestones")}>Go to Milestones</Button>
+                     </div>
+                  )}
                   <DoubleBlindReviewCard />
                 </div>
                 <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
@@ -448,6 +530,7 @@ export default function ContractPage() {
                         onApprove={() => approveMilestone(milestone.id)}
                         onFund={() => startFundMilestone(milestone)}
                         funding={fundingMilestone?.id === milestone.id}
+                        platformSettings={platformSettings}
                       />
                     ))
                   )}

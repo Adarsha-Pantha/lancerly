@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { get, post } from "@/lib/api";
 import { toPublicUrl } from "@/lib/url";
 import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { ModerationError } from "@/components/ui/ModerationError";
 
 type Message = {
   id: string;
@@ -49,6 +50,7 @@ export default function ProjectChat({
   const [sending, setSending] = useState(false);
   const [messageContent, setMessageContent] = useState("");
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function ProjectChat({
     setSending(true);
 
     try {
+      setError(null);
       const newMessage = await post<Message>(
         `/conversations/${conversationId}/messages`,
         { content },
@@ -93,7 +96,8 @@ export default function ProjectChat({
           messages: [...conversation.messages, newMessage],
         });
       }
-    } catch {
+    } catch (err: any) {
+      setError(err.message || "Failed to send message");
       setMessageContent(content);
     } finally {
       setSending(false);
@@ -197,7 +201,11 @@ export default function ProjectChat({
             )}
             <div ref={messagesEndRef} />
           </div>
-
+ 
+          <div className="px-4 pt-4">
+            <ModerationError message={error || undefined} />
+          </div>
+ 
           <form onSubmit={sendMessage} className="border-t border-slate-200 p-4 bg-slate-50">
             <div className="flex gap-2">
               <input

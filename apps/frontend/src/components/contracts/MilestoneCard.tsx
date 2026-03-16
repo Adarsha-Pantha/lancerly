@@ -13,6 +13,7 @@ export type Milestone = {
   status: string;
   createdAt: string;
   stripePaymentIntentId?: string | null;
+  isFunded?: boolean;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -30,6 +31,7 @@ type MilestoneCardProps = {
   onFund?: () => void;
   onComplete?: () => void;
   funding?: boolean;
+  platformSettings?: { freelancerServiceFee: number; clientProcessingFee: number } | null;
 };
 
 export function MilestoneCard({
@@ -39,6 +41,7 @@ export function MilestoneCard({
   onFund,
   onComplete,
   funding = false,
+  platformSettings,
 }: MilestoneCardProps) {
   const config = STATUS_CONFIG[milestone.status] ?? {
     label: milestone.status,
@@ -56,8 +59,18 @@ export function MilestoneCard({
           <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <DollarSign size={16} />
-              <span className="font-medium text-foreground">${milestone.amount.toLocaleString()}</span>
+              <span className="font-medium text-foreground">${(milestone.amount / 100).toLocaleString()}</span>
             </span>
+            {isClient && platformSettings && (
+              <span className="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">
+                + ${(milestone.amount * platformSettings.clientProcessingFee / 10000).toFixed(2)} processing fee
+              </span>
+            )}
+            {!isClient && platformSettings && milestone.status !== "PAID" && (
+              <span className="text-[11px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-100">
+                - ${(milestone.amount * platformSettings.freelancerServiceFee / 10000).toFixed(2)} service fee
+              </span>
+            )}
             {milestone.dueDate && (
               <span className="flex items-center gap-1.5">
                 <Calendar size={16} />
@@ -83,47 +96,62 @@ export function MilestoneCard({
       </div>
 
       {/* Actions */}
-      <div className="mt-4 pt-4 border-t border-[#E2E8F0]">
-        {isClient && milestone.status === "PENDING" && (
-          <div className="flex gap-2">
-            {milestone.stripePaymentIntentId ? (
-              <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#059669]/10 text-[#059669] text-sm font-medium">
-                <CreditCard size={16} />
-                Funded – waiting for delivery
-              </span>
-            ) : onFund ? (
-              <Button
-                size="sm"
-                onClick={onFund}
-                disabled={funding}
-                className="gap-2"
-              >
-                {funding ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard size={16} />
-                    Secure payment
-                  </>
-                )}
-              </Button>
-            ) : null}
+      <div className="mt-4 pt-4 border-t border-[#E2E8F0] flex flex-wrap items-center gap-3">
+        {/* Funded badge for clarity */}
+        {milestone.isFunded && milestone.status !== "PAID" && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100">
+            <DollarSign size={12} className="fill-emerald-700/20" />
+            Money in Escrow
           </div>
         )}
-        {isClient && milestone.status === "COMPLETED" && onApprove && (
-          <Button size="sm" onClick={onApprove} className="gap-2 bg-[#059669] hover:bg-[#047857]">
-            <CheckCircle2 size={16} />
-            Approve & release payment
+
+        {isClient && (milestone.status === "COMPLETED") && !milestone.isFunded && onFund && (
+          <Button
+            size="sm"
+            onClick={onFund}
+            disabled={funding}
+            className="gap-2 bg-primary hover:bg-primary/90"
+          >
+            {funding ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CreditCard size={16} />
+                {milestone.stripePaymentIntentId ? "Resume payment" : "Pay & release funds"}
+              </>
+            )}
           </Button>
         )}
-        {!isClient && onComplete && (milestone.status === "PENDING" || milestone.status === "IN_PROGRESS") && (
-          <Button size="sm" variant="outline" onClick={onComplete} className="gap-2">
-            <Clock size={16} />
-            Mark as complete
+
+        {isClient && (milestone.status === "PENDING" || milestone.status === "IN_PROGRESS") && !milestone.isFunded && (
+          <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-lg text-sm border border-amber-100 italic">
+            <Clock size={14} />
+            <span>Freelancer needs to complete this first</span>
+          </div>
+        )}
+
+        {isClient && milestone.status === "COMPLETED" && milestone.isFunded && onApprove && (
+          <Button size="sm" onClick={onApprove} className="gap-2 bg-[#059669] hover:bg-[#047857] shadow-sm">
+            <CheckCircle2 size={16} />
+            Approve & Release Payment
           </Button>
+        )}
+        
+        {!isClient && onComplete && (milestone.status === "PENDING" || milestone.status === "IN_PROGRESS") && (
+          <Button size="sm" variant="default" onClick={onComplete} className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
+            <CheckCircle2 size={16} />
+            Mark as Complete
+          </Button>
+        )}
+
+        {!isClient && milestone.status === "COMPLETED" && (
+          <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg text-sm border border-indigo-100 italic">
+            <Clock size={14} />
+            <span>{milestone.isFunded ? "Money in Escrow - Awaiting client approval" : "Awaiting client payment"}</span>
+          </div>
         )}
       </div>
     </div>

@@ -6,7 +6,9 @@ import { UseGuards } from '@nestjs/common';
 
 @Controller('stripe')
 export class StripeController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(private readonly stripeService: StripeService) {
+    console.log('StripeController initialized - Version 2 (with earnings)');
+  }
 
   private getUserId(req: Request): string {
     const user = (req as Request & { user?: { userId: string } }).user;
@@ -40,9 +42,28 @@ export class StripeController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('milestones/:milestoneId/payment-intent')
+  async createPaymentIntent(@Req() req: Request, @Param('milestoneId') milestoneId: string) {
+    const clientId = this.getUserId(req);
+    return this.stripeService.createMilestonePaymentIntent(milestoneId, clientId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('milestones/:milestoneId/capture')
   async captureMilestone(@Req() req: Request, @Param('milestoneId') milestoneId: string) {
     const clientId = this.getUserId(req);
     return this.stripeService.captureMilestonePayment(milestoneId, clientId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('earnings')
+  async getEarnings(@Req() req: Request) {
+    const userId = this.getUserId(req);
+    return this.stripeService.getEarningsStats(userId);
+  }
+
+  @Post('milestones/:id/sync')
+  async syncPayment(@Param('id') id: string) {
+    return this.stripeService.syncMilestonePaymentStatus(id);
   }
 }

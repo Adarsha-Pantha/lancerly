@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -46,10 +46,14 @@ interface Project {
   proposals: number;
 }
 
-export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: projectId } = use(params);
+export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+  const { id: projectId } = params;
   const { token, user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
+
+  const backLink = from === "browse" ? "/dashboard/browse" : "/dashboard/projects/mine";
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -214,7 +218,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/projects"
+            href={backLink}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <ArrowLeft size={20} />

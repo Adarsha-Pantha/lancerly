@@ -49,6 +49,7 @@ export class ContractsService {
               select: {
                 name: true,
                 avatarUrl: true,
+                stripeAccountId: true,
               },
             },
           },
@@ -103,6 +104,7 @@ export class ContractsService {
               select: {
                 name: true,
                 avatarUrl: true,
+                stripeAccountId: true,
               },
             },
           },
@@ -465,14 +467,15 @@ export class ContractsService {
       }),
     ]);
 
-    let totalEarned = 0;
-    let totalSpent = 0;
+    let totalEarnedCents = 0;
+    let totalSpentCents = 0;
     for (const c of contracts) {
-      const paidAmount = c.milestones.reduce((sum, m) => sum + m.amount, 0);
       if (role === 'FREELANCER') {
-        totalEarned += paidAmount;
+        const netEarned = c.milestones.reduce((sum, m) => sum + (m.amount - (m.freelancerFee || 0)), 0);
+        totalEarnedCents += netEarned;
       } else {
-        totalSpent += paidAmount;
+        const grossSpent = c.milestones.reduce((sum, m) => sum + (m.amount + (m.clientFee || 0)), 0);
+        totalSpentCents += grossSpent;
       }
     }
 
@@ -481,8 +484,8 @@ export class ContractsService {
       active,
       completed,
       terminated,
-      totalEarned: role === 'FREELANCER' ? totalEarned : undefined,
-      totalSpent: role === 'CLIENT' ? totalSpent : undefined,
+      totalEarned: role === 'FREELANCER' ? totalEarnedCents / 100 : undefined,
+      totalSpent: role === 'CLIENT' ? totalSpentCents / 100 : undefined,
     };
   }
 

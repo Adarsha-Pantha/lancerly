@@ -10,6 +10,7 @@ import {
 import type { Request } from 'express';
 import { ProposalsService } from './proposals.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
+import { GenerateDraftDto } from './dto/generate-draft.dto';
 
 @Controller('proposals')
 export class ProposalsController {
@@ -19,6 +20,12 @@ export class ProposalsController {
     return this.proposalsService.userIdFromAuth(
       req.headers['authorization'] as string | undefined,
     );
+  }
+
+  /** Generate a proposal draft with Groq (Llama 3.1 — free) */
+  @Post('generate-draft')
+  async generateDraft(@Body() dto: GenerateDraftDto) {
+    return this.proposalsService.generateProposalDraft(dto);
   }
 
   /** Submit a proposal for a project */
