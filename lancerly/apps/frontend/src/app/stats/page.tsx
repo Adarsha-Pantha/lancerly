@@ -55,7 +55,7 @@ export default function StatsPage() {
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full">
                 <span className="text-xs font-mono text-blue-500 uppercase tracking-widest font-bold">
-                  Final Daily Push: 2026-03-19
+                  Final Push Confirmed: 2026-03-19
                 </span>
               </div>
             </div>
