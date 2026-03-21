@@ -14,18 +14,28 @@ import {
   User,
   Briefcase,
   MessageCircle,
+  Check,
+  CheckCheck,
+  Paperclip,
+  File,
+  Download,
+  X,
 } from "lucide-react";
+import { postForm, patch } from "@/lib/api";
 import { ModerationError } from "@/components/ui/ModerationError";
 
 type Message = {
   id: string;
   content: string;
   senderId: string;
+  isRead: boolean;
   sender: {
     id: string;
     name: string;
     avatarUrl: string | null;
   };
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
   createdAt: string;
 };
 
@@ -40,6 +50,7 @@ type Conversation = {
     id: string;
     name: string;
     avatarUrl: string | null;
+    isOnline: boolean;
   };
   messages: Message[];
   createdAt: string;
@@ -56,8 +67,11 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [messageContent, setMessageContent] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -124,7 +138,22 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
+    if (conversation?.messages && conversation.messages.length > 0) {
+      const hasUnread = conversation.messages.some(m => m.senderId !== user?.id && !m.isRead);
+      if (hasUnread) {
+        markAsRead();
+      }
+    }
   }, [conversation?.messages]);
+
+  async function markAsRead() {
+    if (!token || !conversationId) return;
+    try {
+      await patch(`/conversations/${conversationId}/read`, {}, token);
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
+  }
 
   async function loadConversation() {
     if (!token || !conversationId) return;
@@ -149,33 +178,57 @@ export default function ChatPage() {
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!messageContent.trim() || !token || !conversationId || sending) return;
+    if ((!messageContent.trim() && !attachedFile) || !token || !conversationId || sending || uploading) return;
 
     const content = messageContent.trim();
+    const fileToUpload = attachedFile;
+    
     setMessageContent("");
+    setAttachedFile(null);
     setSending(true);
 
     try {
+      setError(null);
+      let attachmentUrl = null;
+      let attachmentName = null;
+
+      if (fileToUpload) {
+        setUploading(true);
+        const fd = new FormData();
+        fd.append("document", fileToUpload);
+        const uploadRes = await postForm<{ attachmentUrl: string; attachmentName: string }>(
+          "/settings/document",
+          fd,
+          token
+        );
+        attachmentUrl = uploadRes.attachmentUrl;
+        attachmentName = uploadRes.attachmentName;
+        setUploading(false);
+      }
+
       // Try WebSocket first if connected
       if (socketRef.current?.connected) {
-        // Don't add optimistic message for WebSocket - it's fast enough
         socketRef.current.emit('sendMessage', {
           conversationId,
-          content,
+          content: content || (attachmentName ? `Sent an attachment: ${attachmentName}` : ""),
+          attachmentUrl,
+          attachmentName
         });
-        // Message will be added via WebSocket 'message' event
         setSending(false);
       } else {
-        // Fallback to REST API - use optimistic update for slower REST
+        // Fallback to REST API
         const tempMessage: Message = {
           id: `temp-${Date.now()}`,
-          content,
+          content: content || (attachmentName ? `Sent an attachment: ${attachmentName}` : ""),
+          attachmentUrl,
+          attachmentName,
           senderId: user?.id || '',
           sender: {
             id: user?.id || '',
             name: user?.name || 'You',
             avatarUrl: user?.avatarUrl || null,
           },
+          isRead: false,
           createdAt: new Date().toISOString(),
         };
 
@@ -188,7 +241,11 @@ export default function ChatPage() {
 
         const newMessage = await post<Message>(
           `/conversations/${conversationId}/messages`,
-          { content },
+          { 
+            content: content || (attachmentName ? `Sent an attachment: ${attachmentName}` : ""),
+            attachmentUrl,
+            attachmentName
+          },
           token
         );
 
@@ -206,8 +263,22 @@ export default function ChatPage() {
     } catch (err: any) {
       console.error("Failed to send message:", err);
       setError(err?.message || "Failed to send message");
+      setMessageContent(content); 
+      setAttachedFile(fileToUpload);
       setMessageContent(content); // Restore message on error
       setSending(false);
+      setUploading(false);
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        setError("File size exceeds 20MB limit");
+        return;
+      }
+      setAttachedFile(file);
     }
   }
 
@@ -276,15 +347,20 @@ export default function ChatPage() {
               />
             </Link>
             <div className="flex-1">
-              <Link
-                href={`/users/${conversation.participant.id}`}
-                className="hover:text-purple-600 transition-colors"
-              >
-                <h2 className="font-semibold text-slate-900">
-                  {conversation.participant.name}
-                </h2>
-              </Link>
-              {conversation.project && (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/users/${conversation.participant.id}`}
+                  className="hover:text-purple-600 transition-colors"
+                >
+                  <h2 className="font-semibold text-slate-900">
+                    {conversation.participant.name}
+                  </h2>
+                </Link>
+                {conversation.participant.isOnline && (
+                  <span className="h-2 w-2 rounded-full bg-green-500" title="Online" />
+                )}
+              </div>
+              {conversation.project ? (
                 <Link
                   href={`/projects/${conversation.project.id}`}
                   className="flex items-center gap-1 text-xs text-slate-500 hover:text-purple-600"
@@ -292,6 +368,10 @@ export default function ChatPage() {
                   <Briefcase size={12} />
                   <span>{conversation.project.title}</span>
                 </Link>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {conversation.participant.isOnline ? "Online" : "Offline"}
+                </p>
               )}
             </div>
           </div>
@@ -341,13 +421,53 @@ export default function ChatPage() {
                             : "bg-slate-100 text-slate-900"
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                          {message.content}
-                        </p>
+                        {message.content && (
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {message.content}
+                          </p>
+                        )}
+                        {message.attachmentUrl && (
+                          <div className={`mt-2 p-3 rounded-lg flex items-center gap-3 border ${
+                            isOwn ? "bg-white/10 border-white/20" : "bg-white border-slate-200"
+                          }`}>
+                            <div className={`p-2 rounded-lg ${isOwn ? "bg-white/20" : "bg-slate-100"}`}>
+                              <File size={20} className={isOwn ? "text-white" : "text-slate-600"} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs font-medium truncate ${isOwn ? "text-white" : "text-slate-900"}`}>
+                                {message.attachmentName || "Attached file"}
+                              </p>
+                            </div>
+                            <a
+                              href={toPublicUrl(message.attachmentUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`p-1.5 rounded-full transition-colors ${
+                                isOwn ? "hover:bg-white/20 text-white" : "hover:bg-slate-200 text-slate-600"
+                              }`}
+                              title="Download"
+                            >
+                              <Download size={16} />
+                            </a>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-xs text-slate-400 mt-1">
-                        {formatTime(message.createdAt)}
-                      </span>
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[10px] text-slate-400">
+                          {formatTime(message.createdAt)}
+                        </span>
+                        {isOwn && (
+                          <div className="flex items-center">
+                            {message.isRead ? (
+                              <CheckCheck size={14} className="text-purple-500" />
+                            ) : conversation.participant.isOnline ? (
+                              <CheckCheck size={14} className="text-slate-400" />
+                            ) : (
+                              <Check size={14} className="text-slate-400" />
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -365,18 +485,55 @@ export default function ChatPage() {
             onSubmit={sendMessage}
             className="border-t border-slate-200 p-4"
           >
+            {attachedFile && (
+              <div className="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1.5 bg-white rounded border border-slate-100">
+                    <File size={16} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs font-medium text-slate-700 truncate">
+                    {attachedFile.name}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    ({(attachedFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttachedFile(null)}
+                  className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             <div className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending || uploading}
+                className="p-2.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                title="Attach file"
+              >
+                <Paperclip size={20} />
+              </button>
               <input
                 type="text"
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="Type a message..."
+                placeholder={attachedFile ? "Add a caption..." : "Type a message..."}
                 className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                disabled={sending}
+                disabled={sending || uploading}
               />
               <button
                 type="submit"
-                disabled={!messageContent.trim() || sending}
+                disabled={(!messageContent.trim() && !attachedFile) || sending || uploading}
                 className="px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {sending ? (

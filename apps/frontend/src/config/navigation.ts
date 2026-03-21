@@ -11,6 +11,7 @@ import {
   Send,
   Search,
   Plus,
+  Scale,
 } from "lucide-react";
 
 export type NavRole = "CLIENT" | "FREELANCER" | "ADMIN";

@@ -62,6 +62,10 @@ export class ProfileService {
             postalCode: true,
             availability: true,
             isComplete: true,
+            kycStatus: true,
+            kycFrontImage: true,
+            kycBackImage: true,
+            kycRejectionReason: true,
           },
         },
       },
@@ -211,6 +215,26 @@ export class ProfileService {
         state: true,
         postalCode: true,
         isComplete: true,
+      },
+    });
+
+    return updated;
+  }
+
+  /** POST /profile/kyc - Submits KYC images */
+  async updateKyc(
+    auth: string | undefined,
+    frontImageUrl?: string,
+    backImageUrl?: string,
+  ) {
+    const userId = await this.userIdFromAuth(auth);
+
+    const updated = await this.prisma.profile.update({
+      where: { userId },
+      data: {
+        kycFrontImage: frontImageUrl,
+        kycBackImage: backImageUrl,
+        kycStatus: 'PENDING',
       },
     });
 

@@ -15,6 +15,8 @@ import {
   User,
   Briefcase,
   Clock,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 
 type Conversation = {
@@ -28,13 +30,16 @@ type Conversation = {
     id: string;
     name: string;
     avatarUrl: string | null;
+    isOnline: boolean;
   };
   lastMessage: {
     content: string;
     createdAt: string;
     senderId: string;
+    isRead: boolean;
   } | null;
-  hasUnread?: boolean;
+  unreadCount: number;
+  hasUnread: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -116,6 +121,7 @@ export default function MessagesPage() {
   }
 
   return (
+    
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-purple-50/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -125,7 +131,7 @@ export default function MessagesPage() {
           </div>
           <Link
             href="/friends"
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Plus size={18} />
             <span>New Chat</span>
@@ -182,6 +188,9 @@ export default function MessagesPage() {
                       alt={conv.participant.name}
                       className="h-12 w-12 rounded-full object-cover ring-2 ring-purple-200"
                     />
+                    {conv.participant.isOnline && (
+                      <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-white" />
+                    )}
                   </Link>
                   <Link
                     href={`/messages/${conv.id}`}
@@ -189,9 +198,6 @@ export default function MessagesPage() {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        {conv.hasUnread && (
-                          <span className="inline-flex h-2 w-2 rounded-full bg-purple-600 flex-shrink-0" />
-                        )}
                         <h3
                           className={`font-semibold truncate hover:text-purple-600 transition-colors ${
                             conv.hasUnread ? "text-slate-950" : "text-slate-900"
@@ -200,11 +206,31 @@ export default function MessagesPage() {
                         {conv.participant.name}
                         </h3>
                       </div>
-                      {conv.lastMessage && (
-                        <span className="text-xs text-slate-500 flex-shrink-0 ml-2">
-                          {formatTime(conv.lastMessage.createdAt)}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end flex-shrink-0 ml-2">
+                        {conv.lastMessage && (
+                          <div className="flex items-center gap-1.5">
+                            {conv.lastMessage.senderId === user?.id && (
+                              <div className="flex items-center">
+                                {conv.lastMessage.isRead ? (
+                                  <CheckCheck size={14} className="text-purple-500" />
+                                ) : conv.participant.isOnline ? (
+                                  <CheckCheck size={14} className="text-slate-400" />
+                                ) : (
+                                  <Check size={14} className="text-slate-400" />
+                                )}
+                              </div>
+                            )}
+                            <span className="text-xs text-slate-500">
+                              {formatTime(conv.lastMessage.createdAt)}
+                            </span>
+                          </div>
+                        )}
+                        {conv.hasUnread && (
+                          <span className="mt-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-purple-600 text-white text-[10px] font-bold">
+                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {conv.project && (
                       <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">

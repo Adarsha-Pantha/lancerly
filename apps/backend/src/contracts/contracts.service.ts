@@ -50,6 +50,7 @@ export class ContractsService {
                 name: true,
                 avatarUrl: true,
                 stripeAccountId: true,
+                kycStatus: true,
               },
             },
           },
@@ -179,14 +180,22 @@ export class ContractsService {
             },
           },
         },
+        milestones: {
+          orderBy: { createdAt: 'asc' },
+        },
         _count: {
           select: {
-            milestones: true,
             deliveries: true,
+            timeEntries: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+
+    console.log(`[BACKEND] findByUser userId=${userId} role=${role} contracts found=${contracts.length}`);
+    contracts.forEach((c, i) => {
+      console.log(`[BACKEND] Contract ${i} (ID: ${c.id}) milestones count: ${c.milestones?.length || 0}`);
     });
 
     return contracts;
