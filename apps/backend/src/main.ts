@@ -24,13 +24,9 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'https://footiest-zada-retreative.ngrok-free.dev',
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-    ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    origin: (_, cb) => cb(null, true),
+    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+    allowedHeaders: ['Content-Type','Authorization'],
     credentials: true,
   });
 

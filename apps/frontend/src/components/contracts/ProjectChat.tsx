@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { get, post, patch, postForm } from "@/lib/api";
 import { toPublicUrl } from "@/lib/url";
 import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp, Check, CheckCheck, Paperclip, File, Download, X } from "lucide-react";
+import { Send, Loader2, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { ModerationError } from "@/components/ui/ModerationError";
 
 type Message = {

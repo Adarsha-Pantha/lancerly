@@ -166,6 +166,7 @@ export default function AdminUsersPage() {
                             return <span className={`usr-bdg ${b.cls}`}>{b.label}</span>;
                           })()}
                         </td>
+                        <td><span className="usr-bdg client">✓ Verified</span></td>
                         <td style={{ fontWeight: 600, color: "#111827" }}>{u.stats.projects}</td>
                         <td style={{ fontWeight: 600, color: "#111827" }}>{u.stats.proposals}</td>
                         <td style={{ fontSize: 12, color: "#9ca3af" }}>{new Date(u.createdAt).toLocaleDateString()}</td>
