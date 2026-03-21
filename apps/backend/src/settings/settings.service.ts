@@ -23,6 +23,8 @@ const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 const AVATAR_SUBDIR = 'avatars';
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+const DOCUMENT_SUBDIR = 'documents';
+const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20MB
 
 @Injectable()
 export class SettingsService {
@@ -373,6 +375,37 @@ export class SettingsService {
     return {
       message: 'Profile image updated successfully',
       avatarUrl,
+    };
+  }
+
+  // ─── UPLOAD DOCUMENT (for chat attachments) ─────────────────────────────
+  async uploadDocument(userId: string, file: Express.Multer.File) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    if (file.size > MAX_DOCUMENT_SIZE) {
+      throw new BadRequestException('File size must not exceed 20MB');
+    }
+
+    const dir = path.join(UPLOAD_DIR, DOCUMENT_SUBDIR);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Preserve original extension safe-ishly
+    const ext = path.extname(file.originalname) || '';
+    const filename = `${userId}-${Date.now()}${ext}`;
+    const filepath = path.join(dir, filename);
+
+    fs.writeFileSync(filepath, file.buffer);
+
+    const attachmentUrl = `/uploads/${DOCUMENT_SUBDIR}/${filename}`;
+
+    return {
+      message: 'File uploaded successfully',
+      attachmentUrl,
+      attachmentName: file.originalname,
     };
   }
 

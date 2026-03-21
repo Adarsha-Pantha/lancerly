@@ -68,7 +68,7 @@ Response Format: Return ONLY a valid JSON object:
             content: text
           }
         ],
-        model: 'mixtral-8x7b-32768',
+        model: 'llama3-70b-8192',
         response_format: { type: 'json_object' }
       });
 
@@ -132,7 +132,7 @@ Your task is to rewrite user content to be cleaner, more professional, and polic
             content: text
           }
         ],
-        model: 'mixtral-8x7b-32768',
+        model: 'llama3-70b-8192',
       });
 
       const sanitized = completion.choices[0]?.message?.content?.trim() || text;

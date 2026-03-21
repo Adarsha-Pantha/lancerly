@@ -52,7 +52,7 @@ type SettingsData = {
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "security", label: "Security", icon: Shield },
-  { id: "email", label: "Email", icon: Mail },
+  // { id: "email", label: "Email", icon: Mail },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "privacy", label: "Privacy", icon: Globe },
   { id: "danger", label: "Danger Zone", icon: Trash2 },
@@ -225,6 +225,7 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+    ite
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -314,7 +315,7 @@ export default function SettingsPage() {
                   className={cn(
                     "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                     activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-[#6b26d9] text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >

@@ -32,6 +32,20 @@ const avatarUpload = {
   },
 };
 
+const documentUpload = {
+  storage: memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (_: unknown, file: Express.Multer.File, cb: (e: Error | null, accept: boolean) => void) => {
+    const allowed = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/zip', 'text/plain', 'application/octet-stream'
+    ];
+    cb(null, allowed.includes(file.mimetype));
+  },
+};
+
 @Controller('settings')
 @UseGuards(JwtAuthGuard)
 export class SettingsController {
@@ -89,6 +103,15 @@ export class SettingsController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.settingsService.uploadAvatar(userId, file);
+  }
+
+  @Post('document')
+  @UseInterceptors(FileInterceptor('document', documentUpload))
+  uploadDocument(
+    @CurrentUser('userId') userId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.settingsService.uploadDocument(userId, file);
   }
 
   @Delete('account')

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, UseGuards, Req, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards, Req, Post, Body, Patch } from '@nestjs/common';
 import type { Request } from 'express';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './guards/admin.guard';
@@ -88,5 +88,42 @@ export class AdminController {
   @UseGuards(AdminGuard)
   async getFinanceStats() {
     return this.adminService.getFinanceStats();
+  }
+
+  @Get('kyc/pending')
+  @UseGuards(AdminGuard)
+  async getPendingKyc() {
+    return this.adminService.getPendingKyc();
+  }
+
+  @Post('kyc/:userId/approve')
+  @UseGuards(AdminGuard)
+  async approveKyc(@Param('userId') userId: string) {
+    return this.adminService.approveKyc(userId);
+  }
+
+  @Post('kyc/:userId/reject')
+  @UseGuards(AdminGuard)
+  async rejectKyc(@Param('userId') userId: string, @Body('reason') reason: string) {
+    return this.adminService.rejectKyc(userId, reason);
+  }
+
+  @Get('disputes')
+  @UseGuards(AdminGuard)
+  async getAllDisputes(@Query('status') status?: string) {
+    const disputes = await this.adminService.getAllDisputes(status);
+    console.log(`[DEBUG] Admin fetching disputes. Found ${disputes.length}. First one evidence count: ${(disputes[0] as any)?.evidence?.length || 0}`);
+    return disputes;
+  }
+
+  @Patch('disputes/:id')
+  @UseGuards(AdminGuard)
+  async updateDispute(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Body('adminNotes') adminNotes?: string,
+    @Body('resolution') resolution?: string,
+  ) {
+    return this.adminService.updateDispute(id, status, adminNotes, resolution);
   }
 }

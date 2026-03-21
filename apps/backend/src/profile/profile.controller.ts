@@ -1,9 +1,9 @@
 // apps/backend/src/profile/profile.controller.ts
 import {
-  Controller, Get, Put, Body, Req, Param, UseInterceptors, UploadedFile,
+  Controller, Get, Put, Body, Req, Param, UseInterceptors, UploadedFile, Post, UploadedFiles,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ProfileService } from './profile.service';
@@ -26,6 +26,29 @@ export class ProfileController {
       console.error('Error in getById:', error);
       throw error;
     }
+  }
+
+  @Post('verify-identity')
+  @UseInterceptors(FileFieldsInterceptor([
+    { name: 'front', maxCount: 1 },
+    { name: 'back', maxCount: 1 },
+  ], {
+    storage: diskStorage({
+      destination: 'uploads',
+      filename: (_req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, 'kyc-' + unique + extname(file.originalname));
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }))
+  async updateKyc(
+    @Req() req: Request,
+    @UploadedFiles() files: { front?: Express.Multer.File[], back?: Express.Multer.File[] },
+  ) {
+    const frontUrl = files.front?.[0] ? `/uploads/${files.front[0].filename}` : undefined;
+    const backUrl = files.back?.[0] ? `/uploads/${files.back[0].filename}` : undefined;
+    return this.svc.updateKyc(req.headers['authorization'], frontUrl, backUrl);
   }
 
   @Put()

@@ -43,11 +43,17 @@ export default function Navbar() {
   const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.name || "User")}`;
 
   const navLinks = user
-    ? [
-        { href: "/home", label: "Home", icon: Home },
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/messages", label: "Messages", icon: MessageCircle },
-      ]
+    ? user.role === "CLIENT"
+      ? [
+          { href: "/home", label: "Home", icon: Home },
+          { href: "/dashboard/projects/mine", label: "My Projects", icon: LayoutDashboard },
+          { href: "/messages", label: "Messages", icon: MessageCircle },
+        ]
+      : [
+          { href: "/home", label: "Home", icon: Home },
+          { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { href: "/messages", label: "Messages", icon: MessageCircle },
+        ]
     : [
         { href: "/landing", label: "Home", icon: Home },
         { href: "/landing#projects", label: "Find Work", icon: Search },

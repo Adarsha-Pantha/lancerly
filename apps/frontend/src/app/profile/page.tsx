@@ -29,6 +29,7 @@ type ProfileData = {
     state?: string | null;
     availability?: boolean | null;
     isComplete?: boolean | null;
+    kycStatus?: string | null;
   } | null;
   earnings?: {
     totalEarnings: number;
@@ -131,7 +132,7 @@ export default function ProfilePage() {
           isOwnProfile
           onEdit={handleEdit}
           onSaveBio={handleSaveBio}
-          verificationStatus={(profile?.isComplete ?? user?.isComplete) ? "verified" : "unverified"}
+          verificationStatus={profile?.kycStatus === "APPROVED" ? "verified" : profile?.kycStatus === "PENDING" ? "pending" : "unverified"}
         />
       </div>
     );

@@ -112,14 +112,13 @@ function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
   const useAppShell =
     token &&
     user &&
-    user.role !== "PENDING" &&
+    user.role === "FREELANCER" && // ONLY use AppShell for Freelancers
     !isAdminRoute &&
     !isPublicRoute &&
     APP_SHELL_ROUTES.some((r) => pathname?.startsWith(r) || pathname === r);
 
   if (useAppShell && user?.role) {
-    const role = user.role === "CLIENT" || user.role === "FREELANCER" ? user.role : "FREELANCER";
-    return <AppShell role={role}>{children}</AppShell>;
+    return <AppShell role={user.role as any}>{children}</AppShell>;
   }
 
   return (

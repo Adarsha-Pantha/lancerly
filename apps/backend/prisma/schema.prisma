@@ -23,6 +23,7 @@ model User {
   emailVerificationExpires DateTime?
   deletedAt   DateTime?
   createdAt DateTime  @default(now())
+  lastActiveAt DateTime @default(now())
   profile   Profile?
   logins    Login[]
   provider    AuthProvider @default(CREDENTIALS)
@@ -43,6 +44,8 @@ model User {
   notifications      Notification[]
   sentReviews        Review[]      @relation("SentReviews")
   receivedReviews    Review[]      @relation("ReceivedReviews")
+  disputesRaised     Dispute[]     @relation("DisputeRaiser")
+  disputeEvidence    DisputeEvidence[]
 }
 
 model Profile {
@@ -64,11 +67,24 @@ model Profile {
   state       String?
   postalCode  String?
 
+  // KYC - Know Your Customer
+  kycStatus           KycStatus @default(NOT_SUBMITTED)
+  kycFrontImage       String?
+  kycBackImage        String?
+  kycRejectionReason  String?
+
   // convenience flag (optional)
   isComplete  Boolean   @default(false)
 
   // Stripe Connect – for freelancers to receive payments
   stripeAccountId String? @unique
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Login {
@@ -141,6 +157,9 @@ model Message {
   content        String
   moderationStatus ModerationStatus @default(APPROVED)
   moderationNotes  String?
+  isRead         Boolean       @default(false)
+  attachmentUrl  String?
+  attachmentName String?
   createdAt      DateTime      @default(now())
 }
 
@@ -242,6 +261,7 @@ model Contract {
   deliveries    Delivery[]
   timeEntries   TimeEntry[]
   review        Review?
+  disputes      Dispute[]
 }
 
 model Review {
@@ -317,4 +337,39 @@ model PlatformSettings {
   freelancerServiceFee  Float    @default(10.0) // Percentage (e.g. 10.0 for 10%)
   clientProcessingFee   Float    @default(3.0)  // Percentage (e.g. 3.0 for 3%)
   updatedAt             DateTime @updatedAt
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+model Dispute {
+  id          String        @id @default(uuid())
+  contractId  String
+  contract    Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  raisedById  String
+  raisedBy    User          @relation("DisputeRaiser", fields: [raisedById], references: [id])
+  title       String
+  description String
+  type        String        @default("OTHER") // PAYMENT, SCOPE, DELIVERY, QUALITY, OTHER
+  status      DisputeStatus @default(OPEN)
+  adminNotes  String?
+  resolution  String?
+  evidence    DisputeEvidence[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model DisputeEvidence {
+  id            String   @id @default(uuid())
+  disputeId     String
+  dispute       Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploadedById  String
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id])
+  fileUrl       String
+  fileName      String?
+  createdAt     DateTime @default(now())
 }

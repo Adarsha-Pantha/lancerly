@@ -153,7 +153,19 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                         <td><span className={`usr-bdg ${u.role.toLowerCase()}`}>{u.role}</span></td>
-                        <td><span className="usr-bdg client">✓ Verified</span></td>
+                        <td>
+                          {(() => {
+                            const s = u.profile?.kycStatus || "NOT_SUBMITTED";
+                            const map: Record<string, { cls: string; label: string }> = {
+                              APPROVED:      { cls: "client",     label: "✓ Verified" },
+                              PENDING:       { cls: "pending",    label: "⏳ Pending" },
+                              REJECTED:      { cls: "freelancer", label: "✗ Rejected" },
+                              NOT_SUBMITTED: { cls: "pending",    label: "— Not submitted" },
+                            };
+                            const b = map[s] ?? { cls: "pending", label: s };
+                            return <span className={`usr-bdg ${b.cls}`}>{b.label}</span>;
+                          })()}
+                        </td>
                         <td style={{ fontWeight: 600, color: "#111827" }}>{u.stats.projects}</td>
                         <td style={{ fontWeight: 600, color: "#111827" }}>{u.stats.proposals}</td>
                         <td style={{ fontSize: 12, color: "#9ca3af" }}>{new Date(u.createdAt).toLocaleDateString()}</td>
