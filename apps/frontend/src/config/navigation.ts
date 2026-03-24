@@ -11,6 +11,7 @@ import {
   Send,
   Search,
   Plus,
+  Scale,
 } from "lucide-react";
 
 export type NavRole = "CLIENT" | "FREELANCER" | "ADMIN";
@@ -19,7 +20,7 @@ export type NavRole = "CLIENT" | "FREELANCER" | "ADMIN";
 export const SIDEBAR_NAV: { href: string; label: string; icon: React.ElementType; roles?: NavRole[] }[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/projects/mine", label: "My Projects", icon: Folder, roles: ["CLIENT"] },
-  { href: "/dashboard/browse", label: "Browse Projects", icon: Search },
+  // { href: "/dashboard/browse", label: "Browse Projects", icon: Search },
   { href: "/dashboard/projects/new", label: "Post Project", icon: Plus, roles: ["CLIENT"] },
   { href: "/messages", label: "Messages", icon: MessageCircle },
   { href: "/proposals/me", label: "My Proposals", icon: Send, roles: ["FREELANCER"] },

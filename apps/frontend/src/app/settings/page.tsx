@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { SubscriptionSection } from "@/components/settings/SubscriptionSection";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "");
 
@@ -52,8 +53,8 @@ type SettingsData = {
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "security", label: "Security", icon: Shield },
-  { id: "email", label: "Email", icon: Mail },
   { id: "payments", label: "Payments", icon: CreditCard },
+  { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "privacy", label: "Privacy", icon: Globe },
   { id: "danger", label: "Danger Zone", icon: Trash2 },
 ] as const;
@@ -305,7 +306,11 @@ export default function SettingsPage() {
         {/* Tabs */}
         <div className="md:w-48 shrink-0">
           <nav className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
-            {TABS.filter((t) => t.id !== "payments" || user?.role === "FREELANCER").map((tab) => {
+            {TABS.filter((t) => {
+              if (t.id === "payments") return user?.role === "FREELANCER";
+              if (t.id === "subscription") return user?.role === "CLIENT";
+              return true;
+            }).map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -314,7 +319,7 @@ export default function SettingsPage() {
                   className={cn(
                     "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                     activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-[#6b26d9] text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
@@ -544,47 +549,6 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {activeTab === "email" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Email</CardTitle>
-                <CardDescription>Change your email address</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Current: <strong className="text-foreground">{settings.email}</strong>
-                </p>
-                {settings.pendingEmail && (
-                  <p className="text-sm text-amber-600">Pending verification: {settings.pendingEmail}</p>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">New Email</label>
-                  <Input
-                    type="email"
-                    value={emailForm.newEmail}
-                    onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
-                    placeholder="New email address"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Current Password</label>
-                  <Input
-                    type={showPasswords.email ? "text" : "password"}
-                    value={emailForm.password}
-                    onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
-                    placeholder="Confirm with password"
-                  />
-                </div>
-                <Button
-                  onClick={handleEmailChange}
-                  disabled={saving || !emailForm.newEmail || !emailForm.password}
-                >
-                  Request Email Change
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
           {activeTab === "payments" && user?.role === "FREELANCER" && (
             <Card>
               <CardHeader>
@@ -608,6 +572,10 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {activeTab === "subscription" && user?.role === "CLIENT" && (
+            <SubscriptionSection />
           )}
 
           {activeTab === "privacy" && (

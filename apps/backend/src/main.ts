@@ -6,7 +6,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   // Global exception filter for better error handling
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -27,7 +27,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'https://footiest-zada-retreative.ngrok-free.dev',
-      'http://192.168.1.77:3000',
+      'http://192.168.20.76:3000',
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

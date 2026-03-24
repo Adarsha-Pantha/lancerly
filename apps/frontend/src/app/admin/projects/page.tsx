@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { get } from "@/lib/api";
+import { get, toPublicUrl } from "@/lib/api";
 
 type Project = {
   id: string;
@@ -15,9 +15,11 @@ type Project = {
   projectType: string;
   status: string;
   createdAt: string;
-  client?: { email?: string; profile?: { name?: string } };
+  client?: { email?: string; profile?: { name?: string; avatarUrl?: string } };
   _count?: { proposals: number };
 };
+
+const AV_COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2"];
 
 export default function AdminProjectsPage() {
   const router = useRouter();
@@ -27,13 +29,16 @@ export default function AdminProjectsPage() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    if (!token || user?.role !== "ADMIN") { router.replace("/admin/login"); return; }
+    if (!token || user?.role !== "ADMIN") { 
+      // AdminLayout already handles redirection to /login
+      return; 
+    }
     load();
   }, [token, user]);
 
   const load = async () => {
     try {
-      const data = await get<Project[]>("/projects", token);
+      const data = await get<Project[]>("/projects", token || undefined);
       setProjects(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -67,6 +72,7 @@ export default function AdminProjectsPage() {
         .adm-p-bdg.inprogress { background: #fef3c7; color: #b45309; }
         .adm-p-bdg.completed { background: #dcfce7; color: #15803d; }
         .adm-p-bdg.cancelled { background: #fee2e2; color: #b91c1c; }
+        .adm-p-av { width: 28px; height: 28px; border-radius: 6px; color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
         @keyframes adm-p-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
         .adm-p-fa { animation: adm-p-in .22s ease both; }
       `}</style>
@@ -101,13 +107,26 @@ export default function AdminProjectsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(p => (
+                  {filtered.map((p, i) => (
                     <tr key={p.id}>
                       <td>
                         <div style={{ fontWeight: 600, color: "#111827", fontSize: 13.5 }}>{p.title}</div>
                         <div style={{ fontSize: 11.5, color: "#9ca3af", marginTop: 2 }}>{p.skills?.slice(0, 3).join(", ")}</div>
                       </td>
-                      <td>{p.client?.profile?.name || p.client?.email || "—"}</td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div className="adm-p-av" style={{ background: AV_COLORS[i % AV_COLORS.length] }}>
+                            {p.client?.profile?.avatarUrl ? (
+                              <img src={toPublicUrl(p.client.profile.avatarUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              (p.client?.profile?.name?.[0] || p.client?.email?.[0] || "?").toUpperCase()
+                            )}
+                          </div>
+                          <div style={{ fontSize: 13, color: "#4b5563" }}>
+                            {p.client?.profile?.name || p.client?.email?.split('@')[0] || "—"}
+                          </div>
+                        </div>
+                      </td>
                       <td style={{ fontWeight: 700, color: "#15803d" }}>
                         {p.budgetMin || p.budgetMax
                           ? `$${p.budgetMin ?? 0}${p.budgetMax ? ` – $${p.budgetMax}` : ""}`

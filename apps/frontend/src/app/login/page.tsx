@@ -21,15 +21,19 @@ export default function LoginPage() {
   const justRegistered = sp.get("registered") === "1";
   const redirectTo = sp.get("redirect") || "";
 
-  const { login, token } = useAuth();
+  const { login, token, user } = useAuth();
 
   useEffect(() => {
-    if (token) {
+    if (token && user) {
+      if (user.role === "ADMIN") {
+        router.replace("/admin/dashboard");
+        return;
+      }
       const url = typeof window !== "undefined" ? sessionStorage.getItem(REDIRECT_KEY) : null;
       if (url) sessionStorage.removeItem(REDIRECT_KEY);
       router.replace(url || redirectTo || "/");
     }
-  }, [token, router, redirectTo]);
+  }, [token, user, router, redirectTo]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -71,9 +75,6 @@ export default function LoginPage() {
     setErrors((p) => ({ ...p, form: undefined }));
     try {
       await login(email, password);
-      const url = typeof window !== "undefined" ? sessionStorage.getItem(REDIRECT_KEY) : null;
-      if (url) sessionStorage.removeItem(REDIRECT_KEY);
-      router.replace(url || redirectTo || "/");
     } catch (err: any) {
       setErrors((p) => ({ ...p, form: err?.message || "Login failed." }));
     } finally {
