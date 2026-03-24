@@ -264,7 +264,7 @@ export class AdminService {
     });
   }
 
-  async updatePlatformSettings(data: { freelancerServiceFee?: number; clientProcessingFee?: number }) {
+  async updatePlatformSettings(data: { freelancerServiceFee?: number; clientProcessingFee?: number; weeklyProjectLimit?: number }) {
     return this.prisma.platformSettings.update({
       where: { id: 'singleton' },
       data,
@@ -307,6 +307,119 @@ export class AdminService {
       inEscrow: inEscrowCents,
       recentTransactions,
     };
+  }
+
+  async getPendingKyc() {
+    return this.prisma.profile.findMany({
+      where: { kycStatus: 'PENDING' },
+      include: {
+        user: {
+          select: { email: true, role: true },
+        },
+      },
+    });
+  }
+
+  async approveKyc(userId: string) {
+    return this.prisma.profile.update({
+      where: { userId },
+      data: { kycStatus: 'APPROVED' },
+    });
+  }
+
+  async rejectKyc(userId: string, reason: string) {
+    return this.prisma.profile.update({
+      where: { userId },
+      data: {
+        kycStatus: 'REJECTED',
+        kycRejectionReason: reason,
+      },
+    });
+  }
+
+  async getAllDisputes(status?: string) {
+    return this.prisma.dispute.findMany({
+      where: status ? { status: status as any } : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        raisedBy: {
+          select: {
+            email: true,
+            role: true,
+            profile: { select: { name: true, avatarUrl: true } },
+          },
+        },
+        contract: {
+          include: {
+            project: { select: { title: true } },
+            client: { select: { email: true, profile: { select: { name: true, avatarUrl: true } } } },
+            freelancer: { select: { email: true, profile: { select: { name: true, avatarUrl: true } } } },
+          },
+        },
+        evidence: {
+          include: {
+            uploadedBy: {
+              select: {
+                email: true,
+                profile: { select: { name: true, avatarUrl: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async getSubscribedUsers() {
+    return this.prisma.user.findMany({
+      where: { isSubscribed: true },
+      include: {
+        profile: {
+          select: {
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateDispute(id: string, status: string, adminNotes?: string, resolution?: string) {
+    return this.prisma.dispute.update({
+      where: { id },
+      data: {
+        status: status as any,
+        ...(adminNotes !== undefined && { adminNotes }),
+        ...(resolution !== undefined && { resolution }),
+      },
+      include: {
+        raisedBy: {
+          select: {
+            email: true,
+            role: true,
+            profile: { select: { name: true } },
+          },
+        },
+        contract: {
+          include: {
+            project: { select: { title: true } },
+            client: { select: { email: true, profile: { select: { name: true } } } },
+            freelancer: { select: { email: true, profile: { select: { name: true } } } },
+          },
+        },
+        evidence: {
+          include: {
+            uploadedBy: {
+              select: {
+                email: true,
+                profile: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
   }
 }
 

@@ -265,7 +265,6 @@ export default function ChatPage() {
       setError(err?.message || "Failed to send message");
       setMessageContent(content); 
       setAttachedFile(fileToUpload);
-      setMessageContent(content); // Restore message on error
       setSending(false);
       setUploading(false);
     }

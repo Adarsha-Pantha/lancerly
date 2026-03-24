@@ -286,6 +286,181 @@ export class StripeService {
     };
   }
 
+  /** Create Stripe Checkout Session for Subscription */
+  async createSubscriptionSession(userId: string, successUrl: string, cancelUrl: string) {
+    const stripe = this.ensureStripe();
+    const priceId = this.config.get<string>('STRIPE_PRO_PRICE_ID');
+    
+    if (!priceId) {
+      throw new BadRequestException('STRIPE_PRO_PRICE_ID is not configured in .env');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, stripeCustomerId: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    let customerId = user.stripeCustomerId;
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        metadata: { userId },
+      });
+      customerId = customer.id;
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    try {
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { userId },
+      });
+
+      return { url: session.url };
+    } catch (error) {
+      // If customer doesn't exist, clear it and retry once
+      if (error.message?.includes('No such customer')) {
+        console.warn(`[Stripe] Customer ${customerId} not found. Recreating...`);
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: { userId },
+        });
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { stripeCustomerId: newCustomer.id },
+        });
+        
+        // Retry session creation with new customer
+        const session = await stripe.checkout.sessions.create({
+          customer: newCustomer.id,
+          mode: 'subscription',
+          payment_method_types: ['card'],
+          line_items: [{ price: priceId, quantity: 1 }],
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          metadata: { userId },
+        });
+        return { url: session.url };
+      }
+      throw error;
+    }
+  }
+
+  /** Find internal userId by Stripe Customer ID */
+  async findUserIdByCustomer(customerId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { stripeCustomerId: customerId },
+      select: { id: true },
+    });
+    return user?.id || null;
+  }
+
+  /** Handle successful subscription webhook */
+  async handleSubscriptionSucceeded(userId: string, subscriptionId?: string, expiresAt?: number) {
+    const data: any = { isSubscribed: true };
+    if (expiresAt) {
+      data.subscriptionExpiresAt = new Date(expiresAt * 1000);
+    }
+    
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+  }
+
+  /** Handle subscription deletion webhook */
+  async handleSubscriptionDeleted(userId: string) {
+    // Instead of just setting to false, let's sync properly to see if they have other subs
+    return this.syncUserSubscription(userId);
+  }
+
+  /** Sync a user's subscription status from Stripe (fallback) */
+  async syncUserSubscription(userId: string) {
+    const stripe = this.ensureStripe();
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, stripeCustomerId: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    let customerId = user.stripeCustomerId;
+
+    // 1. If no CID, try to find by email
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { stripeCustomerId: customerId },
+        });
+      }
+    }
+
+    if (!customerId) {
+      return { isSubscribed: false, message: 'No Stripe customer found for this user.' };
+    }
+
+    // Fetch active or trialing subscriptions (newest first)
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'all', 
+      limit: 20, 
+    });
+    
+    const sortedSubs = [...subscriptions.data].sort((a, b) => b.created - a.created);
+    const activeSub = sortedSubs.find(s => s.status === 'active' || s.status === 'trialing');
+    const isSubscribed = !!activeSub;
+    
+
+
+    // 3. Update DB
+    const updateData: any = { isSubscribed };
+    if (activeSub && (activeSub as any).current_period_end) {
+      const expiry = new Date((activeSub as any).current_period_end * 1000);
+      updateData.subscriptionExpiresAt = isNaN(expiry.getTime()) ? null : expiry;
+    } else {
+      updateData.subscriptionExpiresAt = null;
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+
+
+    return { 
+      isSubscribed, 
+      expiresAt: updateData.subscriptionExpiresAt,
+      message: isSubscribed ? 'Subscription synced successfully.' : 'No active subscription found.'
+    };
+  }
+
+  /** Subscribe or unsubscribe a user manually (Admin use) */
+  async subscribeUser(userId: string, subscribe: boolean = true) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isSubscribed: subscribe },
+    });
+  }
+
   private async getPlatformSettings() {
     return this.prisma.platformSettings.upsert({
       where: { id: 'singleton' },

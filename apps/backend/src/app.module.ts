@@ -16,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { EstimationModule } from './projects/estimation/estimation.module';
 import { ModerationModule } from './common/moderation/moderation.module';
 import { DisputesModule } from './disputes/disputes.module';
+import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserActivityMiddleware } from './common/middleware/user-activity.middleware';
@@ -39,6 +40,7 @@ import { UserActivityMiddleware } from './common/middleware/user-activity.middle
     EstimationModule,
     ModerationModule,
     DisputesModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

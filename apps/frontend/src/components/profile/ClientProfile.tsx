@@ -32,7 +32,9 @@ type ClientProfileProps = {
   fallbackAvatar: string;
   toPublicUrl: (url?: string | null) => string;
   isOwnProfile?: boolean;
+  onUpdate?: (data: Partial<ClientProfileData>) => Promise<void>;
   onEdit?: () => void;
+  onAvatarUpload?: (file: File) => Promise<void>;
   onContact?: () => void;
   onMessage?: () => void;
   messageLoading?: boolean;
@@ -41,25 +43,29 @@ type ClientProfileProps = {
   totalSpending?: number;
   verificationStatus?: "verified" | "pending" | "unverified";
   reviewCount?: number;
+  rating?: number;
+  projects?: {
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    budgetMin?: number | null;
+    budgetMax?: number | null;
+    _count?: { proposals: number };
+    contract?: {
+      review?: { rating: number; comment: string | null } | null;
+    } | null;
+  }[];
 };
 
-// ── Dummy data for profile completion ──────────────────────────────────────
+// ── Profile completion tracking ──────────────────────────────────────
 type Completion = {
   avatarUrl: string | null;
   headline: string | null;
   bio: string | null;
   country: string | null;
   city: string | null;
-  kycStatus: "APPROVED" | "PENDING" | "REJECTED";
-};
-
-const DUMMY_COMPLETION: Completion = {
-  avatarUrl: null,
-  headline: "Tech Startup",
-  bio: null,
-  country: "Nepal",
-  city: null,
-  kycStatus: "PENDING",
+  kycStatus: "verified" | "pending" | "unverified";
 };
 
 function buildMap(d: Completion): Record<string, boolean> {
@@ -68,7 +74,7 @@ function buildMap(d: Completion): Record<string, boolean> {
     headline: !!d.headline?.trim(),
     bio: !!d.bio?.trim(),
     location: !!(d.country && d.city),
-    kyc: d.kycStatus === "APPROVED",
+    kyc: d.kycStatus === "verified",
   };
 }
 
@@ -82,9 +88,16 @@ const CLIENT_STEPS = [
 
 
 
-function ProfileCompletionCard({ onEdit }: { onEdit?: () => void }) {
+function ProfileCompletionCard({ onEdit, data, kycStatus }: { onEdit?: () => void, data: ClientProfileData, kycStatus: string }) {
   const router = useRouter();
-  const map = buildMap(DUMMY_COMPLETION);
+  const map = buildMap({
+    avatarUrl: data.avatarUrl ?? null,
+    headline: data.headline ?? null,
+    bio: data.bio ?? null,
+    country: data.country ?? null,
+    city: data.city ?? null,
+    kycStatus: kycStatus as "verified" | "pending" | "unverified",
+  });
   const completed = CLIENT_STEPS.filter((s) => map[s.key]).length;
   const percent = Math.round((completed / CLIENT_STEPS.length) * 100);
 
@@ -169,7 +182,9 @@ export function ClientProfile({
   fallbackAvatar,
   toPublicUrl,
   isOwnProfile,
+  onUpdate,
   onEdit,
+  onAvatarUpload,
   onContact,
   onMessage,
   messageLoading,
@@ -178,6 +193,8 @@ export function ClientProfile({
   totalSpending,
   verificationStatus = "unverified",
   reviewCount = 0,
+  rating,
+  projects = [],
 }: ClientProfileProps) {
   const location = [data.city, data.country].filter(Boolean).join(", ");
   const joinedDate = data.createdAt
@@ -200,6 +217,7 @@ export function ClientProfile({
           toPublicUrl={toPublicUrl}
           isOwnProfile={isOwnProfile}
           onEdit={onEdit}
+          onAvatarUpload={onAvatarUpload}
           primaryCta={
             !isOwnProfile && onMessage
               ? { label: "Message", onClick: onMessage, loading: messageLoading }
@@ -209,6 +227,16 @@ export function ClientProfile({
             !isOwnProfile && onContact ? { label: "Contact", onClick: onContact } : undefined
           }
         />
+        
+        {isOwnProfile && onUpdate && (
+          <InlineEditableSection
+            title="Headline"
+            value={data.headline ?? ""}
+            onSave={async (v) => { await onUpdate({ headline: v }); }}
+            placeholder="Describe your company or startup"
+            icon={<Briefcase className="size-5" />}
+          />
+        )}
 
         {/* Quick stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -300,7 +328,7 @@ export function ClientProfile({
               title="No projects yet"
               description="Post your first project to start finding talent"
               action={isOwnProfile && (
-                <Link href="/projects/new" className="text-sm font-medium text-primary hover:underline">
+                <Link href="/dashboard/projects/new" className="text-sm font-medium text-primary hover:underline">
                   Post a project
                 </Link>
               )}
@@ -320,7 +348,7 @@ export function ClientProfile({
       {/* ── Right: profile completion card (1 col) ── */}
       {isOwnProfile && (
         <div className="lg:col-span-1">
-          <ProfileCompletionCard onEdit={onEdit} />
+          <ProfileCompletionCard onEdit={onEdit} data={data} kycStatus={verificationStatus} />
         </div>
       )}
     </div>

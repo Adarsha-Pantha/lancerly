@@ -179,13 +179,13 @@ export default function HirePage() {
         <div className="max-w-7xl mx-auto">
 
           {/* Back link */}
-          <Link
+          {/* <Link
             href="/landing"
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-gray-800 transition-colors mb-12 group"
           >
             <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
             Back to Home
-          </Link>
+          </Link> */}
 
           {/* Two-column hero */}
           <div className="grid lg:grid-cols-2 gap-12 items-center">

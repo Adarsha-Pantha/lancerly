@@ -38,6 +38,7 @@ const navItems = [
   { id: "finance", label: "Finance", icon: "finance", href: "/admin/finance", section: "Platform" },
   { id: "categories", label: "Categories", icon: "category", href: "/admin/categories", section: "Platform" },
   { id: "ai", label: "AI Features", icon: "ai", href: "/admin/ai", section: "Platform" },
+  { id: "subscriptions", label: "Subscriptions", icon: "zap", href: "/admin/subscriptions", section: "Platform" },
   { id: "settings", label: "Settings", icon: "settings", href: "/admin/settings", section: "Platform" },
 ];
 
@@ -48,8 +49,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [searchVal, setSearchVal] = useState("");
 
-  // Don't apply admin layout to login/register pages
-  const isAuthPage = pathname === "/admin/login" || pathname === "/admin/register";
+  // Auth check
+  useEffect(() => {
+    if (!token) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    } else if (user && user.role !== "ADMIN") {
+      router.replace("/");
+    }
+  }, [token, user, router, pathname]);
+
+  const isAuthPage = pathname === "/admin/register";
   if (isAuthPage) {
     return <>{children}</>;
   }
@@ -59,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     logout();
-    router.replace("/admin/login");
+    router.replace("/login");
   };
 
   return (

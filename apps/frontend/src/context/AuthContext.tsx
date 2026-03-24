@@ -24,6 +24,7 @@ export type User = {
   state?: string | null;
   postalCode?: string | null;
   isComplete?: boolean | null;
+  isSubscribed?: boolean;
 };
 
 type AuthResponse = {
@@ -70,25 +71,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ✅ If we have a token but no user (like after hard refresh)
+  // ✅ Sync with server if we have a token (freshen stale localStorage)
   useEffect(() => {
     (async () => {
-      if (!token || user) return;
+      if (!token) return;
       setLoading(true);
       try {
         const data = await get<{ user: User }>("/auth/me", token);
+        console.log("[AuthContext] Refreshed user from server:", data.user.email, "isSubscribed:", data.user.isSubscribed);
         setUser(data.user);
         localStorage.setItem("user", JSON.stringify(data.user));
-      } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setToken(null);
-        setUser(null);
+      } catch (err) {
+        console.error("[AuthContext] Refresh failed:", err);
+        // Only clear if it's a 401/403 (handled by onAuthFailure usually, but being safe)
       } finally {
         setLoading(false);
       }
     })();
-  }, [token, user]);
+  }, [token]);
 
   // ✅ When API returns 401 / "jwt expired", clear session and redirect to login
   useEffect(() => {
