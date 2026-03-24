@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { get, patch } from "@/lib/api";
+import { get, patch, toPublicUrl } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import DisputeEvidence from "@/components/disputes/DisputeEvidence";
 
@@ -16,13 +16,13 @@ type Dispute = {
   adminNotes?: string;
   resolution?: string;
   createdAt: string;
-  raisedBy: { email: string; role: string; profile: { name?: string } | null };
+  raisedBy: { email: string; role: string; profile: { name?: string; avatarUrl?: string } | null };
   contract: {
     id: string;
     agreedBudget: number;
     project: { title: string };
-    client: { email: string; profile: { name?: string } | null };
-    freelancer: { email: string; profile: { name?: string } | null };
+    client: { email: string; profile: { name?: string; avatarUrl?: string } | null };
+    freelancer: { email: string; profile: { name?: string; avatarUrl?: string } | null };
   };
   evidence: Array<{
     id: string;
@@ -298,12 +298,17 @@ export default function AdminDisputesPage() {
                   {filtered.map((d, i) => {
                     const s = STATUS_CFG[d.status] ?? STATUS_CFG.OPEN;
                     const name = d.raisedBy.profile?.name || d.raisedBy.email.split("@")[0];
+                    const avatar = d.raisedBy.profile?.avatarUrl;
                     return (
                       <tr key={d.id}>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div className="dsp-av" style={{ background: AV_COLORS[i % AV_COLORS.length] }}>
-                              {name[0].toUpperCase()}
+                            <div className="dsp-av" style={{ background: AV_COLORS[i % AV_COLORS.length], overflow: "hidden" }}>
+                              {avatar ? (
+                                <img src={toPublicUrl(avatar)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                name[0].toUpperCase()
+                              )}
                             </div>
                             <div>
                               <div style={{ fontWeight: 600, color: "#111827", fontSize: 13 }}>{name}</div>

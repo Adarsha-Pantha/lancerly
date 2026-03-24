@@ -44,6 +44,20 @@ export class ContractsController {
     return this.contractsService.getStats(userId, role);
   }
 
+  /** Get transaction history */
+  @Get('transactions')
+  async getTransactions(@Req() req: Request, @Query('role') role?: 'CLIENT' | 'FREELANCER') {
+    const userId = await this.getUserId(req);
+    if (!role) {
+      const user = await this.contractsService.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      role = user?.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER';
+    }
+    return this.contractsService.getTransactions(userId, role as 'CLIENT' | 'FREELANCER');
+  }
+
   /** Get contracts for current user */
   @Get('me')
   async getMyContracts(@Req() req: Request, @Query('role') role?: 'CLIENT' | 'FREELANCER') {

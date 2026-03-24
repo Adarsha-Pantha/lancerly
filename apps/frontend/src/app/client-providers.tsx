@@ -109,12 +109,17 @@ function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/login") ||
     pathname?.startsWith("/register");
 
+  const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
+  const isHome = pathname === "/home" || pathname === "/";
+
   const useAppShell =
     token &&
     user &&
     user.role === "FREELANCER" && // ONLY use AppShell for Freelancers
     !isAdminRoute &&
     !isPublicRoute &&
+    !isProjectDetail &&
+    !isHome &&
     APP_SHELL_ROUTES.some((r) => pathname?.startsWith(r) || pathname === r);
 
   if (useAppShell && user?.role) {
@@ -129,7 +134,11 @@ function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ClientProviders({ children }: { children: React.ReactNode }) {
+export function ClientProviders({ 
+  children
+}: { 
+  children: React.ReactNode;
+}) {
   return (
     <AuthProvider>
       <ToastProvider>

@@ -116,6 +116,12 @@ export class AdminController {
     return disputes;
   }
 
+  @Get('subscribed-users')
+  @UseGuards(AdminGuard)
+  async getSubscribedUsers() {
+    return this.adminService.getSubscribedUsers();
+  }
+
   @Patch('disputes/:id')
   @UseGuards(AdminGuard)
   async updateDispute(

@@ -70,4 +70,25 @@ export class ProfileController {
     const avatarUrl = file ? `/uploads/${file.filename}` : undefined;
     return this.svc.updateMine(req.headers['authorization'], dto, avatarUrl);
   }
+
+  @Post('portfolio')
+  @UseInterceptors(FileInterceptor('image', {
+    storage: diskStorage({
+      destination: 'uploads',
+      filename: (_req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, 'portfolio-' + unique + extname(file.originalname));
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }))
+  async addPortfolioProject(
+    @Req() req: Request,
+    @Body() dto: { title: string; description: string; skills: string; liveLink?: string },
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const imageUrl = file ? `/uploads/${file.filename}` : undefined;
+    const authHeader = req.headers['authorization'];
+    return this.svc.addPortfolioProject(authHeader as string, dto, imageUrl);
+  }
 }

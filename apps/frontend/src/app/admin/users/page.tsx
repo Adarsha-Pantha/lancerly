@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { get } from "@/lib/api";
+import { get, toPublicUrl } from "@/lib/api";
 
 type User = {
   id: string;
@@ -48,7 +48,7 @@ export default function AdminUsersPage() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const data = await get<{ users: User[]; total: number }>(`/admin/users?limit=${limit}&page=${page}`, token);
+      const data = await get<{ users: User[]; total: number }>(`/admin/users?limit=${limit}&page=${page}`, token || undefined);
       setUsers(data.users);
       setTotal(data.total ?? data.users.length);
     } catch (e) { console.error(e); }
@@ -143,8 +143,12 @@ export default function AdminUsersPage() {
                       <tr key={u.id}>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                            <div className="usr-av" style={{ background: AV_COLORS[i % AV_COLORS.length] }}>
-                              {u.profile?.name?.[0] || u.email[0]}
+                            <div className="usr-av" style={{ background: AV_COLORS[i % AV_COLORS.length], overflow: "hidden" }}>
+                              {u.profile?.avatarUrl ? (
+                                <img src={toPublicUrl(u.profile.avatarUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                u.profile?.name?.[0] || u.email[0]
+                              )}
                             </div>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{u.profile?.name || "Unknown"}</div>
@@ -166,7 +170,6 @@ export default function AdminUsersPage() {
                             return <span className={`usr-bdg ${b.cls}`}>{b.label}</span>;
                           })()}
                         </td>
-                        <td><span className="usr-bdg client">✓ Verified</span></td>
                         <td style={{ fontWeight: 600, color: "#111827" }}>{u.stats.projects}</td>
                         <td style={{ fontWeight: 600, color: "#111827" }}>{u.stats.proposals}</td>
                         <td style={{ fontSize: 12, color: "#9ca3af" }}>{new Date(u.createdAt).toLocaleDateString()}</td>

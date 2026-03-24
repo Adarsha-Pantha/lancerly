@@ -60,7 +60,6 @@ const STATUS_FILTERS = ["ALL", "ACTIVE", "COMPLETED", "TERMINATED"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 const VIOLET       = "#7c3aed";
-const VIOLET       = "#4f3fe0";
 const VIOLET_LIGHT = "#eeecfc";
 
 export default function MyContractsPage() {
@@ -132,7 +131,6 @@ export default function MyContractsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-    <div className="space-y-8 py-2">
 
       {/* ── Header ── */}
       <div>
@@ -381,7 +379,6 @@ function ContractCard({
         onClick={() => router.push(`/contracts/${contract.id}`)}
         className=" py-3 px-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 hover:-translate-y-0.5 text-white"
         style={{ background: "#7c3aed", boxShadow: "0 6px 20px -4px #4f3fe055" }}
-        style={{ background: "#4f3fe0", boxShadow: "0 6px 20px -4px #4f3fe055" }}
         >
         View Contract
         <ArrowRight size={16} />

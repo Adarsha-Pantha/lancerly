@@ -68,10 +68,51 @@ export class ProfileService {
             kycRejectionReason: true,
           },
         },
+        portfolioProjects: {
+          orderBy: { createdAt: 'desc' },
+        },
+        projects: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            contract: {
+              include: {
+                review: true,
+                milestones: { where: { status: 'PAID' } },
+              },
+            },
+            _count: { select: { proposals: true } },
+          },
+        },
+        receivedReviews: { select: { rating: true } },
+        contractsAsClient: {
+          include: { milestones: { where: { status: 'PAID' } } },
+        },
       },
     });
     if (!user) throw new UnauthorizedException('User not found');
-    return user;
+
+    let totalSpending = 0;
+    if (user.role === 'CLIENT' && user.contractsAsClient) {
+      user.contractsAsClient.forEach((c) => {
+        c.milestones.forEach((m) => {
+          totalSpending += m.amount;
+        });
+      });
+    }
+
+    const reviewCount = user.receivedReviews.length;
+    const rating = reviewCount > 0 
+      ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
+      : 0;
+
+    return {
+      ...user,
+      postedJobs: user.projects.length,
+      totalSpending: totalSpending / 100, // convert cents to dollars
+      reviewCount,
+      rating,
+      portfolioProjects: user.portfolioProjects,
+    };
   }
 
   /** GET /profile/:id (public profile view) */
@@ -108,6 +149,25 @@ export class ProfileService {
             // Don't expose sensitive info like phone, street, postalCode for public profiles
           },
         },
+        portfolioProjects: {
+          orderBy: { createdAt: 'desc' },
+        },
+        projects: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            contract: {
+              include: {
+                review: true,
+                milestones: { where: { status: 'PAID' } },
+              },
+            },
+            _count: { select: { proposals: true } },
+          },
+        },
+        receivedReviews: { select: { rating: true } },
+        contractsAsClient: {
+          include: { milestones: { where: { status: 'PAID' } } },
+        },
       },
     });
 
@@ -129,11 +189,70 @@ export class ProfileService {
       isFriend = !!friendship;
     }
 
+    let totalSpending = 0;
+    if (user.role === 'CLIENT' && user.contractsAsClient) {
+      user.contractsAsClient.forEach((c) => {
+        c.milestones.forEach((m) => {
+          totalSpending += m.amount;
+        });
+      });
+    }
+
+    const reviewCount = user.receivedReviews.length;
+    const rating = reviewCount > 0 
+      ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
+      : 0;
+
     return {
       ...user,
       isFriend,
       isOwnProfile: currentUserId === targetUserId,
+      postedJobs: user.projects.length,
+      totalSpending: totalSpending / 100, // convert cents to dollars
+      reviewCount,
+      rating,
+      portfolioProjects: user.portfolioProjects,
     };
+  }
+
+  async addPortfolioProject(
+    authHeader: string | undefined,
+    dto: { title: string; description: string; skills: string; liveLink?: string },
+    imageUrl?: string,
+  ) {
+    const token = authHeader?.split(' ')[1];
+    if (!token) throw new UnauthorizedException('No token provided');
+    
+    let userId: string;
+    try {
+      const decoded = this.jwt.verify(token);
+      userId = decoded.sub;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== 'FREELANCER') {
+      throw new UnauthorizedException('Only freelancers can add portfolio projects');
+    }
+
+    let parsedSkills: string[] = [];
+    try {
+      parsedSkills = JSON.parse(dto.skills);
+    } catch {
+      parsedSkills = dto.skills ? dto.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    return this.prisma.portfolioProject.create({
+      data: {
+        freelancerId: userId,
+        title: dto.title,
+        description: dto.description,
+        skills: parsedSkills,
+        liveLink: dto.liveLink || null,
+        imageUrl: imageUrl || null,
+      },
+    });
   }
 
   /**

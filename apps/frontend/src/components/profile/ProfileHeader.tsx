@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Briefcase, User, Pencil, MapPin, Calendar } from "lucide-react";
+import { Briefcase, User, Pencil, MapPin, Calendar, Camera } from "lucide-react";
 
 type ProfileHeaderProps = {
   name: string;
@@ -14,6 +15,7 @@ type ProfileHeaderProps = {
   toPublicUrl: (url?: string | null) => string;
   isOwnProfile?: boolean;
   onEdit?: () => void;
+  onAvatarUpload?: (file: File) => Promise<void>;
   primaryCta?: { label: string; onClick: () => void; loading?: boolean };
   secondaryCta?: { label: string; onClick: () => void };
   className?: string;
@@ -30,10 +32,13 @@ export function ProfileHeader({
   toPublicUrl,
   isOwnProfile,
   onEdit,
+  onAvatarUpload,
   primaryCta,
   secondaryCta,
   className,
 }: ProfileHeaderProps) {
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const RoleIcon = role === "CLIENT" ? Briefcase : User;
   const isClient = role === "CLIENT";
 
@@ -45,11 +50,43 @@ export function ProfileHeader({
       )}
     >
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-        <img
-          src={toPublicUrl(avatarUrl) || fallbackAvatar}
-          alt={name}
-          className="h-24 w-24 rounded-full object-cover ring-4 ring-primary/10 shrink-0"
-        />
+        <div className="relative group shrink-0">
+          <img
+            src={toPublicUrl(avatarUrl) || fallbackAvatar}
+            alt={name}
+            className="h-24 w-24 rounded-full object-cover ring-4 ring-primary/10"
+          />
+          {isOwnProfile && onAvatarUpload && (
+            <div
+              className={`absolute inset-0 bg-black/40 rounded-full flex items-center justify-center cursor-pointer transition-opacity ${uploadingAvatar ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+              onClick={() => !uploadingAvatar && fileInputRef.current?.click()}
+            >
+              {uploadingAvatar ? (
+                <span className="size-6 border-2 border-white/80 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera className="size-6 text-white" />
+              )}
+            </div>
+          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file && onAvatarUpload) {
+                setUploadingAvatar(true);
+                try {
+                  await onAvatarUpload(file);
+                } finally {
+                  setUploadingAvatar(false);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }
+              }
+            }}
+          />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-3 mb-2">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground truncate">

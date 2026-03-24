@@ -17,6 +17,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { AiService } from '../ai/ai.service';
 
 const BCRYPT_ROUNDS = 10;
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
@@ -28,7 +29,10 @@ const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20MB
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+  ) {}
 
   // ─── GET SETTINGS ─────────────────────────────────────────────────────────
   async getSettings(userId: string) {
@@ -52,6 +56,7 @@ export class SettingsService {
             state: true,
             availability: true,
             avatarUrl: true,
+            hourlyRate: true,
           },
         },
       },
@@ -80,6 +85,7 @@ export class SettingsService {
         state: user.profile?.state ?? null,
         availability,
         avatarUrl: user.profile?.avatarUrl ?? null,
+        hourlyRate: user.profile?.hourlyRate ?? null,
       },
     };
   }
@@ -104,9 +110,28 @@ export class SettingsService {
     if (dto.country !== undefined) profileData.country = dto.country;
     if (dto.city !== undefined) profileData.city = dto.city;
     if (dto.state !== undefined) profileData.state = dto.state;
+    if (dto.hourlyRate !== undefined) profileData.hourlyRate = dto.hourlyRate;
+    if (dto.availability !== undefined) profileData.availability = dto.availability;
 
     if (Object.keys(profileData).length === 0) {
       return { message: 'No profile fields to update', profile: {} };
+    }
+
+    if (dto.headline !== undefined || dto.bio !== undefined || dto.skills !== undefined) {
+      try {
+        const currentData = await this.prisma.profile.findUnique({ where: { userId } });
+        const skillsRaw = dto.skills ?? currentData?.skills;
+        const skillsStr = Array.isArray(skillsRaw) ? skillsRaw.join(', ') : String(skillsRaw || '');
+        const contentToEmbed = [
+          dto.headline ?? currentData?.headline ?? '',
+          dto.bio ?? currentData?.bio ?? '',
+          skillsStr
+        ].filter(Boolean).join('\n');
+        
+        profileData.embedding = await this.aiService.generateEmbedding(contentToEmbed);
+      } catch (e) {
+        console.error('Failed to generate profile embedding', e);
+      }
     }
 
     const updated = await this.prisma.profile.upsert({
@@ -133,6 +158,8 @@ export class SettingsService {
         country: true,
         city: true,
         state: true,
+        hourlyRate: true,
+        availability: true,
       },
     });
 

@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { get, post } from "@/lib/api";
-import { toPublicUrl } from "@/lib/url";
+import { get, post, toPublicUrl } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 
 interface KycRequest {
@@ -13,6 +12,7 @@ interface KycRequest {
   kycStatus: string;
   user: { email: string; role: string };
   name: string;
+  avatarUrl?: string; // profile already has this
 }
 
 const AV_COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777", "#0891b2"];
@@ -108,7 +108,7 @@ export default function AdminKycPage() {
     if (!token) return;
     try {
       setLoading(true);
-      const data = await get<KycRequest[]>("/admin/kyc/pending", token);
+      const data = await get<KycRequest[]>("/admin/kyc/pending", token || undefined);
       setRequests(data || []);
     } catch { toast("Failed to load KYC requests", "error"); }
     finally { setLoading(false); }
@@ -118,7 +118,7 @@ export default function AdminKycPage() {
     if (!token) return;
     try {
       setProcessing(userId);
-      await post(`/admin/kyc/${userId}/approve`, {}, token);
+      await post(`/admin/kyc/${userId}/approve`, {}, token || undefined);
       toast("KYC Approved", "success");
       fetchRequests();
     } catch { toast("Failed to approve KYC", "error"); }
@@ -131,7 +131,7 @@ export default function AdminKycPage() {
     if (!token) return;
     try {
       setProcessing(userId);
-      await post(`/admin/kyc/${userId}/reject`, { reason }, token);
+      await post(`/admin/kyc/${userId}/reject`, { reason }, token || undefined);
       toast("KYC Rejected", "success");
       fetchRequests();
     } catch { toast("Failed to reject KYC", "error"); }
@@ -205,8 +205,12 @@ export default function AdminKycPage() {
                     <tr key={req.userId}>
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                          <div className="kyc-av" style={{ background: AV_COLORS[i % AV_COLORS.length] }}>
-                            {req.name?.[0] || req.user.email[0].toUpperCase()}
+                          <div className="kyc-av" style={{ background: AV_COLORS[i % AV_COLORS.length], overflow: "hidden" }}>
+                            {req.avatarUrl ? (
+                              <img src={toPublicUrl(req.avatarUrl)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              (req.name?.[0] || req.user.email[0]).toUpperCase()
+                            )}
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
                             {req.name || "Unnamed"}
