@@ -1,4 +1,10 @@
 -- CreateEnum
+<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
+CREATE TYPE "public"."KycStatus" AS ENUM ('NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+========
+>>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
 CREATE TYPE "public"."ModerationStatus" AS ENUM ('APPROVED', 'PENDING', 'FLAGGED', 'BLOCKED');
 
 -- CreateEnum
@@ -9,6 +15,9 @@ CREATE TYPE "public"."AuthProvider" AS ENUM ('CREDENTIALS', 'GOOGLE', 'FACEBOOK'
 
 -- CreateEnum
 CREATE TYPE "public"."ProjectType" AS ENUM ('CLIENT_REQUEST', 'FREELANCER_SHOWCASE');
+
+-- CreateEnum
+CREATE TYPE "public"."DisputeStatus" AS ENUM ('OPEN', 'UNDER_REVIEW', 'RESOLVED', 'CLOSED');
 
 -- CreateTable
 CREATE TABLE "public"."User" (
@@ -24,8 +33,13 @@ CREATE TABLE "public"."User" (
     "emailVerificationExpires" TIMESTAMP(3),
     "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastActiveAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "provider" "public"."AuthProvider" NOT NULL DEFAULT 'CREDENTIALS',
     "providerId" TEXT,
+    "isSubscribed" BOOLEAN NOT NULL DEFAULT false,
+    "subscriptionExpiresAt" TIMESTAMP(3),
+    "stripeCustomerId" TEXT,
+    "stripeSubscriptionId" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -40,6 +54,7 @@ CREATE TABLE "public"."Profile" (
     "timezone" TEXT,
     "skills" JSONB,
     "availability" BOOLEAN NOT NULL DEFAULT true,
+    "hourlyRate" INTEGER,
     "avatarUrl" TEXT,
     "dob" TIMESTAMP(3),
     "country" TEXT,
@@ -48,8 +63,13 @@ CREATE TABLE "public"."Profile" (
     "city" TEXT,
     "state" TEXT,
     "postalCode" TEXT,
+    "kycStatus" "public"."KycStatus" NOT NULL DEFAULT 'NOT_SUBMITTED',
+    "kycFrontImage" TEXT,
+    "kycBackImage" TEXT,
+    "kycRejectionReason" TEXT,
     "isComplete" BOOLEAN NOT NULL DEFAULT false,
     "stripeAccountId" TEXT,
+    "embedding" DOUBLE PRECISION[],
 
     CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
 );
@@ -79,8 +99,14 @@ CREATE TABLE "public"."Project" (
     "status" TEXT NOT NULL DEFAULT 'OPEN',
     "moderationStatus" "public"."ModerationStatus" NOT NULL DEFAULT 'APPROVED',
     "moderationNotes" TEXT,
+<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
+    "screeningQuestions" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "acceptanceCriteria" TEXT[] DEFAULT ARRAY[]::TEXT[],
+========
+>>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "embedding" DOUBLE PRECISION[],
 
     CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
 );
@@ -123,6 +149,12 @@ CREATE TABLE "public"."Message" (
     "content" TEXT NOT NULL,
     "moderationStatus" "public"."ModerationStatus" NOT NULL DEFAULT 'APPROVED',
     "moderationNotes" TEXT,
+<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "attachmentUrl" TEXT,
+    "attachmentName" TEXT,
+========
+>>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
@@ -272,16 +304,73 @@ CREATE TABLE "public"."PlatformSettings" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
     "freelancerServiceFee" DOUBLE PRECISION NOT NULL DEFAULT 10.0,
     "clientProcessingFee" DOUBLE PRECISION NOT NULL DEFAULT 3.0,
+<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
+    "weeklyProjectLimit" INTEGER NOT NULL DEFAULT 3,
+========
+>>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PlatformSettings_pkey" PRIMARY KEY ("id")
 );
 
+<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
+-- CreateTable
+CREATE TABLE "public"."Dispute" (
+    "id" TEXT NOT NULL,
+    "contractId" TEXT NOT NULL,
+    "raisedById" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'OTHER',
+    "status" "public"."DisputeStatus" NOT NULL DEFAULT 'OPEN',
+    "adminNotes" TEXT,
+    "resolution" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Dispute_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."DisputeEvidence" (
+    "id" TEXT NOT NULL,
+    "disputeId" TEXT NOT NULL,
+    "uploadedById" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "fileName" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DisputeEvidence_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."PortfolioProject" (
+    "id" TEXT NOT NULL,
+    "freelancerId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "skills" TEXT[],
+    "imageUrl" TEXT,
+    "liveLink" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PortfolioProject_pkey" PRIMARY KEY ("id")
+);
+
+========
+>>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_providerId_key" ON "public"."User"("providerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_stripeCustomerId_key" ON "public"."User"("stripeCustomerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_stripeSubscriptionId_key" ON "public"."User"("stripeSubscriptionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Profile_userId_key" ON "public"."Profile"("userId");
@@ -390,3 +479,18 @@ ALTER TABLE "public"."TimeEntry" ADD CONSTRAINT "TimeEntry_contractId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "public"."TimeEntry" ADD CONSTRAINT "TimeEntry_freelancerId_fkey" FOREIGN KEY ("freelancerId") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Dispute" ADD CONSTRAINT "Dispute_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "public"."Contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Dispute" ADD CONSTRAINT "Dispute_raisedById_fkey" FOREIGN KEY ("raisedById") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."DisputeEvidence" ADD CONSTRAINT "DisputeEvidence_disputeId_fkey" FOREIGN KEY ("disputeId") REFERENCES "public"."Dispute"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."DisputeEvidence" ADD CONSTRAINT "DisputeEvidence_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."PortfolioProject" ADD CONSTRAINT "PortfolioProject_freelancerId_fkey" FOREIGN KEY ("freelancerId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

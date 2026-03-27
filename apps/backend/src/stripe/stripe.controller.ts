@@ -7,7 +7,7 @@ import { UseGuards } from '@nestjs/common';
 @Controller('stripe')
 export class StripeController {
   constructor(private readonly stripeService: StripeService) {
-    console.log('StripeController initialized');
+    console.log('StripeController initialized - Version 2 (with earnings)');
   }
 
   private getUserId(req: Request): string {
@@ -75,6 +75,13 @@ export class StripeController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('sync-subscription')
+  async syncSubscription(@Req() req: Request) {
+    const userId = this.getUserId(req);
+    return this.stripeService.syncSubscriptionStatus(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('create-subscription-session')
   async createSubscription(
     @Req() req: Request,
@@ -89,13 +96,6 @@ export class StripeController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('sync-subscription')
-  async syncSubscription(@Req() req: Request) {
-    const userId = this.getUserId(req);
-    return this.stripeService.syncUserSubscription(userId);
-  }
-
   @Post('webhook')
   async handleWebhook(@Req() req: Request, @Headers('stripe-signature') signature: string) {
     // Note: If you want to verify signatures, you need to enable rawBody in main.ts
@@ -104,47 +104,21 @@ export class StripeController {
     const eventType = body?.type;
     const data = body?.data?.object;
 
-    console.log(`[Stripe Webhook] Received ${eventType}. Object ID: ${data?.id}`);
+    console.log(`[Stripe Webhook] Received ${eventType}. Metadata:`, JSON.stringify(data.metadata));
 
-    try {
-      if (eventType === 'checkout.session.completed') {
-        let userId = data.metadata?.userId;
-        if (!userId && data.customer) {
-          userId = await this.stripeService.findUserIdByCustomer(data.customer as string);
-        }
-        
-        const subscriptionId = data.subscription as string;
-        if (userId) {
-          await this.stripeService.handleSubscriptionSucceeded(userId, subscriptionId);
-          console.log(`[Stripe Webhook] Subscription activated for user ${userId} via checkout.session.completed`);
-        }
-      } else if (eventType === 'invoice.payment_succeeded') {
-        let userId = data.metadata?.userId || data.subscription_details?.metadata?.userId;
-        if (!userId && data.customer) {
-          userId = await this.stripeService.findUserIdByCustomer(data.customer as string);
-        }
-
-        const subscriptionId = data.subscription as string;
-        const periodEnd = data.lines?.data?.[0]?.period?.end;
-        
-        if (userId) {
-          await this.stripeService.handleSubscriptionSucceeded(userId, subscriptionId, periodEnd);
-          console.log(`[Stripe Webhook] Subscription confirmed/renewed for user ${userId} via invoice.payment_succeeded`);
-        }
-      } else if (eventType === 'customer.subscription.deleted') {
-        let userId = data.metadata?.userId || data.subscription_details?.metadata?.userId;
-        if (!userId && data.customer) {
-          userId = await this.stripeService.findUserIdByCustomer(data.customer as string);
-        }
-
-        if (userId) {
-          await this.stripeService.handleSubscriptionDeleted(userId);
-          console.log(`[Stripe Webhook] Subscription deletion processed for user ${userId}`);
-        }
+    if (eventType === 'checkout.session.completed') {
+      const userId = data.metadata?.userId;
+      const subscriptionId = data.subscription;
+      if (userId && subscriptionId) {
+        await this.stripeService.handleSubscriptionSucceeded(userId, subscriptionId as string);
+        console.log(`[Stripe Webhook] Subscription ${subscriptionId} activated for user ${userId}`);
       }
-    } catch (error) {
-      console.error(`[Stripe Webhook] Error processing ${eventType}:`, error.message);
-      // We still return 200 to Stripe to avoid retries if the error is on our end
+    } else if (eventType === 'customer.subscription.deleted') {
+      const userId = data.metadata?.userId;
+      if (userId) {
+        await this.stripeService.handleSubscriptionDeleted(userId);
+        console.log(`[Stripe Webhook] Subscription canceled for user ${userId}`);
+      }
     }
 
     return { received: true };

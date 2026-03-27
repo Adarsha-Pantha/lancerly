@@ -127,111 +127,66 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Greeting + Quick actions */}
-      <section className="bg-white border-b border-slate-100">
-        <div className="max-w-6xl mx-auto px-4 py-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">
-                Welcome back, {user?.name?.split(" ")[0] || "there"}
-              </h1>
-              <p className="text-slate-500 mt-1">What would you like to do today?</p>
+    <div className="min-h-screen ">
+      {/* Greeting + Hero Section */}
+      <section className="bg-slate-50/50 border-b border-slate-100/80">
+        <div className="max-w-[1040px] mx-auto px-4 py-8 md:py-12">
+          <div className="flex flex-col gap-8">
+            
+            {/* Full Width Hero Section */}
+            <div className="w-full flex flex-col justify-between">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-8"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <h1 className="text-3xl md:text-5xl font-bold text-slate-900 tracking-tight">
+                    Hello, {user?.name?.split(" ")[0] || "there"}!
+                  </h1>
+                  {user?.isSubscribed && (
+                    <div className="px-3 py-1 bg-[#6b27d9] text-white text-xs font-black rounded-full shadow-sm flex items-center gap-1 uppercase tracking-wider">
+                      Pro
+                    </div>
+                  )}
+                </div>
+                <p className="text-slate-500 text-xl">
+                  What&apos;s on your agenda for today?
+                </p>
+              </motion.div>
+
+              {/* Multi-Column Bento Effect Card */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="relative group rounded-[2.5rem] overflow-hidden bg-slate-900 aspect-[21/9] lg:aspect-auto lg:h-[340px] shadow-2xl shadow-indigo-100 border border-slate-200"
+              >
+                <img 
+                  src="https://i0.wp.com/writingmydestiny.com/wp-content/uploads/2023/01/best-wordpress-themes-for-freelance-writers-1-scaled.jpg?fit=1000%2C563&ssl=1" 
+                  alt="Hero"
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-700 ease-out"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 p-10 w-full max-w-2xl">
+                  <h2 className="text-2xl font-bold text-white mb-2 leading-tight">
+                    {user?.role === "CLIENT" ? "Find the best talent for your vision" : "Discover projects that fit your skills"}
+                  </h2>
+                  <Link 
+                    href={user?.role === "CLIENT" ? "/dashboard/projects/new" : "/dashboard"}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-white/90 hover:text-white group/btn"
+                  >
+                    {user?.role === "CLIENT" ? "Post a project" : "View dashboard"}
+                    <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+              </motion.div>
             </div>
-          </div>
 
-          {/* Quick action cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-accent/30 hover:bg-accent/5 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-accent/10 text-accent flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors">
-                <LayoutDashboard size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800">Dashboard</p>
-                <p className="text-xs text-slate-400">Manage work</p>
-              </div>
-            </Link>
-
-            <Link
-              href="/messages"
-              className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <MessageCircle size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800">Messages</p>
-                <p className="text-xs text-slate-400">Chat</p>
-              </div>
-            </Link>
-
-            {user?.role === "CLIENT" ? (
-              <Link
-                href="/dashboard/projects/new"
-                className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <FileText size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Post Project</p>
-                  <p className="text-xs text-slate-400">Hire talent</p>
-                </div>
-              </Link>
-            ) : (
-              <Link
-                href="/proposals/me"
-                className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                  <Send size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800">My Proposals</p>
-                  <p className="text-xs text-slate-400">Track bids</p>
-                </div>
-              </Link>
-            )}
-
-            <Link
-              href="/contracts/me"
-              className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                <Briefcase size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800">Contracts</p>
-                <p className="text-xs text-slate-400">Active work</p>
-              </div>
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="bg-white border-b border-slate-100">
-        <div className="max-w-6xl flex items-center justify-center mx-auto px-4 py-5">
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {categories.map((cat) => {
-              const Icon = cat.icon;
-              return (
-                <Link
-                  key={cat.slug}
-                  href={`/categories/${cat.slug}`}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border ${cat.color} hover:shadow-sm transition-all whitespace-nowrap`}
-                >
-                  <Icon size={16} />
-                  <span className="text-sm font-medium">{cat.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
       {/* Search + Projects */}
       <section className="py-8">
@@ -242,7 +197,7 @@ export default function HomePage() {
             <div className="lg:col-span-12 max-w-4xl mx-auto w-full">
               {/* Search */}
               <div className="mb-6">
-                <div className="flex flex-col items-start justify-between">
+                <div className="flex flex-col items-center justify-between">
                   <div className="relative w-full max-w-lg">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input

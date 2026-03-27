@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { get, post } from "@/lib/api";
+import { post } from "@/lib/api";
 import { Check, Crown, Zap, Shield, Star } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,69 +12,55 @@ export function SubscriptionSection() {
   const { user, token, refreshUser } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<{ message: string; type: "success" | "error" | "info" | null }>({ message: "", type: null });
 
   // Sync with server on mount to ensure subscription status is accurate
   useEffect(() => {
-    const checkSync = async () => {
-      const searchParams = new URLSearchParams(window.location.search);
-      const isSuccess = searchParams.get("success") === "true";
+    const syncSub = async () => {
+      if (!token) return;
       
-      // Auto-sync only when returning from Stripe success or if success param is present
-      if (token && isSuccess) {
-        setLoading(true);
-        setSyncStatus({ message: "Checking Stripe for latest active subscription...", type: "info" });
-        console.log(`[SubscriptionCheck] Triggering auto-sync for user: ${user?.email}`);
-        try {
-          const res = await post<{ isSubscribed: boolean; message: string }>("/stripe/sync-subscription", {}, token);
-          console.log(`[SubscriptionCheck] Sync result: ${JSON.stringify(res)}`);
-          
-          if (res.isSubscribed) {
-            setSyncStatus({ message: "Perfect! Your Pro status is now active.", type: "success" });
-            toast.toast("Subscription status updated!", "success");
-          } else {
-            setSyncStatus({ message: `No active subscription found. ${res.message || ""}`, type: "error" });
+      // If returning from Stripe checkout success
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get("success") === "true") {
+          try {
+            const res = await post<{ isSubscribed: boolean }>("/stripe/sync-subscription", {}, token);
+            
+            if (res.isSubscribed) {
+              toast.toast("Success! Your Lancerly Pro subscription is now active.", "success");
+            }
+            // Clean up URL to avoid syncing again on refresh
+            window.history.replaceState({}, "", window.location.pathname + "?tab=subscription");
+          } catch (e) {
+            console.error("Failed to sync subscription", e);
           }
-
-          if (isSuccess) {
-            const url = new URL(window.location.href);
-            url.searchParams.delete("success");
-            window.history.replaceState({}, "", url.pathname + url.search);
-          }
-          
-          await refreshUser();
-        } catch (e: any) {
-          console.error("Auto-sync failed:", e);
-          setSyncStatus({ message: `Sync failed: ${e.message || "Unknown error"}`, type: "error" });
-        } finally {
-          setLoading(false);
         }
-      } else if (token) {
-        // Just refresh user state from server, don't trigger a Stripe sync automatically
-        refreshUser();
       }
+      refreshUser();
     };
-    
-    checkSync();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    syncSub();
   }, [token, refreshUser, toast]);
 
   const isSubscribed = user?.isSubscribed ?? false;
 
   const handleSubscribe = async () => {
+    console.log("[SubscriptionSection] handleSubscribe triggered");
     setLoading(true);
     try {
+      console.log("[SubscriptionSection] Calling /stripe/create-subscription-session...");
       const { url } = await post<{ url: string }>(
         "/stripe/create-subscription-session",
         {},
         token ?? undefined
       );
+      console.log("[SubscriptionSection] Received checkout URL:", url);
       if (url) {
         window.location.href = url;
       } else {
         throw new Error("No checkout URL received");
       }
     } catch (e) {
+      console.error("[SubscriptionSection] Error in handleSubscribe:", e);
       toast.toast((e as Error).message || "Failed to start checkout", "error");
     } finally {
       setLoading(false);
@@ -96,17 +82,6 @@ export function SubscriptionSection() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {syncStatus.message && (
-        <div className={`p-4 rounded-lg border flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
-          syncStatus.type === "success" ? "bg-green-500/10 border-green-500/20 text-green-500" :
-          syncStatus.type === "error" ? "bg-destructive/10 border-destructive/20 text-destructive" :
-          "bg-blue-500/10 border-blue-500/20 text-blue-500"
-        }`}>
-          {syncStatus.type === "info" && <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
-          <p className="text-sm font-medium">{syncStatus.message}</p>
-        </div>
-      )}
-
       <Card className={`overflow-hidden border-2 ${isSubscribed ? "border-primary/50" : "border-border"}`}>
         <div className={`h-2 w-full ${isSubscribed ? "bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#EC4899]" : "bg-muted"}`} />
         <CardHeader>
@@ -127,7 +102,6 @@ export function SubscriptionSection() {
                   ? "You have full access to all premium features." 
                   : "Upgrade to unlock unlimited project creation and more."}
               </CardDescription>
-
             </div>
             <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
               isSubscribed ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
@@ -195,17 +169,17 @@ export function SubscriptionSection() {
               ) : (
                 <>
                   <div className="size-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-                    <Crown size={32} />
+                    <Shield size={32} />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-bold text-lg text-primary">Lancerly Pro Active!</h3>
+                    <h3 className="font-bold text-lg">You&apos;re all set!</h3>
                     <p className="text-sm text-muted-foreground px-4">
-                      Thank you for being a Pro member. You now have unlimited access.
+                      Thank you for being a Pro member. You have unlimited project posts.
                     </p>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="w-full mt-4 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+                    className="w-full mt-4 text-destructive hover:bg-destructive/5"
                     onClick={handleCancel}
                     disabled={loading}
                   >
@@ -217,8 +191,6 @@ export function SubscriptionSection() {
           </div>
         </CardContent>
       </Card>
-      
-
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
@@ -232,8 +204,6 @@ export function SubscriptionSection() {
           </div>
         ))}
       </div>
-
-
     </div>
   );
 }

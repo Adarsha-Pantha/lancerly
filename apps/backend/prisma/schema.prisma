@@ -45,6 +45,7 @@ model User {
   isSubscribed     Boolean   @default(false)
   subscriptionExpiresAt DateTime?
   stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
   notifications      Notification[]
   sentReviews        Review[]      @relation("SentReviews")
   receivedReviews    Review[]      @relation("ReceivedReviews")

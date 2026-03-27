@@ -301,10 +301,12 @@ export class StripeService {
     });
 
     if (!user) throw new NotFoundException('User not found');
+    console.log(`[Stripe] Creating subscription session for user ${userId} (${user.email})`);
 
     let customerId = user.stripeCustomerId;
 
     if (!customerId) {
+      console.log(`[Stripe] No customer ID for user ${userId}. Creating new Stripe customer...`);
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: { userId },
@@ -314,151 +316,158 @@ export class StripeService {
         where: { id: userId },
         data: { stripeCustomerId: customerId },
       });
+    } else {
+      console.log(`[Stripe] Using existing customerId ${customerId} for user ${userId}`);
     }
 
-    try {
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        mode: 'subscription',
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
-          },
-        ],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        metadata: { userId },
-      });
+    console.log(`[Stripe] Using price ID: ${priceId}`);
 
-      return { url: session.url };
-    } catch (error) {
-      // If customer doesn't exist, clear it and retry once
-      if (error.message?.includes('No such customer')) {
-        console.warn(`[Stripe] Customer ${customerId} not found. Recreating...`);
-        const newCustomer = await stripe.customers.create({
-          email: user.email,
-          metadata: { userId },
-        });
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { stripeCustomerId: newCustomer.id },
-        });
-        
-        // Retry session creation with new customer
-        const session = await stripe.checkout.sessions.create({
-          customer: newCustomer.id,
-          mode: 'subscription',
-          payment_method_types: ['card'],
-          line_items: [{ price: priceId, quantity: 1 }],
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-          metadata: { userId },
-        });
-        return { url: session.url };
-      }
-      throw error;
-    }
-  }
-
-  /** Find internal userId by Stripe Customer ID */
-  async findUserIdByCustomer(customerId: string): Promise<string | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { stripeCustomerId: customerId },
-      select: { id: true },
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { userId },
     });
-    return user?.id || null;
+
+    return { url: session.url };
   }
 
   /** Handle successful subscription webhook */
-  async handleSubscriptionSucceeded(userId: string, subscriptionId?: string, expiresAt?: number) {
-    const data: any = { isSubscribed: true };
-    if (expiresAt) {
-      data.subscriptionExpiresAt = new Date(expiresAt * 1000);
-    }
-    
+  async handleSubscriptionSucceeded(userId: string, subscriptionId: string) {
+    const stripe = this.ensureStripe();
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const expiresAt = new Date((subscription as any).current_period_end * 1000);
+
     return this.prisma.user.update({
       where: { id: userId },
-      data,
+      data: {
+        isSubscribed: true,
+        stripeSubscriptionId: subscriptionId,
+        subscriptionExpiresAt: expiresAt,
+      },
     });
   }
 
-  /** Handle subscription deletion webhook */
+  /** Handle subscription deletion/cancelation webhook */
   async handleSubscriptionDeleted(userId: string) {
-    // Instead of just setting to false, let's sync properly to see if they have other subs
-    return this.syncUserSubscription(userId);
-  }
-
-  /** Sync a user's subscription status from Stripe (fallback) */
-  async syncUserSubscription(userId: string) {
-    const stripe = this.ensureStripe();
-    const user = await this.prisma.user.findUnique({
+    return this.prisma.user.update({
       where: { id: userId },
-      select: { email: true, stripeCustomerId: true },
+      data: {
+        isSubscribed: false,
+        stripeSubscriptionId: null,
+        subscriptionExpiresAt: null,
+      },
     });
-    if (!user) throw new NotFoundException('User not found');
-
-    let customerId = user.stripeCustomerId;
-
-    // 1. If no CID, try to find by email
-    if (!customerId) {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        await this.prisma.user.update({
-          where: { id: userId },
-          data: { stripeCustomerId: customerId },
-        });
-      }
-    }
-
-    if (!customerId) {
-      return { isSubscribed: false, message: 'No Stripe customer found for this user.' };
-    }
-
-    // Fetch active or trialing subscriptions (newest first)
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: 'all', 
-      limit: 20, 
-    });
-    
-    const sortedSubs = [...subscriptions.data].sort((a, b) => b.created - a.created);
-    const activeSub = sortedSubs.find(s => s.status === 'active' || s.status === 'trialing');
-    const isSubscribed = !!activeSub;
-    
-
-
-    // 3. Update DB
-    const updateData: any = { isSubscribed };
-    if (activeSub && (activeSub as any).current_period_end) {
-      const expiry = new Date((activeSub as any).current_period_end * 1000);
-      updateData.subscriptionExpiresAt = isNaN(expiry.getTime()) ? null : expiry;
-    } else {
-      updateData.subscriptionExpiresAt = null;
-    }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
-
-
-
-    return { 
-      isSubscribed, 
-      expiresAt: updateData.subscriptionExpiresAt,
-      message: isSubscribed ? 'Subscription synced successfully.' : 'No active subscription found.'
-    };
   }
 
   /** Subscribe or unsubscribe a user manually (Admin use) */
   async subscribeUser(userId: string, subscribe: boolean = true) {
+    if (!subscribe) {
+      return this.cancelSubscription(userId);
+    }
     return this.prisma.user.update({
       where: { id: userId },
-      data: { isSubscribed: subscribe },
+      data: {
+        isSubscribed: true,
+        subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days for manual sub
+      },
     });
+  }
+
+  /** Cancel subscription in Stripe and update DB */
+  async cancelSubscription(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeSubscriptionId: true },
+    });
+
+    if (user?.stripeSubscriptionId) {
+      const stripe = this.ensureStripe();
+      try {
+        await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+        console.log(`[Stripe] Canceled subscription ${user.stripeSubscriptionId} for user ${userId}`);
+      } catch (e) {
+        console.error(`[Stripe] Failed to cancel subscription ${user.stripeSubscriptionId}:`, e);
+        // Continue to update DB anyway to keep things in sync if the sub is already gone
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { 
+        isSubscribed: false, 
+        stripeSubscriptionId: null,
+        subscriptionExpiresAt: null
+      },
+    });
+  }
+
+  /** Sync subscription status directly with Stripe without waiting for webhook */
+  async syncSubscriptionStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeCustomerId: true, isSubscribed: true },
+    });
+
+    if (!user?.stripeCustomerId) {
+      return { isSubscribed: user?.isSubscribed || false };
+    }
+
+    const stripe = this.ensureStripe();
+    console.log(`[Stripe Sync] Checking subscriptions for customer ${user.stripeCustomerId}`);
+    
+    const subscriptions = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      status: 'all' as any, // Get both active and trialing
+    });
+
+    const activeSub = subscriptions.data.find(s => s.status === 'active' || s.status === 'trialing');
+
+    if (activeSub) {
+      const rawEnd = (activeSub as any).current_period_end;
+      let expiresAt: Date;
+      if (typeof rawEnd === 'number' && !isNaN(rawEnd)) {
+        expiresAt = new Date(rawEnd * 1000);
+      } else {
+        expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+      }
+      
+      console.log(`[Stripe] Syncing active subscription ${activeSub.id} for user ${userId}.`);
+      
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          isSubscribed: true,
+          stripeSubscriptionId: activeSub.id,
+          subscriptionExpiresAt: expiresAt,
+        },
+      });
+      console.log(`[Stripe Sync] Database successfully updated for user ${userId}. isSubscribed = true`);
+      return { isSubscribed: true };
+    } else {
+      console.log(`[Stripe Sync] No active/trialing subscription found for user ${userId}. Statuses found: ${subscriptions.data.map(s => s.status).join(', ')}`);
+      if (user.isSubscribed) {
+        // They were subscribed but no active subscription found in Stripe
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            isSubscribed: false,
+            stripeSubscriptionId: null,
+            subscriptionExpiresAt: null,
+          },
+        });
+      }
+      return { isSubscribed: false };
+    }
   }
 
   private async getPlatformSettings() {
