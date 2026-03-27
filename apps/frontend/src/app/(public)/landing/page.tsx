@@ -54,12 +54,10 @@ const trustStats = [
   { value: "24/7",  label: "Expert Support"    },
 ];
 
-// Brand colour token — used in inline style only where Tailwind can't
-// handle an arbitrary hex at runtime (boxShadow, background blobs, etc.)
-const VIOLET        = "#4f3fe0";
-const VIOLET_LIGHT  = "#eeecfc";   // ~5% tint for badges / hover
-const VIOLET_MID    = "#7b6ee8";   // softer accent
 
+const VIOLET        = "#4f3fe0";
+const VIOLET_LIGHT  = "#eeecfc";   
+const VIOLET_MID    = "#7b6ee8";   
 export default function LandingPage() {
   const { token, loading } = useAuth();
   const router = useRouter();

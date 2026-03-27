@@ -50,6 +50,7 @@ export class ContractsService {
                 name: true,
                 avatarUrl: true,
                 stripeAccountId: true,
+                kycStatus: true,
               },
             },
           },
@@ -179,14 +180,22 @@ export class ContractsService {
             },
           },
         },
+        milestones: {
+          orderBy: { createdAt: 'asc' },
+        },
         _count: {
           select: {
-            milestones: true,
             deliveries: true,
+            timeEntries: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+
+    console.log(`[BACKEND] findByUser userId=${userId} role=${role} contracts found=${contracts.length}`);
+    contracts.forEach((c, i) => {
+      console.log(`[BACKEND] Contract ${i} (ID: ${c.id}) milestones count: ${c.milestones?.length || 0}`);
     });
 
     return contracts;
@@ -545,6 +554,69 @@ export class ContractsService {
     });
 
     return milestones;
+  }
+
+  /** Get transactions list for a user (PAID milestones) */
+  async getTransactions(userId: string, role: 'CLIENT' | 'FREELANCER') {
+    const where = role === 'CLIENT' 
+      ? { contract: { clientId: userId }, status: 'PAID' }
+      : { contract: { freelancerId: userId }, status: 'PAID' };
+
+    const milestones = await this.prisma.milestone.findMany({
+      where,
+      include: {
+        contract: {
+          include: {
+            project: {
+              select: {
+                title: true,
+              },
+            },
+            client: {
+              include: {
+                profile: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            freelancer: {
+              include: {
+                profile: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return milestones.map((m) => {
+      const isClient = role === 'CLIENT';
+      const otherParty = isClient 
+        ? m.contract.freelancer?.profile?.name || 'Freelancer'
+        : m.contract.client?.profile?.name || 'Client';
+
+      return {
+        id: m.id,
+        project: m.contract.project.title,
+        client: otherParty,
+        type: 'Fixed Price',
+        amount: m.amount / 100,
+        fee: isClient ? (m.clientFee || 0) / 100 : -((m.freelancerFee || 0) / 100),
+        net: isClient 
+          ? (m.amount + (m.clientFee || 0)) / 100 
+          : (m.amount - (m.freelancerFee || 0)) / 100,
+        date: m.updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        status: 'Paid',
+        ref: m.stripePaymentIntentId || `TXN-${m.id.substring(0, 8).toUpperCase()}`,
+      };
+    });
   }
 }
 

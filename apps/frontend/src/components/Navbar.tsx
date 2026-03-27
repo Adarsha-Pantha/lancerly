@@ -13,7 +13,10 @@ import {
   Search,
   LayoutDashboard,
   MessageCircle,
+  ArrowLeftRight,
+  Receipt,
   UserCircle,
+  FileSignature
 } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
 
@@ -43,15 +46,31 @@ export default function Navbar() {
   const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.name || "User")}`;
 
   const navLinks = user
-    ? [
-        { href: "/home", label: "Home", icon: Home },
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/messages", label: "Messages", icon: MessageCircle },
+    ? user.role === "CLIENT"
+      ? [
+        // { href: "/home", label: "Home", icon: Home },
+        // { href: "/dashboard/projects/mine", label: "My Projects", icon: LayoutDashboard },
+        // { href: "/messages", label: "Messages", icon: MessageCircle },
+        // { href: "#", label: "Bills", icon: Receipt },
+        // { href: "#", label: "Transaction", icon: ArrowLeftRight },
+        // { href: "#", label: "Contract", icon: FileSignature },
+        { href: "/home", label: "Home"},
+        { href: "/dashboard/projects/mine", label: "My Projects" },
+        { href: "/messages", label: "Messages" },
+        { href: "/transaction", label: "Transaction",},
+        { href: "/contracts/me", label: "Contract", },
+      ]
+      : [
+        { href: "/home", label: "Home" },
+        { href: "/dashboard", label: "Dashboard"},
+        { href: "/messages", label: "Messages" },
+        { href: "/transaction", label: "Transaction" },
+        { href: "/contracts/me", label: "Contract", },
       ]
     : [
-        { href: "/landing", label: "Home", icon: Home },
-        { href: "/landing#projects", label: "Find Work", icon: Search },
-      ];
+      { href: "/landing", label: "Home", icon: Home },
+      { href: "/landing#projects", label: "Find Work", icon: Search },
+    ];
 
   if (loading) {
     return (
@@ -81,14 +100,14 @@ export default function Navbar() {
           {/* Center nav */}
           <div className="hidden md:flex items-center gap-1">
             {navLinks.map((item) => {
-              const Icon = item.icon;
+              // const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-sm font-medium transition-colors"
                 >
-                  <Icon size={16} />
+                  {/* <Icon size={16} /> */}
                   {item.label}
                 </Link>
               );
@@ -180,7 +199,7 @@ export default function Navbar() {
           <div className="fixed top-14 left-0 right-0 bg-white border-b border-slate-200 shadow-lg p-4">
             <div className="flex flex-col gap-1">
               {navLinks.map((item) => {
-                const Icon = item.icon;
+                // const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
@@ -188,7 +207,7 @@ export default function Navbar() {
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-700 hover:bg-slate-50"
                   >
-                    <Icon size={18} />
+                    {/* <Icon size={18} /> */}
                     {item.label}
                   </Link>
                 );

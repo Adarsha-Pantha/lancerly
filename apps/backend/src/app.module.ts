@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { StripeModule } from './stripe/stripe.module';
@@ -15,8 +15,11 @@ import { ContractsModule } from './contracts/contracts.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { EstimationModule } from './projects/estimation/estimation.module';
 import { ModerationModule } from './common/moderation/moderation.module';
+import { DisputesModule } from './disputes/disputes.module';
+import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { UserActivityMiddleware } from './common/middleware/user-activity.middleware';
 
 @Module({
   imports: [
@@ -36,8 +39,16 @@ import { AppService } from './app.service';
     StripeModule,
     EstimationModule,
     ModerationModule,
+    DisputesModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(UserActivityMiddleware)
+      .forRoutes('*');
+  }
+}

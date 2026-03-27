@@ -25,17 +25,20 @@ const icons = {
   menu: "M3 12h18M3 6h18M3 18h18",
   category: ["M4 6h16","M4 10h16","M4 14h16","M4 18h16"],
   ai: ["M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z","M12 16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2z","M2 12a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z","M16 12a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"],
+  shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"],
 } as Record<string, string | string[]>;
 
 const navItems = [
   // { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/admin/dashboard", section: "Main" },
   { id: "users", label: "Users", icon: "users", href: "/admin/users", badge: 3, section: "Manage" },
+  { id: "kyc", label: "KYC Verification", icon: "shield", href: "/admin/kyc", section: "Manage" },
   { id: "projects", label: "Projects", icon: "projects", href: "/admin/projects", section: "Manage" },
   { id: "proposals", label: "Proposals", icon: "proposals", href: "/admin/proposals", section: "Manage" },
   { id: "disputes", label: "Disputes", icon: "disputes", href: "/admin/disputes", badge: 2, section: "Manage" },
   { id: "finance", label: "Finance", icon: "finance", href: "/admin/finance", section: "Platform" },
   { id: "categories", label: "Categories", icon: "category", href: "/admin/categories", section: "Platform" },
   { id: "ai", label: "AI Features", icon: "ai", href: "/admin/ai", section: "Platform" },
+  { id: "subscriptions", label: "Subscriptions", icon: "zap", href: "/admin/subscriptions", section: "Platform" },
   { id: "settings", label: "Settings", icon: "settings", href: "/admin/settings", section: "Platform" },
 ];
 
@@ -46,8 +49,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [searchVal, setSearchVal] = useState("");
 
-  // Don't apply admin layout to login/register pages
-  const isAuthPage = pathname === "/admin/login" || pathname === "/admin/register";
+  // Auth check
+  useEffect(() => {
+    if (!token) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    } else if (user && user.role !== "ADMIN") {
+      router.replace("/");
+    }
+  }, [token, user, router, pathname]);
+
+  const isAuthPage = pathname === "/admin/register";
   if (isAuthPage) {
     return <>{children}</>;
   }
@@ -57,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     logout();
-    router.replace("/admin/login");
+    router.replace("/login");
   };
 
   return (

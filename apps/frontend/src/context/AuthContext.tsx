@@ -24,6 +24,7 @@ export type User = {
   state?: string | null;
   postalCode?: string | null;
   isComplete?: boolean | null;
+  isSubscribed?: boolean;
 };
 
 type AuthResponse = {

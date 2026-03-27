@@ -11,6 +11,12 @@ const safeJson = (t: string) => {
   try { return JSON.parse(t); } catch { return { raw: t }; }
 };
 
+/** Convert a relative path from the backend (e.g. /uploads/...) to a full URL */
+export function toPublicUrl(p?: string | null) {
+  if (!p) return "";
+  return /^https?:\/\//i.test(p) ? p : `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
+}
+
 const tokenFromStorage = () => {
   if (typeof window === "undefined") return undefined;
   try { return localStorage.getItem("token") || undefined; } catch { return undefined; }

@@ -23,5 +23,15 @@ export class CreateProjectDto {
   @IsArray()
   @IsString({ each: true })
   skills?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  screeningQuestions?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  acceptanceCriteria?: string[];
 }
 

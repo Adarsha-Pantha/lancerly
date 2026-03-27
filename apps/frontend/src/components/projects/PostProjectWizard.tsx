@@ -1,10 +1,10 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { post, postForm } from "@/lib/api";
+import { post, postForm, get } from "@/lib/api";
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,11 +14,19 @@ import {
   Check,
   AlertCircle,
   FileText,
+  Crown,
+  Zap,
+  Plus,
+  X,
+  ListTodo,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AiBriefRefiner } from "./AiBriefRefiner";
 import { ModerationError } from "@/components/ui/ModerationError";
+import AiBudgetEstimator from "@/components/ai/AiBudgetEstimator";
 
 type Errors = Partial<Record<"title" | "description" | "budgetMin" | "budgetMax" | "form", string>>;
 type ProjectResponse = { id: string };
@@ -38,7 +46,11 @@ const STEPS = [
   { id: 3, title: "Skills & Files", icon: Sparkles },
 ];
 
-export default function PostProjectWizard() {
+export default function PostProjectWizard({ 
+  onSuccessRedirect = "/projects/mine" 
+}: { 
+  onSuccessRedirect?: string 
+}) {
   const router = useRouter();
   const { token, user } = useAuth();
 
@@ -48,10 +60,22 @@ export default function PostProjectWizard() {
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
   const [skills, setSkills] = useState("");
+  const [screeningQuestions, setScreeningQuestions] = useState<string[]>([]);
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
+  const [showLimitReached, setShowLimitReached] = useState(false);
+  const [quota, setQuota] = useState<{ limit: number | null; used: number; remaining: number | null; isSubscribed: boolean } | null>(null);
+
+  useEffect(() => {
+    if (token) {
+      get("/projects/my-quota", token)
+        .then(setQuota)
+        .catch(console.error);
+    }
+  }, [token]);
 
   const skillsArray = useMemo(
     () => skills.split(",").map((s) => s.trim()).filter(Boolean),
@@ -147,12 +171,19 @@ export default function PostProjectWizard() {
         title: title.trim(),
         description: description.trim(),
         skills: skillsArray,
+        screeningQuestions,
+        acceptanceCriteria,
       };
       if (budgetMin) projectData.budgetMin = Number(budgetMin);
       if (budgetMax) projectData.budgetMax = Number(budgetMax);
 
       created = await post<ProjectResponse>("/projects", projectData, token ?? undefined);
-    } catch (err: unknown) {
+    } catch (err: any) {
+      if (err?.status === 403 || err?.statusCode === 403) {
+        setShowLimitReached(true);
+        setSaving(false);
+        return;
+      }
       setErrors((prev) => ({
         ...prev,
         form: err instanceof Error ? err.message : "Unable to create project",
@@ -179,12 +210,35 @@ export default function PostProjectWizard() {
       }
     }
 
-    router.replace("/projects/mine");
+    router.replace(onSuccessRedirect);
     setSaving(false);
   }
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Header with Quota */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Post a Project</h1>
+          <p className="text-sm text-muted-foreground">Follow the steps to find the perfect freelancer.</p>
+        </div>
+        
+        {quota && !quota.isSubscribed && quota.limit !== null && (
+          <div className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-2">
+            <div className={`size-2 rounded-full ${quota.remaining && quota.remaining > 0 ? 'bg-emerald-500' : 'bg-destructive'}`} />
+            <span className="text-xs font-medium text-primary-foreground mix-blend-difference">
+              {quota.remaining} of {quota.limit} projects remaining this week
+            </span>
+          </div>
+        )}
+        {quota?.isSubscribed && (
+          <div className="px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-200 flex items-center gap-2">
+            <Crown size={14} className="text-emerald-600 fill-emerald-600" />
+            <span className="text-xs font-medium text-emerald-700">Unlimited Pro Plan</span>
+          </div>
+        )}
+      </div>
+
       {/* Progress */}
       <div className="mb-8">
         <div className="flex justify-between mb-3">
@@ -255,6 +309,11 @@ export default function PostProjectWizard() {
               <AiBriefRefiner
                 value={description}
                 onChange={setDescription}
+                projectTitle={title}
+                onRefined={(data) => {
+                  setScreeningQuestions(data.screeningQuestions);
+                  setAcceptanceCriteria(data.acceptanceCriteria);
+                }}
                 placeholder="Describe the work you need, scope, deliverables, and any constraints..."
                 error={errors.description}
                 minLength={10}
@@ -266,6 +325,91 @@ export default function PostProjectWizard() {
                 </p>
               )}
             </div>
+
+            {/* AI Generated Sections */}
+            {(screeningQuestions.length > 0 || acceptanceCriteria.length > 0) && (
+              <div className="space-y-6 animate-fadeIn border-l-2 border-indigo-100 pl-6 py-2">
+                {/* Screening Questions */}
+                {screeningQuestions.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-indigo-900">
+                      <HelpCircle size={18} className="text-indigo-600" />
+                      <h3 className="text-sm font-bold uppercase tracking-wider">Screening Questions</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {screeningQuestions.map((q, i) => (
+                        <div key={i} className="group flex items-center gap-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
+                          <span className="text-indigo-400 font-mono text-xs w-4">0{i + 1}</span>
+                          <input
+                            className="flex-grow bg-transparent text-sm focus:outline-none text-indigo-900 font-medium"
+                            value={q}
+                            onChange={(e) => {
+                              const next = [...screeningQuestions];
+                              next[i] = e.target.value;
+                              setScreeningQuestions(next);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setScreeningQuestions(prev => prev.filter((_, idx) => idx !== i))}
+                            className="opacity-0 group-hover:opacity-100 text-indigo-400 hover:text-destructive transition-all"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setScreeningQuestions([...screeningQuestions, ""])}
+                        className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700 mt-2 px-1"
+                      >
+                        <Plus size={14} /> Add Question
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Acceptance Criteria */}
+                {acceptanceCriteria.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-indigo-900">
+                      <ListTodo size={18} className="text-indigo-600" />
+                      <h3 className="text-sm font-bold uppercase tracking-wider">Acceptance Criteria</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {acceptanceCriteria.map((c, i) => (
+                        <div key={i} className="group flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <Check size={14} className="text-emerald-500 shrink-0" />
+                          <input
+                            className="flex-grow bg-transparent text-sm focus:outline-none text-slate-700 font-medium"
+                            value={c}
+                            onChange={(e) => {
+                              const next = [...acceptanceCriteria];
+                              next[i] = e.target.value;
+                              setAcceptanceCriteria(next);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setAcceptanceCriteria(prev => prev.filter((_, idx) => idx !== i))}
+                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-destructive transition-all"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setAcceptanceCriteria([...acceptanceCriteria, ""])}
+                        className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-700 mt-2 px-1"
+                      >
+                        <Plus size={14} /> Add Criteria
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -279,6 +423,16 @@ export default function PostProjectWizard() {
               <p className="text-sm text-muted-foreground">
                 Optional. Setting a range helps freelancers decide if they can help.
               </p>
+            </div>
+
+            <div className="mb-6">
+              <AiBudgetEstimator 
+                formData={{ title, description, skills }} 
+                onApplyEstimates={(min: string, max: string) => {
+                  setBudgetMin(min);
+                  setBudgetMax(max);
+                }} 
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -460,6 +614,60 @@ export default function PostProjectWizard() {
           </Button>
         </div>
       </form>
+
+      {/* Upgrade Overlay */}
+      {showLimitReached && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fadeIn">
+          <Card className="max-w-md w-full border-2 border-primary/50 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#EC4899]" />
+            <CardHeader className="text-center pt-8">
+              <div className="mx-auto size-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
+                <Crown size={32} className="text-yellow-500 fill-yellow-500" />
+              </div>
+              <CardTitle className="text-2xl font-bold">Weekly Limit Reached</CardTitle>
+              <CardDescription className="text-base mt-2">
+                You&apos;ve reached the project creation limit for free accounts. 
+                Upgrade to Pro for unlimited project posts and premium features!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pb-8">
+              <div className="space-y-3">
+                {[
+                  "Unlimited project posts per week",
+                  "Priority support & resolution",
+                  "Advanced AI brief refiner",
+                  "Pro badge on your projects",
+                ].map((feature, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm text-foreground">
+                    <div className="size-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                      <Check className="text-emerald-600" size={12} />
+                    </div>
+                    {feature}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3">
+                <Button 
+                  className="w-full bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-90 h-11 text-base font-semibold"
+                  asChild
+                >
+                  <Link href="/settings?tab=subscription">
+                    <Zap size={18} className="mr-2 fill-current" />
+                    Upgrade to Pro — $59/mo
+                  </Link>
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full"
+                  onClick={() => setShowLimitReached(false)}
+                >
+                  Maybe later
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

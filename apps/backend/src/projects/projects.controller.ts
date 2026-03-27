@@ -69,6 +69,18 @@ export class ProjectsController {
     return this.projectsService.findMyProjects(clientId);
   }
 
+  @Get('my-quota')
+  async getMyQuota(@Req() req: Request) {
+    const clientId = await this.getUserId(req);
+    return this.projectsService.getProjectQuota(clientId);
+  }
+
+  @Get('matches')
+  async getMatches(@Req() req: Request) {
+    const freelancerId = await this.getUserId(req);
+    return this.projectsService.getMatches(freelancerId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.projectsService.findOne(id);

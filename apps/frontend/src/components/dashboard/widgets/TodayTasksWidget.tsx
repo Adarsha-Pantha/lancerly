@@ -1,7 +1,8 @@
 "use client";
 
-import { Plus, Edit, Share, Filter, Tag, Users, FileText } from "lucide-react";
+import { Plus, Edit, Share, Filter, Tag, Users, FileText, CheckCircle2, Clock } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 type Task = {
   id: string;
@@ -20,104 +21,74 @@ interface TodayTasksWidgetProps {
 }
 
 export default function TodayTasksWidget({ tasks }: TodayTasksWidgetProps) {
-  const [filterCount] = useState(8);
-
   return (
-    <div className="bg-slate-800 dark:bg-slate-900 rounded-xl border border-slate-700 p-6">
+    <div className="bento-card p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold text-white">Today tasks</h2>
+          <h2 className="text-xl font-semibold text-brand-purple">Upcoming Milestones</h2>
           <div className="flex items-center -space-x-2">
-            {[1, 2, 3].map((i) => (
+            {tasks.slice(0, 3).map((task, i) => (
               <div
                 key={i}
-                className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-slate-800 flex items-center justify-center text-white text-xs font-semibold"
+                className="w-7 h-7 rounded-full bg-brand-purple border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
               >
-                {String.fromCharCode(64 + i)}
+                {task.teamMembers[0]?.name.charAt(0).toUpperCase() || "F"}
               </div>
             ))}
-            <button className="w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-slate-400 hover:bg-slate-600 transition-colors">
-              <Plus size={12} />
-            </button>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2">
-            <Edit size={14} />
-            Edit
-          </button>
-          <button className="px-3 py-1.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2">
-            <Share size={14} />
-            Share
-          </button>
-          <button className="px-3 py-1.5 text-sm text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2">
-            <Filter size={14} />
-            Filter
-            <span className="ml-1 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded">{filterCount}</span>
+          <button className="p-2 text-slate-400 hover:text-brand-purple hover:bg-purple-50 rounded-xl transition-all">
+            <Filter size={18} />
           </button>
         </div>
       </div>
-      <div className="space-y-4">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className="p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:bg-slate-700 transition-colors"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <h3 className="text-white font-medium">{task.title}</h3>
-              <div className="flex items-center gap-1">
-                {task.tags.map((tag, idx) => (
-                  <button
-                    key={idx}
-                    className="px-2 py-0.5 text-xs bg-purple-600/20 text-purple-300 rounded flex items-center gap-1"
-                  >
-                    <Tag size={10} />
-                    {tag}
-                  </button>
-                ))}
+
+      {tasks.length === 0 ? (
+        <div className="py-12 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+          <Clock size={32} className="mb-2 opacity-20" />
+          <p className="text-sm">No active milestones for today</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className="p-4 bg-white border border-slate-100 rounded-2xl hover:border-purple-200 hover:shadow-soft transition-all group"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-slate-900 font-semibold text-sm group-hover:text-brand-purple transition-colors">{task.title}</h3>
+                <span className={cn(
+                  "px-2 py-0.5 text-[10px] rounded-full font-medium",
+                  task.progress === 100 ? "bg-emerald-50 text-emerald-600" : "bg-purple-50 text-brand-purple"
+                )}>
+                  {task.progress === 100 ? "Ready to Approve" : "In Progress"}
+                </span>
               </div>
-            </div>
-            <p className="text-slate-300 text-sm mb-3">{task.description}</p>
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span>Progress</span>
-                <span className="text-white font-medium">{task.progress}%</span>
-              </div>
-              <div className="h-1.5 bg-slate-600 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all"
-                  style={{ width: `${task.progress}%` }}
-                ></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-xs text-slate-400">
-                <div className="flex items-center gap-1">
-                  <FileText size={12} />
-                  <span>{task.files} files</span>
-                </div>
-                <span>{task.completed}/{task.total}</span>
-              </div>
-              <div className="flex items-center -space-x-2">
-                {task.teamMembers.slice(0, 3).map((member, idx) => (
-                  <div
-                    key={idx}
-                    className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 border-2 border-slate-800 flex items-center justify-center text-white text-xs font-semibold"
-                    title={member.name}
-                  >
-                    {member.name.charAt(0).toUpperCase()}
+              <p className="text-slate-500 text-xs mb-4 line-clamp-1">{task.description}</p>
+              
+              <div className="flex items-center justify-between mt-auto">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <FileText size={12} />
+                    <span>{task.files}</span>
                   </div>
-                ))}
-                {task.teamMembers.length > 3 && (
-                  <div className="w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-800 flex items-center justify-center text-slate-300 text-xs">
-                    +{task.teamMembers.length - 3}
+                </div>
+                {task.progress === 100 ? (
+                  <CheckCircle2 size={16} className="text-mint" />
+                ) : (
+                  <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-brand-purple rounded-full" 
+                      style={{ width: `${task.progress}%` }}
+                    />
                   </div>
                 )}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

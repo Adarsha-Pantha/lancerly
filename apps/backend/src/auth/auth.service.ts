@@ -32,6 +32,7 @@ export class AuthService {
     id: string;
     email: string;
     role: Role;
+    isSubscribed: boolean;
     createdAt: Date;
     profile?: {
       name: string | null;
@@ -51,6 +52,7 @@ export class AuthService {
       email: u.email,
       role: u.role,
       createdAt: u.createdAt,
+      isSubscribed: u.isSubscribed ?? false,
       name: u.profile?.name ?? null,
       avatarUrl: u.profile?.avatarUrl ?? null,
       dob: u.profile?.dob ?? null,
@@ -98,6 +100,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -156,6 +159,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -234,6 +238,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        isSubscribed: user.isSubscribed,
         createdAt: user.createdAt,
         profile: {
           name: user.profile?.name ?? null,
@@ -274,6 +279,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      isSubscribed: user.isSubscribed,
       createdAt: user.createdAt,
       profile: {
         name: user.profile?.name ?? null,
@@ -329,6 +335,7 @@ export class AuthService {
           id: true,
           email: true,
           role: true,
+          isSubscribed: true,
           createdAt: true,
           profile: {
             select: {
@@ -370,6 +377,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -431,6 +439,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -503,6 +512,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {

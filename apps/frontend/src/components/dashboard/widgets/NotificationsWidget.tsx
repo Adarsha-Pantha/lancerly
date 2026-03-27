@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Trash2, Edit, MessageSquare, Briefcase, CheckCircle2 } from "lucide-react";
+import { Bell, Trash2, Edit, MessageSquare, Briefcase, CheckCircle2, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 type Notification = {
@@ -27,67 +27,53 @@ export default function NotificationsWidget({ notifications, onClear }: Notifica
 
   const getIcon = (type: string) => {
     switch (type) {
-      case "event":
-        return <Bell size={16} className="text-blue-400" />;
       case "message":
-        return <MessageSquare size={16} className="text-green-400" />;
+        return <MessageSquare size={14} className="text-emerald-500" />;
       case "proposal":
-        return <Briefcase size={16} className="text-purple-400" />;
+        return <Briefcase size={14} className="text-brand-purple" />;
       case "project":
-        return <CheckCircle2 size={16} className="text-yellow-400" />;
+        return <CheckCircle2 size={14} className="text-amber-500" />;
       default:
-        return <Bell size={16} />;
+        return <Bell size={14} className="text-blue-500" />;
     }
   };
 
   return (
-    <div className="bg-slate-800 dark:bg-slate-900 rounded-xl border border-slate-700 p-6">
+    <div className="bento-card p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-white">Notifications</h2>
+        <h2 className="text-xl font-semibold text-brand-purple">Updates</h2>
         <button
           onClick={onClear}
-          className="text-sm text-slate-400 hover:text-white transition-colors"
+          className="text-xs font-medium text-slate-400 hover:text-brand-purple transition-colors"
         >
-          Clear
+          Mark all as read
         </button>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {localNotifications.length === 0 ? (
-          <div className="text-center py-8 text-slate-400">
-            <Bell className="mx-auto mb-2 opacity-50" size={32} />
-            <p className="text-sm">No notifications</p>
+          <div className="text-center py-10 text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+            <Bell className="mx-auto mb-3 opacity-20" size={32} />
+            <p className="text-sm">Stay tuned for updates!</p>
           </div>
         ) : (
           localNotifications.map((notification) => (
             <div
               key={notification.id}
-              className="p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:bg-slate-700 transition-colors"
+              className="group relative flex items-start gap-3 p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all cursor-pointer"
             >
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-slate-600 rounded-lg">{getIcon(notification.type)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="text-white font-medium text-sm">{notification.title}</h3>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleDelete(notification.id)}
-                        className="p-1 text-slate-400 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                      <button className="p-1 text-slate-400 hover:text-blue-400 transition-colors">
-                        <Edit size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-slate-300 text-xs mb-2">{notification.description}</p>
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    {notification.date && <span>{notification.date}</span>}
-                    {notification.time && <span>{notification.time}</span>}
-                    {notification.duration && <span>Duration: {notification.duration}</span>}
-                  </div>
-                </div>
+              <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
+                {getIcon(notification.type)}
               </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <h3 className="text-slate-900 font-semibold text-xs truncate uppercase tracking-tight">
+                    {notification.title}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 whitespace-nowrap">{notification.time}</span>
+                </div>
+                <p className="text-slate-500 text-[11px] line-clamp-1 leading-relaxed">{notification.description}</p>
+              </div>
+              <ChevronRight size={14} className="text-slate-300 self-center opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
             </div>
           ))
         )}

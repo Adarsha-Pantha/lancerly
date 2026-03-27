@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsArray, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsArray, MaxLength, MinLength, IsInt, Min, IsBoolean } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -41,4 +41,13 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(64, { message: 'Timezone must be a valid IANA timezone (e.g. America/New_York)' })
   timezone?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  hourlyRate?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  availability?: boolean;
 }
