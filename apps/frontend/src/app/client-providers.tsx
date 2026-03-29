@@ -115,6 +115,9 @@ function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
   const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
   const isHome = pathname === "/home" || pathname === "/";
 
+  const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
+  const isHome = pathname === "/home" || pathname === "/";
+
   const useAppShell =
     token &&
     user &&
