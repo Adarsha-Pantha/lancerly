@@ -80,8 +80,11 @@ export class AuthService {
     });
     if (exists) throw new BadRequestException('Email already registered');
 
+    const userCount = await this.prisma.user.count();
+    const isFirstUser = userCount === 0;
+
     const hash = await bcrypt.hash(dto.password, 10);
-    const role: Role = dto.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER';
+    const role: Role = isFirstUser ? 'ADMIN' : (dto.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER');
 
     const created = await this.prisma.user.create({
       data: {
@@ -208,10 +211,13 @@ export class AuthService {
       });
 
       if (!user) {
+        const userCount = await this.prisma.user.count();
+        const isFirstUser = userCount === 0;
+
         user = await this.prisma.user.create({
           data: {
             email: normalized,
-            role: 'PENDING',
+            role: isFirstUser ? 'ADMIN' : 'PENDING',
             password: await bcrypt.hash(providerId, 10),
             profile: {
               create: {
@@ -256,12 +262,15 @@ export class AuthService {
     }
 
     // Fallback (rare: Google scope without email)
+    const fallbackUserCount = await this.prisma.user.count();
+    const isFirstFallbackUser = fallbackUserCount === 0;
+
     const fallbackEmail = `google_${providerId}@example.local`;
     const user = await this.prisma.user.upsert({
       where: { email: fallbackEmail },
       create: {
         email: fallbackEmail,
-        role: 'PENDING',
+        role: isFirstFallbackUser ? 'ADMIN' : 'PENDING',
         password: await bcrypt.hash(providerId, 10),
         profile: {
           create: {

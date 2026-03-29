@@ -235,23 +235,25 @@ export default function HomePage() {
                     {loading ? "" : `${filteredProjects.length} open`}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
-                  {(["recent", "best"] as const).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setSortBy(key)}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
-                      style={
-                        sortBy === key
-                          ? { backgroundColor: BRAND, color: "#fff" }
-                          : { color: "#64748b" }
-                      }
-                    >
-                      {key === "recent" ? "Most Recent" : "Best Match"}
-                    </button>
-                  ))}
-                </div>
+                {user?.role === "FREELANCER" && (
+                  <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+                    {(["recent", "best"] as const).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSortBy(key)}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
+                        style={
+                          sortBy === key
+                            ? { backgroundColor: BRAND, color: "#fff" }
+                            : { color: "#64748b" }
+                        }
+                      >
+                        {key === "recent" ? "Most Recent" : "Best Match"}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {loading ? (

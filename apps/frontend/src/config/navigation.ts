@@ -25,7 +25,7 @@ export const SIDEBAR_NAV: { href: string; label: string; icon: React.ElementType
   { href: "/messages", label: "Messages", icon: MessageCircle },
   { href: "/proposals/me", label: "My Proposals", icon: Send, roles: ["FREELANCER"] },
   { href: "/contracts/me", label: "Contracts", icon: FileText },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  // { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export function getPrimaryCta(role: NavRole) {

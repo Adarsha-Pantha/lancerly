@@ -85,6 +85,7 @@ export function ProjectDrawer({ projectId }: ProjectDrawerProps) {
   const [submitted, setSubmitted] = useState(false);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [expandedProposals, setExpandedProposals] = useState<string[]>([]);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   const isFreelancer = user?.role === "FREELANCER";
@@ -415,9 +416,20 @@ export function ProjectDrawer({ projectId }: ProjectDrawerProps) {
                                       </span>
                                     </div>
                                   </div>
-                                  <p className="text-sm text-slate-500 line-clamp-3 italic">
+                                  <p className={`text-sm text-slate-500 italic ${expandedProposals.includes(prop.id) ? "" : "line-clamp-3"}`}>
                                     "{prop.coverLetter}"
                                   </p>
+                                  {prop.coverLetter.length > 200 && (
+                                    <button
+                                      onClick={() => setExpandedProposals(prev => 
+                                        prev.includes(prop.id) ? prev.filter(id => id !== prop.id) : [...prev, prop.id]
+                                      )}
+                                      className="text-xs font-semibold mt-1 hover:underline"
+                                      style={{ color: BRAND }}
+                                    >
+                                      {expandedProposals.includes(prop.id) ? "Read less" : "Read more"}
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>

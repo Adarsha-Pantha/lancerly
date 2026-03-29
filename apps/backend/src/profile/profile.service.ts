@@ -5,8 +5,42 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
+
+const PROFILE_INCLUDE = {
+  profile: true,
+  portfolioProjects: { orderBy: { createdAt: 'desc' as const } },
+  projects: {
+    orderBy: { createdAt: 'desc' as const },
+    include: {
+      contract: {
+        include: {
+          reviews: true,
+          milestones: { where: { status: 'PAID' } },
+        },
+      },
+      _count: { select: { proposals: true } },
+    },
+  },
+  contractsAsFreelancer: {
+    orderBy: { createdAt: 'desc' as const },
+    include: {
+      project: {
+        include: {
+          _count: { select: { proposals: true } },
+        },
+      },
+      reviews: true,
+      milestones: { where: { status: 'PAID' } },
+    },
+  },
+  receivedReviews: { select: { rating: true } },
+  contractsAsClient: {
+    include: { milestones: { where: { status: 'PAID' } } },
+  },
+} satisfies Prisma.UserInclude;
 
 @Injectable()
 export class ProfileService {
@@ -15,7 +49,6 @@ export class ProfileService {
     private readonly jwt: JwtService,
   ) {}
 
-  /** Extract userId from "Authorization: Bearer <token>" header */
   private async userIdFromAuth(auth?: string) {
     if (!auth?.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing token');
@@ -23,71 +56,17 @@ export class ProfileService {
     const token = auth.slice(7);
     try {
       const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
-      if (!payload?.sub) throw new UnauthorizedException('Invalid token');
       return payload.sub;
-    } catch (err: any) {
-      if (err?.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Token expired. Please log in again.');
-      }
-      if (err?.name === 'JsonWebTokenError') {
-        throw new UnauthorizedException('Invalid token');
-      }
-      throw new UnauthorizedException(err?.message ?? 'Authentication failed');
+    } catch {
+      throw new UnauthorizedException('Authentication failed');
     }
   }
 
-  /** GET /profile (current user) */
   async getMine(auth?: string) {
     const userId = await this.userIdFromAuth(auth);
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        profile: {
-          select: {
-            name: true,
-            headline: true,
-            bio: true,
-            skills: true,
-            avatarUrl: true,
-            dob: true,
-            country: true,
-            phone: true,
-            street: true,
-            city: true,
-            state: true,
-            postalCode: true,
-            availability: true,
-            isComplete: true,
-            kycStatus: true,
-            kycFrontImage: true,
-            kycBackImage: true,
-            kycRejectionReason: true,
-          },
-        },
-        portfolioProjects: {
-          orderBy: { createdAt: 'desc' },
-        },
-        projects: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            contract: {
-              include: {
-                review: true,
-                milestones: { where: { status: 'PAID' } },
-              },
-            },
-            _count: { select: { proposals: true } },
-          },
-        },
-        receivedReviews: { select: { rating: true } },
-        contractsAsClient: {
-          include: { milestones: { where: { status: 'PAID' } } },
-        },
-      },
+      include: PROFILE_INCLUDE,
     });
     if (!user) throw new UnauthorizedException('User not found');
 
@@ -105,88 +84,45 @@ export class ProfileService {
       ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
       : 0;
 
+    const unifiedProjects = user.role === 'CLIENT' 
+      ? user.projects 
+      : (user.contractsAsFreelancer || []).map(c => ({
+          ...c.project,
+          contract: { ...c, project: undefined }
+        }));
+
     return {
       ...user,
       postedJobs: user.projects.length,
-      totalSpending: totalSpending / 100, // convert cents to dollars
+      totalSpending: totalSpending / 100,
       reviewCount,
       rating,
-      portfolioProjects: user.portfolioProjects,
+      projects: unifiedProjects,
     };
   }
 
-  /** GET /profile/:id (public profile view) */
-  async getById(targetUserId: string, auth?: string) {
-    // Get current user ID if authenticated (to check friendship status)
+  async getById(id: string, auth?: string) {
     let currentUserId: string | null = null;
-    try {
-      if (auth) {
-        currentUserId = await this.userIdFromAuth(auth);
-      }
-    } catch {
-      // Not authenticated, that's fine
-    }
+    try { if (auth) currentUserId = await this.userIdFromAuth(auth); } catch {}
 
     const user = await this.prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        profile: {
-          select: {
-            name: true,
-            headline: true,
-            bio: true,
-            skills: true,
-            avatarUrl: true,
-            dob: true,
-            country: true,
-            city: true,
-            state: true,
-            availability: true,
-            // Don't expose sensitive info like phone, street, postalCode for public profiles
-          },
-        },
-        portfolioProjects: {
-          orderBy: { createdAt: 'desc' },
-        },
-        projects: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            contract: {
-              include: {
-                review: true,
-                milestones: { where: { status: 'PAID' } },
-              },
-            },
-            _count: { select: { proposals: true } },
-          },
-        },
-        receivedReviews: { select: { rating: true } },
-        contractsAsClient: {
-          include: { milestones: { where: { status: 'PAID' } } },
-        },
-      },
+      where: { id },
+      include: PROFILE_INCLUDE,
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
 
-    // Check if current user is friends with this user
     let isFriend = false;
     if (currentUserId) {
-      const friendship = await this.prisma.friendship.findFirst({
+      const f = await this.prisma.friendship.findFirst({
         where: {
           OR: [
-            { userId: currentUserId, friendId: targetUserId },
-            { userId: targetUserId, friendId: currentUserId },
+            { userId: currentUserId, friendId: id },
+            { userId: id, friendId: currentUserId },
           ],
         },
       });
-      isFriend = !!friendship;
+      isFriend = !!f;
     }
 
     let totalSpending = 0;
@@ -203,44 +139,32 @@ export class ProfileService {
       ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
       : 0;
 
+    const unifiedProjects = user.role === 'CLIENT' 
+      ? user.projects 
+      : (user.contractsAsFreelancer || []).map(c => ({
+          ...c.project,
+          contract: { ...c, project: undefined }
+        }));
+
     return {
       ...user,
       isFriend,
-      isOwnProfile: currentUserId === targetUserId,
+      isOwnProfile: currentUserId === id,
       postedJobs: user.projects.length,
-      totalSpending: totalSpending / 100, // convert cents to dollars
+      totalSpending: totalSpending / 100,
       reviewCount,
       rating,
-      portfolioProjects: user.portfolioProjects,
+      projects: unifiedProjects,
     };
   }
 
-  async addPortfolioProject(
-    authHeader: string | undefined,
-    dto: { title: string; description: string; skills: string; liveLink?: string },
-    imageUrl?: string,
-  ) {
-    const token = authHeader?.split(' ')[1];
-    if (!token) throw new UnauthorizedException('No token provided');
-    
-    let userId: string;
-    try {
-      const decoded = this.jwt.verify(token);
-      userId = decoded.sub;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.role !== 'FREELANCER') {
-      throw new UnauthorizedException('Only freelancers can add portfolio projects');
-    }
-
-    let parsedSkills: string[] = [];
-    try {
-      parsedSkills = JSON.parse(dto.skills);
-    } catch {
-      parsedSkills = dto.skills ? dto.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+  async addPortfolioProject(auth: string, dto: any, imageUrl?: string) {
+    const userId = await this.userIdFromAuth(auth);
+    let skillsArray: string[] = [];
+    if (typeof dto.skills === 'string') {
+      try { skillsArray = JSON.parse(dto.skills); } catch { skillsArray = dto.skills.split(',').map((s: any) => s.trim()); }
+    } else if (Array.isArray(dto.skills)) {
+      skillsArray = dto.skills;
     }
 
     return this.prisma.portfolioProject.create({
@@ -248,115 +172,41 @@ export class ProfileService {
         freelancerId: userId,
         title: dto.title,
         description: dto.description,
-        skills: parsedSkills,
-        liveLink: dto.liveLink || null,
-        imageUrl: imageUrl || null,
+        skills: skillsArray,
+        imageUrl,
+        liveLink: dto.liveLink,
       },
     });
   }
 
-  /**
-   * PUT /profile
-   * Merges existing profile with incoming DTO and optional avatarUrl,
-   * recomputes isComplete, and normalizes null -> undefined for Prisma types.
-   */
-  async updateMine(
-    auth: string | undefined,
-    dto: CompleteProfileDto,
-    avatarUrl?: string,
-  ) {
+  async updateMine(auth: string, dto: CompleteProfileDto, avatarUrl?: string) {
     const userId = await this.userIdFromAuth(auth);
-
-    // Ensure profile row exists (create if missing)
-    const current = await this.prisma.profile.upsert({
+    return this.prisma.profile.update({
       where: { userId },
-      create: {
-        userId,
-        name: '',
-        availability: true,
-      },
-      update: {},
-    });
-
-    // Merge current + incoming so completeness check uses final values
-    const merged = {
-      name: dto.name ?? current.name ?? null,
-      dob: dto.dob ? new Date(dto.dob) : current.dob ?? null,
-      country: dto.country ?? current.country ?? null,
-      phone: dto.phone ?? current.phone ?? null,
-      street: dto.street ?? current.street ?? null,
-      city: dto.city ?? current.city ?? null,
-      state: dto.state ?? current.state ?? null,
-      postalCode: dto.postalCode ?? current.postalCode ?? null,
-      avatarUrl:
-        avatarUrl !== undefined
-          ? avatarUrl
-          : current.avatarUrl ?? null,
-    };
-
-    // Compute completeness
-    const required = [
-      merged.name,
-      merged.country,
-      merged.phone,
-      merged.street,
-      merged.city,
-      merged.state,
-      merged.postalCode,
-    ];
-    const isComplete = required.every((v) => !!v && String(v).trim().length > 0);
-
-    // ✅ Normalize null -> undefined to satisfy Prisma types
-    const normalized = {
-      name: merged.name ?? undefined,
-      dob: merged.dob ?? undefined,
-      country: merged.country ?? undefined,
-      phone: merged.phone ?? undefined,
-      street: merged.street ?? undefined,
-      city: merged.city ?? undefined,
-      state: merged.state ?? undefined,
-      postalCode: merged.postalCode ?? undefined,
-      avatarUrl: merged.avatarUrl ?? undefined,
-      isComplete,
-    };
-
-    const updated = await this.prisma.profile.update({
-      where: { userId },
-      data: normalized,
-      select: {
-        name: true,
-        avatarUrl: true,
-        dob: true,
-        country: true,
-        phone: true,
-        street: true,
-        city: true,
-        state: true,
-        postalCode: true,
+      data: {
+        avatarUrl: avatarUrl || undefined,
+        name: dto.name,
+        dob: dto.dob ? new Date(dto.dob) : undefined,
+        country: dto.country,
+        phone: dto.phone,
+        street: dto.street,
+        city: dto.city,
+        state: dto.state,
+        postalCode: dto.postalCode,
         isComplete: true,
       },
     });
-
-    return updated;
   }
 
-  /** POST /profile/kyc - Submits KYC images */
-  async updateKyc(
-    auth: string | undefined,
-    frontImageUrl?: string,
-    backImageUrl?: string,
-  ) {
+  async updateKyc(auth: string, front: string, back: string) {
     const userId = await this.userIdFromAuth(auth);
-
-    const updated = await this.prisma.profile.update({
+    return this.prisma.profile.update({
       where: { userId },
       data: {
-        kycFrontImage: frontImageUrl,
-        kycBackImage: backImageUrl,
         kycStatus: 'PENDING',
+        kycFrontImage: front,
+        kycBackImage: back,
       },
     });
-
-    return updated;
   }
 }

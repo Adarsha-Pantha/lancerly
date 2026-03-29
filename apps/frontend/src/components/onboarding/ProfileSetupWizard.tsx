@@ -127,7 +127,7 @@ export default function ProfileSetupWizard() {
 
       const updated = await refreshUser();
       if (updated && !needsCompletion(updated)) {
-        router.replace("/profile");
+        router.replace("/");
       } else {
         router.replace("/profile/setup");
       }

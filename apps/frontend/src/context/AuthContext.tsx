@@ -92,7 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ✅ When API returns 401 / "jwt expired", clear session and redirect to login
   useEffect(() => {
+    let isClearing = false;
     onAuthFailure.set(() => {
+      if (isClearing) return;
+      isClearing = true;
       setUser(null);
       setToken(null);
       try {

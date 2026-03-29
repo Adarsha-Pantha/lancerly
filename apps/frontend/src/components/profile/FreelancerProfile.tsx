@@ -32,12 +32,6 @@ export type FreelancerProfileData = {
   city?: string | null;
   hourlyRate?: number | null;
   totalEarnings?: number;
-  paymentHistory?: {
-    id: string;
-    amount: number;
-    projectTitle: string;
-    date: string;
-  }[];
 };
 
 type FreelancerProfileProps = {
@@ -66,7 +60,20 @@ type FreelancerProfileProps = {
     liveLink?: string | null;
     createdAt: string;
   }[];
+  projects?: {
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    budgetMin?: number | null;
+    budgetMax?: number | null;
+    contract?: {
+      id: string;
+      reviews?: { rating: number; comment: string | null; revieweeId: string }[] | null;
+    } | null;
+  }[];
   onAddPortfolio?: () => void;
+  userId?: string;
 };
 
 // ── Profile completion tracking ──────────────────────────────────────
@@ -199,6 +206,8 @@ export function FreelancerProfile({
   reviewCount = 0,
   kycStatus = "unverified",
   portfolioProjects = [],
+  projects = [],
+  userId,
   onAddPortfolio,
 }: FreelancerProfileProps) {
   const skills = Array.isArray(data.skills) ? data.skills : [];
@@ -463,46 +472,62 @@ export function FreelancerProfile({
         )}
       </ProfileCard>
 
-      {/* Payment History */}
-      {isOwnProfile && data.paymentHistory && data.paymentHistory.length > 0 && (
-        <ProfileCard title="Payment History" icon={<DollarSign className="size-5" />}>
-          <div className="space-y-3">
-            {data.paymentHistory.map((payment) => (
-              <div
-                key={payment.id}
-                className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {payment.projectTitle}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(payment.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </p>
+      <ProfileCard title="Job History" icon={<Briefcase className="size-5" />}>
+        {projects.length > 0 ? (
+          <div className="space-y-6">
+            {projects.map((proj) => (
+              <div key={proj.id} className="border-b border-border last:border-0 pb-6 last:pb-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-semibold text-foreground">{proj.title}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(proj.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      proj.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {proj.status}
+                    </span>
+                  </div>
+                  
+                  {proj.contract?.reviews && proj.contract.reviews.length > 0 ? (
+                    <div className="mt-3 bg-muted/30 rounded-lg p-3">
+                      {proj.contract.reviews
+                        .filter(rev => !userId || rev.revieweeId === userId) // Filter reviews for this profile owner
+                        .map((rev, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-center gap-1 mb-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={12}
+                                className={`${star <= rev.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm text-foreground italic">"{rev.comment}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : proj.status === "COMPLETED" && (
+                    <p className="text-xs text-muted-foreground mt-2 italic">No feedback given yet</p>
+                  )}
                 </div>
-                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  +${payment.amount.toLocaleString()}
-                </p>
-              </div>
-            ))}
+              ))}
           </div>
-        </ProfileCard>
-      )}
-
-      {/* Reviews placeholder */}
-      {(rating != null || reviewCount > 0) && (
-        <ProfileCard title="Reviews" icon={<Star className="size-5" />}>
-          <p className="text-sm text-muted-foreground">
-            {rating != null && reviewCount > 0
-              ? `${rating.toFixed(1)} average from ${reviewCount} review${reviewCount === 1 ? "" : "s"}`
-              : "No reviews yet"}
-          </p>
-          </ProfileCard>
+        ) : (
+          <EmptyState
+            icon={<Briefcase className="size-8" />}
+            title="No job history yet"
+            description="Active and completed projects will appear here once you start working"
+          />
         )}
+      </ProfileCard>
       </div>
 
       {/* Right Column: Profile completion card */}

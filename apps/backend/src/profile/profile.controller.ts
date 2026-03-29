@@ -48,7 +48,8 @@ export class ProfileController {
   ) {
     const frontUrl = files.front?.[0] ? `/uploads/${files.front[0].filename}` : undefined;
     const backUrl = files.back?.[0] ? `/uploads/${files.back[0].filename}` : undefined;
-    return this.svc.updateKyc(req.headers['authorization'], frontUrl, backUrl);
+    const authHeader = req.headers['authorization'];
+    return this.svc.updateKyc(authHeader as string, frontUrl as string, backUrl as string);
   }
 
   @Put()
@@ -68,7 +69,8 @@ export class ProfileController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const avatarUrl = file ? `/uploads/${file.filename}` : undefined;
-    return this.svc.updateMine(req.headers['authorization'], dto, avatarUrl);
+    const authHeader = req.headers['authorization'];
+    return this.svc.updateMine(authHeader as string, dto, avatarUrl);
   }
 
   @Post('portfolio')

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { get, post, patch, postForm } from "@/lib/api";
-import { Loader2, Plus, Clock, DollarSign, FileText, ArrowRight, AlertTriangle, CheckCircle2, FileCheck, Scale } from "lucide-react";
+import { Loader2, Plus, Clock, DollarSign, FileText, ArrowRight, AlertTriangle, CheckCircle2, FileCheck, Scale, Star } from "lucide-react";
 import ProjectChat from "@/components/contracts/ProjectChat";
 import { MilestoneCard } from "@/components/contracts/MilestoneCard";
 import { EscrowStatus } from "@/components/contracts/EscrowStatus";
@@ -14,6 +14,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { KYCVerifiedBadge, DoubleBlindReviewCard } from "@/components/ui/TrustBadges";
 import { Button } from "@/components/ui/button";
+import { ReviewModal } from "@/components/contracts/ReviewModal";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -97,6 +98,7 @@ export default function ContractPage() {
   const [disputeDesc, setDisputeDesc] = useState("");
   const [disputeFile, setDisputeFile] = useState<File | null>(null);
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   useEffect(() => {
     if (!token || !user) {
@@ -312,8 +314,9 @@ export default function ContractPage() {
   const fundedCount = contract.milestones.filter((m) => m.status !== "PENDING" || m.stripePaymentIntentId).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 px-4">
-      <div className="max-w-6xl mx-auto">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 px-4">
+        <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <Button
             variant="ghost"
@@ -810,11 +813,43 @@ export default function ContractPage() {
                 </p>
               </div>
             )}
+
+            {contract.status === "COMPLETED" && (
+              <div className="mt-8 pt-8 border-t border-[#E2E8F0]">
+                <div className="flex flex-col items-center text-center max-w-md mx-auto">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-4">
+                    <Star size={24} />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Project Completed!</h3>
+                  <p className="text-sm text-slate-500 mb-6">
+                    How was your experience working on this contract? Your feedback helps the community.
+                  </p>
+                  <Button
+                    onClick={() => setShowReviewModal(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+                  >
+                    <Star size={16} className="mr-2" />
+                    Leave a Review
+                  </Button>
+                </div>
+              </div>
+            )}
           </WorkspaceLayout>
         </div>
       </div>
     </div>
-  );
+
+    {token && (
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        contractId={contractId}
+        token={token}
+        onSuccess={loadContract}
+      />
+    )}
+  </>
+);
 }
 
 function FundMilestoneForm({

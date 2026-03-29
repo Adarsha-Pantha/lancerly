@@ -33,12 +33,10 @@ const navItems = [
   { id: "users", label: "Users", icon: "users", href: "/admin/users", badge: 3, section: "Manage" },
   { id: "kyc", label: "KYC Verification", icon: "shield", href: "/admin/kyc", section: "Manage" },
   { id: "projects", label: "Projects", icon: "projects", href: "/admin/projects", section: "Manage" },
-  { id: "proposals", label: "Proposals", icon: "proposals", href: "/admin/proposals", section: "Manage" },
+  // { id: "proposals", label: "Proposals", icon: "proposals", href: "/admin/proposals", section: "Manage" },
   { id: "disputes", label: "Disputes", icon: "disputes", href: "/admin/disputes", badge: 2, section: "Manage" },
   { id: "finance", label: "Finance", icon: "finance", href: "/admin/finance", section: "Platform" },
-  { id: "categories", label: "Categories", icon: "category", href: "/admin/categories", section: "Platform" },
-  { id: "ai", label: "AI Features", icon: "ai", href: "/admin/ai", section: "Platform" },
-  { id: "subscriptions", label: "Subscriptions", icon: "zap", href: "/admin/subscriptions", section: "Platform" },
+  { id: "subscriptions", label: "Subscriptions", icon: "finance", href: "/admin/subscriptions", section: "Platform" },
   { id: "settings", label: "Settings", icon: "settings", href: "/admin/settings", section: "Platform" },
 ];
 
@@ -211,7 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   >
                     <Icon d={icons[item.icon as keyof typeof icons]} size={17} />
                     <span className="nav-lbl">{item.label}</span>
-                    {item.badge && <span className="nav-badge">{item.badge}</span>}
+                    {/* {item.badge && <span className="nav-badge">{item.badge}</span>} */}
                   </Link>
                 ))}
               </div>

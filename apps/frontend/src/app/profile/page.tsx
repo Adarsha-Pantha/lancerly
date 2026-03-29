@@ -64,7 +64,8 @@ type ProfileData = {
     budgetMax?: number | null;
     _count?: { proposals: number };
     contract?: {
-      review?: { rating: number; comment: string | null } | null;
+      id: string;
+      reviews?: { rating: number; comment: string | null; revieweeId: string }[] | null;
     } | null;
   }[];
 };
@@ -219,6 +220,7 @@ export default function ProfilePage() {
           reviewCount={profileData?.reviewCount}
           rating={profileData?.rating}
           projects={profileData?.projects}
+          userId={profileData?.id}
         />
       </div>
     );
@@ -239,7 +241,7 @@ export default function ProfilePage() {
           city: profile?.city,
           hourlyRate: profile?.hourlyRate,
           totalEarnings: profileData?.earnings?.totalEarnings,
-          paymentHistory: profileData?.earnings?.paymentHistory,
+          // paymentHistory: profileData?.earnings?.paymentHistory, // Removed
         }}
         fallbackAvatar={fallbackAvatar}
         toPublicUrl={toPublicUrl}
@@ -250,6 +252,8 @@ export default function ProfilePage() {
         onSaveBio={handleSaveBio}
         kycStatus={profile?.kycStatus === "APPROVED" ? "verified" : (profile?.kycStatus === "PENDING" ? "pending" : "unverified")}
         portfolioProjects={profileData?.portfolioProjects}
+        projects={profileData?.projects}
+        userId={profileData?.id}
         onAddPortfolio={() => setIsPortfolioModalOpen(true)}
       />
       

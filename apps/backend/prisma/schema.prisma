@@ -85,6 +85,9 @@ model Profile {
   // Stripe Connect – for freelancers to receive payments
   stripeAccountId String? @unique
 
+  rating       Float     @default(0.0)
+  reviewCount  Int       @default(0)
+
   // AI Matchmaking
   embedding Float[]
 }
@@ -277,13 +280,13 @@ model Contract {
   milestones    Milestone[]
   deliveries    Delivery[]
   timeEntries   TimeEntry[]
-  review        Review?
+  reviews       Review[]
   disputes      Dispute[]
 }
 
 model Review {
   id              String           @id @default(uuid())
-  contractId      String           @unique
+  contractId      String
   contract        Contract         @relation(fields: [contractId], references: [id])
   reviewerId      String
   reviewer        User             @relation("SentReviews", fields: [reviewerId], references: [id])

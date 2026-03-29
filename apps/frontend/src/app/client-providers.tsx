@@ -5,11 +5,10 @@ import Navbar from "@/components/Navbar";
 import AppShell from "@/components/layout/AppShell";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { usePathname, useRouter } from "next/navigation";
-import { needsCompletion } from "@/lib/auth";
+import { needsCompletion, needsRoleSelection } from "@/lib/auth";
 import { NotificationProvider, useNotifications } from "@/context/NotificationContext";
 import { ToastProvider } from "@/context/ToastContext";
 
-/** Dashboard workspace routes - work section only. Profile/Settings and /home use main Navbar. */
 const APP_SHELL_ROUTES = [
   "/dashboard",
   "/projects",
@@ -73,7 +72,7 @@ function CompletionGuard({ children }: { children: React.ReactNode }) {
       }
       // Protect admin routes
       if (!token || user?.role !== "ADMIN") {
-        router.replace("/admin/login");
+        router.replace("/login");
         return;
       }
       return;
@@ -82,12 +81,14 @@ function CompletionGuard({ children }: { children: React.ReactNode }) {
     // Regular user routes
     if (!token) return; // not logged in → no redirect
 
-    const allowed = ["/login", "/register", "/oauth"];
+    const allowed = ["/login", "/register", "/oauth", "/role-selection"];
     if (allowed.some((p) => pathname?.startsWith(p))) return;
 
     if (pathname?.startsWith("/profile/setup")) return;
 
-    if (needsCompletion(user)) {
+    if (needsRoleSelection(user)) {
+      router.replace("/role-selection");
+    } else if (needsCompletion(user)) {
       router.replace("/profile/setup");
     }
   }, [token, user, pathname, router, loading]);
@@ -107,7 +108,12 @@ function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/ai-discover") ||
     pathname?.startsWith("/projects/browse") ||
     pathname?.startsWith("/login") ||
-    pathname?.startsWith("/register");
+    pathname?.startsWith("/register") ||
+    pathname?.startsWith("/role-selection") ||
+    pathname?.startsWith("/oauth");
+
+  const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
+  const isHome = pathname === "/home" || pathname === "/";
 
   const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
   const isHome = pathname === "/home" || pathname === "/";

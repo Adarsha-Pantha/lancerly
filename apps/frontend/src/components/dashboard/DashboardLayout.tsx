@@ -57,7 +57,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     { icon: <Send size={20} />, label: "Proposals", href: "/proposals/me" },
     { icon: <FileText size={20} />, label: "Contracts", href: "/contracts/me" },
     { icon: <User size={20} />, label: "Profile", href: "/profile" },
-    { icon: <BarChart3 size={20} />, label: "Analytics", href: "/analytics" },
+    // { icon: <BarChart3 size={20} />, label: "Analytics", href: "/analytics" },
   ];
 
   const handleLogout = () => {

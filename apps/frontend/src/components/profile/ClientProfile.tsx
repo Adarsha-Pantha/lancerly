@@ -53,9 +53,11 @@ type ClientProfileProps = {
     budgetMax?: number | null;
     _count?: { proposals: number };
     contract?: {
-      review?: { rating: number; comment: string | null } | null;
+      id: string;
+      reviews?: { rating: number; comment: string | null; revieweeId: string }[] | null;
     } | null;
   }[];
+  userId?: string;
 };
 
 // ── Profile completion tracking ──────────────────────────────────────
@@ -195,6 +197,7 @@ export function ClientProfile({
   reviewCount = 0,
   rating,
   projects = [],
+  userId,
 }: ClientProfileProps) {
   const location = [data.city, data.country].filter(Boolean).join(", ");
   const joinedDate = data.createdAt
@@ -316,12 +319,55 @@ export function ClientProfile({
           </ProfileCard>
         )}
 
-        {/* Posted Jobs */}
-        <ProfileCard title="Posted Jobs" icon={<FolderKanban className="size-5" />}>
-          {postedJobs > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {postedJobs} job{postedJobs === 1 ? "" : "s"} posted
-            </p>
+        {/* Job History */}
+        <ProfileCard title="Job History" icon={<FolderKanban className="size-5" />}>
+          {projects.length > 0 ? (
+            <div className="space-y-6">
+              {projects.map((proj) => (
+                <div key={proj.id} className="border-b border-border last:border-0 pb-6 last:pb-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="font-semibold text-foreground">{proj.title}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(proj.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      proj.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {proj.status}
+                    </span>
+                  </div>
+
+                  {proj.contract?.reviews && proj.contract.reviews.length > 0 ? (
+                    <div className="mt-3 bg-muted/30 rounded-lg p-3">
+                      {proj.contract.reviews
+                        .filter(rev => !userId || rev.revieweeId === userId) // Filter reviews for this profile owner
+                        .map((rev, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex items-center gap-1 mb-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={12}
+                                className={`${star <= rev.rating ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm text-foreground italic">"{rev.comment}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : proj.status === "COMPLETED" && (
+                    <p className="text-xs text-muted-foreground mt-2 italic">No feedback received from freelancer yet</p>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
             <EmptyState
               icon={<FolderKanban className="size-8" />}
@@ -335,14 +381,6 @@ export function ClientProfile({
             />
           )}
         </ProfileCard>
-
-        {reviewCount > 0 && (
-          <ProfileCard title="Reviews from Freelancers" icon={<Star className="size-5" />}>
-            <p className="text-sm text-muted-foreground">
-              {reviewCount} review{reviewCount === 1 ? "" : "s"} from freelancers
-            </p>
-          </ProfileCard>
-        )}
       </div>
 
       {/* ── Right: profile completion card (1 col) ── */}
