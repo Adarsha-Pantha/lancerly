@@ -15,6 +15,11 @@ export default function IndexRedirect() {
       return;
     }
 
+    if (user?.role === "ADMIN") {
+      router.replace("/admin/dashboard");
+      return;
+    }
+
     if (needsRoleSelection(user)) {
       router.replace("/role-selection");
     } else if (needsCompletion(user)) {

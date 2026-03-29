@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { needsCompletion } from "@/lib/auth";
-import { get, put } from "@/lib/api";
+import { get, put, putForm, postForm } from "@/lib/api";
 import { toPublicUrl } from "@/lib/url";
 import {
   FreelancerProfile,
   ClientProfile,
   ProfileHeaderSkeleton,
 } from "@/components/profile";
+import { PortfolioUploadModal } from "@/components/profile/PortfolioUploadModal";
 
 type ProfileData = {
   id: string;
@@ -28,7 +29,9 @@ type ProfileData = {
     city?: string | null;
     state?: string | null;
     availability?: boolean | null;
+    hourlyRate?: number | null;
     isComplete?: boolean | null;
+    kycStatus?: string | null;
   } | null;
   earnings?: {
     totalEarnings: number;
@@ -39,6 +42,32 @@ type ProfileData = {
       date: string;
     }[];
   };
+  postedJobs?: number;
+  totalSpending?: number;
+  reviewCount?: number;
+  rating?: number;
+  portfolioProjects?: {
+    id: string;
+    title: string;
+    description: string;
+    skills: string[];
+    imageUrl?: string | null;
+    liveLink?: string | null;
+    createdAt: string;
+  }[];
+  projects?: {
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    budgetMin?: number | null;
+    budgetMax?: number | null;
+    _count?: { proposals: number };
+    contract?: {
+      id: string;
+      reviews?: { rating: number; comment: string | null; revieweeId: string }[] | null;
+    } | null;
+  }[];
 };
 
 export default function ProfilePage() {
@@ -47,32 +76,43 @@ export default function ProfilePage() {
   const toast = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
+
+  const fetchProfile = async () => {
+    if (!token) return;
+    try {
+      const data = await get<ProfileData>("/profile/me", token);
+      
+      if (data.role === "FREELANCER") {
+        try {
+          const earnings = await get<ProfileData["earnings"]>("/stripe/earnings", token);
+          data.earnings = earnings;
+        } catch (e) {
+          console.error("Failed to fetch earnings", e);
+        }
+      }
+      
+      setProfileData(data);
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+    }
+  };
+
+  const initialized = useRef(false);
 
   useEffect(() => {
+    // If not authenticated yet, return and wait for token
+    if (!token || initialized.current) return;
+    
+    initialized.current = true;
     (async () => {
       try {
-        await refreshUser();
-        if (token) {
-          const data = await get<ProfileData>("/profile/me", token);
-          
-          if (data.role === "FREELANCER") {
-            try {
-              const earnings = await get<ProfileData["earnings"]>("/stripe/earnings", token);
-              data.earnings = earnings;
-            } catch (e) {
-              console.error("Failed to fetch earnings", e);
-            }
-          }
-          
-          setProfileData(data);
-        }
-      } catch {
-        // Profile endpoint might not be available
+        await fetchProfile();
       } finally {
         setLoading(false);
       }
     })();
-  }, [refreshUser, token]);
+  }, [token]);
 
   useEffect(() => {
     if (!loading && !token) router.replace("/login");
@@ -106,11 +146,52 @@ export default function ProfilePage() {
 
   const handleEdit = () => router.push("/profile/edit");
 
+  const handleUpdateProfile = async (update: any) => {
+    if (!token) return;
+    try {
+      await put("/settings/profile", update, token);
+      await fetchProfile();
+      await refreshUser(); // Synchronize global AuthContext (Navbar, etc.)
+      toast.toast("Profile updated", "success");
+    } catch (err) {
+      console.error("Failed to update profile", err);
+      toast.toast("Failed to update profile", "error");
+      throw err;
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!token) return;
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      await putForm("/profile", formData, token);
+      await fetchProfile();
+      await refreshUser();
+      toast.toast("Avatar updated", "success");
+    } catch (err) {
+      console.error("Avatar upload failed", err);
+      toast.toast("Failed to update avatar", "error");
+      throw err;
+    }
+  };
+
+  const handlePortfolioUpload = async (formData: FormData) => {
+    if (!token) return;
+    try {
+      await postForm("/profile/portfolio", formData, token);
+      await fetchProfile();
+      await refreshUser();
+      toast.toast("Portfolio project added", "success");
+    } catch (err) {
+      console.error("Portfolio upload failed", err);
+      toast.toast("Failed to add portfolio", "error");
+      throw err;
+    }
+  };
+
   const handleSaveBio = async (bio: string) => {
-    await put("/settings/profile", { bio }, token ?? undefined);
-    const data = await get<ProfileData>("/profile/me", token);
-    setProfileData(data);
-    toast.toast("Bio updated", "success");
+    await handleUpdateProfile({ bio });
   };
 
   if (role === "CLIENT") {
@@ -129,9 +210,17 @@ export default function ProfilePage() {
           fallbackAvatar={fallbackAvatar}
           toPublicUrl={toPublicUrl}
           isOwnProfile
+          onUpdate={handleUpdateProfile}
           onEdit={handleEdit}
+          onAvatarUpload={handleAvatarUpload}
           onSaveBio={handleSaveBio}
-          verificationStatus={(profile?.isComplete ?? user?.isComplete) ? "verified" : "unverified"}
+          verificationStatus={profile?.kycStatus === "APPROVED" ? "verified" : (profile?.kycStatus === "PENDING" ? "pending" : "unverified")}
+          postedJobs={profileData?.postedJobs}
+          totalSpending={profileData?.totalSpending}
+          reviewCount={profileData?.reviewCount}
+          rating={profileData?.rating}
+          projects={profileData?.projects}
+          userId={profileData?.id}
         />
       </div>
     );
@@ -150,14 +239,28 @@ export default function ProfilePage() {
           createdAt: profileData?.createdAt,
           country: profile?.country,
           city: profile?.city,
+          hourlyRate: profile?.hourlyRate,
           totalEarnings: profileData?.earnings?.totalEarnings,
-          paymentHistory: profileData?.earnings?.paymentHistory,
+          // paymentHistory: profileData?.earnings?.paymentHistory, // Removed
         }}
         fallbackAvatar={fallbackAvatar}
         toPublicUrl={toPublicUrl}
         isOwnProfile
+        onUpdate={handleUpdateProfile}
         onEdit={handleEdit}
+        onAvatarUpload={handleAvatarUpload}
         onSaveBio={handleSaveBio}
+        kycStatus={profile?.kycStatus === "APPROVED" ? "verified" : (profile?.kycStatus === "PENDING" ? "pending" : "unverified")}
+        portfolioProjects={profileData?.portfolioProjects}
+        projects={profileData?.projects}
+        userId={profileData?.id}
+        onAddPortfolio={() => setIsPortfolioModalOpen(true)}
+      />
+      
+      <PortfolioUploadModal
+        open={isPortfolioModalOpen}
+        onClose={() => setIsPortfolioModalOpen(false)}
+        onSubmit={handlePortfolioUpload}
       />
     </div>
   );

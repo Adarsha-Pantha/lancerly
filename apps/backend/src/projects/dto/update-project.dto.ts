@@ -27,6 +27,16 @@ export class UpdateProjectDto {
   skills?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  screeningQuestions?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  acceptanceCriteria?: string[];
+
+  @IsOptional()
   @IsString()
   status?: string; // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
 }

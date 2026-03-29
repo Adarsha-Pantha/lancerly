@@ -32,6 +32,7 @@ export class AuthService {
     id: string;
     email: string;
     role: Role;
+    isSubscribed: boolean;
     createdAt: Date;
     profile?: {
       name: string | null;
@@ -51,6 +52,7 @@ export class AuthService {
       email: u.email,
       role: u.role,
       createdAt: u.createdAt,
+      isSubscribed: u.isSubscribed ?? false,
       name: u.profile?.name ?? null,
       avatarUrl: u.profile?.avatarUrl ?? null,
       dob: u.profile?.dob ?? null,
@@ -78,8 +80,11 @@ export class AuthService {
     });
     if (exists) throw new BadRequestException('Email already registered');
 
+    const userCount = await this.prisma.user.count();
+    const isFirstUser = userCount === 0;
+
     const hash = await bcrypt.hash(dto.password, 10);
-    const role: Role = dto.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER';
+    const role: Role = isFirstUser ? 'ADMIN' : (dto.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER');
 
     const created = await this.prisma.user.create({
       data: {
@@ -98,6 +103,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -156,6 +162,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -204,10 +211,13 @@ export class AuthService {
       });
 
       if (!user) {
+        const userCount = await this.prisma.user.count();
+        const isFirstUser = userCount === 0;
+
         user = await this.prisma.user.create({
           data: {
             email: normalized,
-            role: 'PENDING',
+            role: isFirstUser ? 'ADMIN' : 'PENDING',
             password: await bcrypt.hash(providerId, 10),
             profile: {
               create: {
@@ -234,6 +244,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        isSubscribed: user.isSubscribed,
         createdAt: user.createdAt,
         profile: {
           name: user.profile?.name ?? null,
@@ -251,12 +262,15 @@ export class AuthService {
     }
 
     // Fallback (rare: Google scope without email)
+    const fallbackUserCount = await this.prisma.user.count();
+    const isFirstFallbackUser = fallbackUserCount === 0;
+
     const fallbackEmail = `google_${providerId}@example.local`;
     const user = await this.prisma.user.upsert({
       where: { email: fallbackEmail },
       create: {
         email: fallbackEmail,
-        role: 'PENDING',
+        role: isFirstFallbackUser ? 'ADMIN' : 'PENDING',
         password: await bcrypt.hash(providerId, 10),
         profile: {
           create: {
@@ -274,6 +288,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: user.role,
+      isSubscribed: user.isSubscribed,
       createdAt: user.createdAt,
       profile: {
         name: user.profile?.name ?? null,
@@ -329,6 +344,7 @@ export class AuthService {
           id: true,
           email: true,
           role: true,
+          isSubscribed: true,
           createdAt: true,
           profile: {
             select: {
@@ -370,6 +386,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -431,6 +448,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {
@@ -503,6 +521,7 @@ export class AuthService {
         id: true,
         email: true,
         role: true,
+        isSubscribed: true,
         createdAt: true,
         profile: {
           select: {

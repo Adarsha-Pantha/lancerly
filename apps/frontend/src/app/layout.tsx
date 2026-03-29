@@ -10,11 +10,17 @@ export const metadata = {
   description: "Connect with talented freelancers and get your projects done with confidence.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={`${inter.variable} ${montserrat.variable} antialiased scroll-smooth`}>
       <body>
-        <ClientProviders>{children}</ClientProviders>
+        <ClientProviders>
+          {children}
+        </ClientProviders>
       </body>
     </html>
   );

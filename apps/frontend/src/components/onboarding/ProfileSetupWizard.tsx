@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { get, putForm } from "@/lib/api";
+import { get, putForm, postForm } from "@/lib/api";
 import { needsCompletion } from "@/lib/auth";
 import { toPublicUrl } from "@/lib/url";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ const STEPS = [
   { id: 1, title: "Basic info", icon: User2 },
   { id: 2, title: "Contact", icon: Phone },
   { id: 3, title: "Address", icon: MapPin },
+  { id: 4, title: "Identity", icon: ShieldCheck },
 ];
 
 export default function ProfileSetupWizard() {
@@ -50,22 +51,27 @@ export default function ProfileSetupWizard() {
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
 
+  const [kycFront, setKycFront] = useState<File | null>(null);
+  const [kycFrontPreview, setKycFrontPreview] = useState<string>("");
+  const [kycBack, setKycBack] = useState<File | null>(null);
+  const [kycBackPreview, setKycBackPreview] = useState<string>("");
+
   useEffect(() => {
     (async () => {
       if (!token) return;
       try {
         setLoading(true);
-        const me = await get<{ user: Record<string, unknown> }>("/auth/me", token);
+        const me = await get<{ user: any }>("/auth/me", token);
         const u = me?.user;
-        setName(u?.name ?? "");
+        setName(String(u?.name ?? ""));
         setDob(u?.dob ? String(u.dob).slice(0, 10) : "");
-        setCountry(u?.country ?? "");
-        setPhone(u?.phone ?? "");
-        setStreet(u?.street ?? "");
-        setCity(u?.city ?? "");
-        setStateVal(u?.state ?? "");
-        setPostal(u?.postalCode ?? "");
-        setAvatarPreview(toPublicUrl(u?.avatarUrl) ?? "");
+        setCountry(String(u?.country ?? ""));
+        setPhone(String(u?.phone ?? ""));
+        setStreet(String(u?.street ?? ""));
+        setCity(String(u?.city ?? ""));
+        setStateVal(String(u?.state ?? ""));
+        setPostal(String(u?.postalCode ?? ""));
+        setAvatarPreview(toPublicUrl(String(u?.avatarUrl ?? "")) ?? "");
       } finally {
         setLoading(false);
       }
@@ -84,8 +90,9 @@ export default function ProfileSetupWizard() {
     () => street.trim().length > 0 && city.trim().length > 0 && stateVal.trim().length > 0 && postalCode.trim().length > 0,
     [street, city, stateVal, postalCode]
   );
+  const step4Valid = useMemo(() => !!kycFront && !!kycBack, [kycFront, kycBack]);
 
-  const canProceed = step === 1 ? step1Valid : step === 2 ? step2Valid : step3Valid;
+  const canProceed = step === 1 ? step1Valid : step === 2 ? step2Valid : step === 3 ? step3Valid : step4Valid;
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -110,9 +117,17 @@ export default function ProfileSetupWizard() {
 
       await putForm("/profile", fd);
 
+      // Submit KYC if files are selected
+      if (kycFront && kycBack) {
+        const kycFd = new FormData();
+        kycFd.append("front", kycFront);
+        kycFd.append("back", kycBack);
+        await postForm("/profile/verify-identity", kycFd);
+      }
+
       const updated = await refreshUser();
       if (updated && !needsCompletion(updated)) {
-        router.replace("/profile");
+        router.replace("/");
       } else {
         router.replace("/profile/setup");
       }
@@ -350,6 +365,97 @@ export default function ProfileSetupWizard() {
           </div>
         )}
 
+        {/* Step 4: Identity Verification */}
+        {step === 4 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground mb-1">
+                Identity Verification (KYC)
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Please upload clear photos of your citizenship (Front & Back). This helps us verify your identity and maintain a secure platform.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Front Image */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-foreground">
+                  Citizenship Front <span className="text-destructive">*</span>
+                </label>
+                <div 
+                  className={`relative aspect-[3/2] rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-4 transition-colors ${
+                    kycFrontPreview ? "border-primary/50 bg-primary/5" : "border-[#E2E8F0] hover:border-primary/30 hover:bg-[#F8FAFC]"
+                  }`}
+                >
+                  {kycFrontPreview ? (
+                    <img src={kycFrontPreview} alt="Front" className="w-full h-full object-contain rounded-lg" />
+                  ) : (
+                    <>
+                      <Camera className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-xs text-center text-muted-foreground">Click to upload front image</span>
+                    </>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setKycFront(file);
+                        setKycFrontPreview(URL.createObjectURL(file));
+                      }
+                    }} 
+                  />
+                </div>
+              </div>
+
+              {/* Back Image */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-foreground">
+                  Citizenship Back <span className="text-destructive">*</span>
+                </label>
+                <div 
+                  className={`relative aspect-[3/2] rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-4 transition-colors ${
+                    kycBackPreview ? "border-primary/50 bg-primary/5" : "border-[#E2E8F0] hover:border-primary/30 hover:bg-[#F8FAFC]"
+                  }`}
+                >
+                  {kycBackPreview ? (
+                    <img src={kycBackPreview} alt="Back" className="w-full h-full object-contain rounded-lg" />
+                  ) : (
+                    <>
+                      <Camera className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-xs text-center text-muted-foreground">Click to upload back image</span>
+                    </>
+                  )}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="absolute inset-0 opacity-0 cursor-pointer" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setKycBack(file);
+                        setKycBackPreview(URL.createObjectURL(file));
+                      }
+                    }} 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-blue-50 p-4 border border-blue-100">
+              <div className="flex gap-3">
+                  <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
+                  <div className="text-xs text-blue-700 leading-relaxed">
+                    <strong>Why is this required?</strong> To ensure the safety of our marketplace, we verify the identity of our members. Your documents are stored securely and used only for verification purposes.
+                  </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="mt-8 flex flex-col-reverse sm:flex-row gap-3 sm:justify-between">
           <div className="flex gap-3">
@@ -365,7 +471,7 @@ export default function ProfileSetupWizard() {
             )}
           </div>
           <div>
-            {step < 3 ? (
+            {step < 4 ? (
               <Button
                 type="button"
                 onClick={() => setStep(step + 1)}

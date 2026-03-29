@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ModerationService } from '../common/moderation/moderation.service';
+import { AiService } from '../ai/ai.service';
 
 type ProjectKind = 'CLIENT_REQUEST' | 'FREELANCER_SHOWCASE';
 
@@ -22,6 +23,7 @@ export class ProjectsService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly moderationService: ModerationService,
+    private readonly aiService: AiService,
   ) {}
 
 
@@ -47,15 +49,84 @@ export class ProjectsService {
     return user.role;
   }
 
+  /** Get project creation quota for a client */
+  async getProjectQuota(clientId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: clientId },
+      select: { role: true, isSubscribed: true },
+    });
+
+    console.log(`[Quota] Checking quota for ${clientId}: role=${user?.role}, isSubscribed=${user?.isSubscribed}`);
+
+    if (!user || user.role !== 'CLIENT') {
+      return { limit: null, used: 0, remaining: null, isSubscribed: false };
+    }
+
+    if (user.isSubscribed) {
+      return { limit: null, used: 0, remaining: null, isSubscribed: true };
+    }
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const [used, settings] = await Promise.all([
+      this.prisma.project.count({
+        where: { clientId, createdAt: { gte: oneWeekAgo } },
+      }),
+      this.prisma.platformSettings.upsert({
+        where: { id: 'singleton' },
+        update: {},
+        create: { id: 'singleton' },
+      }),
+    ]);
+
+    const limit = settings.weeklyProjectLimit;
+    const remaining = Math.max(0, limit - used);
+    return { limit, used, remaining, isSubscribed: false };
+  }
+
   /** Create a new project */
   async create(clientId: string, dto: CreateProjectDto, assetUrls: string[] = []) {
     console.log('--- CRITICAL: ProjectsService.create called ---');
     console.log('Title:', dto.title);
     console.log('Description:', dto.description);
     
-    const role = await this.resolveUserRole(clientId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: clientId },
+      select: { role: true, isSubscribed: true },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    console.log(`[CreateProject] User ${clientId}: role=${user.role}, isSubscribed=${user.isSubscribed}`);
+
     const projectType: ProjectKind =
-      role === 'FREELANCER' ? 'FREELANCER_SHOWCASE' : 'CLIENT_REQUEST';
+      user.role === 'FREELANCER' ? 'FREELANCER_SHOWCASE' : 'CLIENT_REQUEST';
+
+    // Check project creation limit for non-subscribed clients
+    if (user.role === 'CLIENT' && !user.isSubscribed) {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const [projectCount, settings] = await Promise.all([
+        this.prisma.project.count({
+          where: {
+            clientId,
+            createdAt: { gte: oneWeekAgo },
+          },
+        }),
+        this.prisma.platformSettings.upsert({
+          where: { id: 'singleton' },
+          update: {},
+          create: { id: 'singleton' },
+        }),
+      ]);
+
+      if (projectCount >= settings.weeklyProjectLimit) {
+        throw new ForbiddenException(
+          `Project creation limit reached (${settings.weeklyProjectLimit} per week). Please upgrade to Premium for unlimited projects.`,
+        );
+      }
+    }
 
     // AI Content Moderation scan BEFORE creation
     let moderation = await this.moderationService.analyzeContent(`${dto.title} ${dto.description}`);
@@ -81,11 +152,20 @@ export class ProjectsService {
       budgetMax: dto.budgetMax,
       skills: dto.skills || [],
       attachments: assetUrls,
+      screeningQuestions: dto.screeningQuestions || [],
+      acceptanceCriteria: dto.acceptanceCriteria || [],
       projectType,
       status: 'OPEN',
       moderationStatus: moderation.status,
       moderationNotes: moderation.notes,
     };
+
+    try {
+      const contentToEmbed = [title, description, dto.skills?.join(', ')].filter(Boolean).join('\n');
+      data.embedding = await this.aiService.generateEmbedding(contentToEmbed);
+    } catch (e) {
+      this.logger.error('Failed to generate embedding on project creation', e);
+    }
 
     const project = await this.prisma.project.create({
       data,
@@ -172,6 +252,89 @@ export class ProjectsService {
     return projects;
   }
 
+  /** Calculate best project matches for a freelancer using AI embeddings */
+  async getMatches(freelancerId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: freelancerId },
+      include: { profile: true },
+    });
+
+    if (!user || user.role !== 'FREELANCER') {
+      throw new ForbiddenException('Only freelancers can request project matches');
+    }
+
+    if (!user.profile?.skills || !Array.isArray(user.profile.skills) || user.profile.skills.length === 0) {
+      throw new BadRequestException('MISSING_SKILLS');
+    }
+
+    let profileEmbedding = user.profile.embedding;
+    if (!profileEmbedding || profileEmbedding.length === 0) {
+      const skillsRaw = user.profile.skills;
+      const skillsStr = Array.isArray(skillsRaw) ? skillsRaw.join(', ') : String(skillsRaw || '');
+      const contentToEmbed = [
+        user.profile.headline || '',
+        user.profile.bio || '',
+        skillsStr
+      ].filter(Boolean).join('\n');
+      
+      profileEmbedding = await this.aiService.generateEmbedding(contentToEmbed);
+      
+      if (profileEmbedding.length > 0) {
+        await this.prisma.profile.update({
+          where: { id: user.profile.id },
+          data: { embedding: profileEmbedding }
+        });
+      } else {
+        throw new BadRequestException('PROFILE_EMBEDDING_PENDING');
+      }
+    }
+
+    const openProjects = await this.prisma.project.findMany({
+      where: {
+        status: 'OPEN',
+        projectType: 'CLIENT_REQUEST',
+        moderationStatus: 'APPROVED',
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, avatarUrl: true } },
+          },
+        },
+        _count: { select: { proposals: true } },
+      },
+    });
+
+    const userSkills = new Set((user.profile.skills as unknown as string[]).map(s => String(s).toLowerCase()));
+
+    const scoredProjects = openProjects
+      .filter(p => p.embedding && p.embedding.length > 0)
+      .map(p => {
+        const score = this.aiService.computeCosineSimilarity(
+           profileEmbedding, 
+           p.embedding
+        );
+
+        let overlap = 0;
+        if (p.skills && p.skills.length > 0) {
+           overlap = p.skills.filter(s => userSkills.has(String(s).toLowerCase())).length;
+        }
+        
+        // Boost score slightly for matching exact skills
+        const finalScore = score + Math.min(overlap * 0.05, 0.25);
+
+        const { embedding, ...projectWithoutEmbedding } = p;
+        return { ...projectWithoutEmbedding, matchScore: finalScore };
+      })
+      .filter(p => p.matchScore > 0.4)
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 20);
+
+    return scoredProjects;
+  }
+
   /** Get a single project by ID with client profile */
   async findOne(id: string) {
     const project = await this.prisma.project.findUnique({
@@ -181,6 +344,8 @@ export class ProjectsService {
           select: {
             id: true,
             email: true,
+            createdAt: true,
+            stripeCustomerId: true,
             profile: {
               select: {
                 name: true,
@@ -188,6 +353,17 @@ export class ProjectsService {
                 avatarUrl: true,
                 skills: true,
                 country: true,
+                kycStatus: true,
+              },
+            },
+            projects: {
+              select: {
+                status: true,
+              },
+            },
+            receivedReviews: {
+              select: {
+                rating: true,
               },
             },
           },
@@ -202,6 +378,45 @@ export class ProjectsService {
 
     if (!project) {
       throw new NotFoundException('Project not found');
+    }
+
+    // Enrich client stats
+    if (project.client) {
+      const allProjects = project.client.projects || [];
+      const postedJobs = allProjects.length;
+      const openJobs = allProjects.filter((p) => p.status === 'OPEN').length;
+      const hiredJobs = allProjects.filter(
+        (p) => p.status !== 'OPEN' && p.status !== 'CANCELLED',
+      ).length;
+      const hireRate =
+        postedJobs > 0 ? Math.round((hiredJobs / postedJobs) * 100) : 0;
+
+      const reviewCount = project.client.receivedReviews.length;
+      const rating =
+        reviewCount > 0
+          ? project.client.receivedReviews.reduce((sum, r) => sum + r.rating, 0) /
+            reviewCount
+          : 0;
+
+      const clientEnriched = {
+        ...project.client,
+        stats: {
+          postedJobs,
+          openJobs,
+          hireRate,
+        },
+        rating,
+        reviewCount,
+      };
+
+      // Clean up the raw projects and reviews list to keep response slim
+      delete (clientEnriched as any).projects;
+      delete (clientEnriched as any).receivedReviews;
+
+      return {
+        ...project,
+        client: clientEnriched,
+      };
     }
 
     return project;
@@ -232,16 +447,34 @@ export class ProjectsService {
       throw new ForbiddenException('You can only update your own projects');
     }
 
+    const updatedData: any = {
+      ...(dto.title && { title: dto.title }),
+      ...(dto.description && { description: dto.description }),
+      ...(dto.budgetMin !== undefined && { budgetMin: dto.budgetMin }),
+      ...(dto.budgetMax !== undefined && { budgetMax: dto.budgetMax }),
+      ...(dto.skills && { skills: dto.skills }),
+      ...(dto.status && { status: dto.status }),
+      ...(dto.screeningQuestions && { screeningQuestions: dto.screeningQuestions }),
+      ...(dto.acceptanceCriteria && { acceptanceCriteria: dto.acceptanceCriteria }),
+    };
+
+    if (dto.title || dto.description || dto.skills) {
+      try {
+        const currentData = await this.prisma.project.findUnique({ where: { id } });
+        const contentToEmbed = [
+          dto.title || currentData?.title || '',
+          dto.description || currentData?.description || '',
+          dto.skills?.join(', ') || currentData?.skills?.join(', ') || ''
+        ].filter(Boolean).join('\n');
+        updatedData.embedding = await this.aiService.generateEmbedding(contentToEmbed);
+      } catch (e) {
+        this.logger.error('Failed to generate embedding on project update', e);
+      }
+    }
+
     const updated = await this.prisma.project.update({
       where: { id },
-      data: {
-        ...(dto.title && { title: dto.title }),
-        ...(dto.description && { description: dto.description }),
-        ...(dto.budgetMin !== undefined && { budgetMin: dto.budgetMin }),
-        ...(dto.budgetMax !== undefined && { budgetMax: dto.budgetMax }),
-        ...(dto.skills && { skills: dto.skills }),
-        ...(dto.status && { status: dto.status }),
-      },
+      data: updatedData,
       include: {
         client: {
           select: {
