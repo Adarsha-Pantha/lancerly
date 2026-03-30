@@ -3,8 +3,15 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Footer from "@/components/Footer";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ 
+  children,
+  modal
+}: { 
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   const { token, user, loading } = useAuth();
   const router = useRouter();
 
@@ -23,8 +30,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (user?.role === "PENDING") return null;
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA]">
-      {children}
-    </main>
+    <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
+      <main className="flex-grow">
+        {children}
+      </main>
+      <Footer />
+      {modal}
+    </div>
   );
 }

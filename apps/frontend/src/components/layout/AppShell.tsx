@@ -237,11 +237,11 @@ export default function AppShell({ children, role }: AppShellProps) {
         {/* Page content + optional right sidebar */}
         <div className="flex-1 flex overflow-hidden min-w-0">
           <main className="flex-1 overflow-y-auto p-4 md:p-6 min-w-0">{children}</main>
-          {role !== "ADMIN" && (
+          {/* {role !== "ADMIN" && (
             <aside className="hidden xl:block w-80 shrink-0 border-l border-border overflow-y-auto">
               <SmartMatchingSidebar role={role} />
             </aside>
-          )}
+          )} */}
         </div>
       </div>
 

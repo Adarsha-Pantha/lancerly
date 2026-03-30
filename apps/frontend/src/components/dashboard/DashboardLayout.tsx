@@ -57,7 +57,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     { icon: <Send size={20} />, label: "Proposals", href: "/proposals/me" },
     { icon: <FileText size={20} />, label: "Contracts", href: "/contracts/me" },
     { icon: <User size={20} />, label: "Profile", href: "/profile" },
-    { icon: <BarChart3 size={20} />, label: "Analytics", href: "/analytics" },
+    // { icon: <BarChart3 size={20} />, label: "Analytics", href: "/analytics" },
   ];
 
   const handleLogout = () => {
@@ -226,7 +226,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         {/* Dashboard Content + Smart Matching Sidebar */}
         <div className="flex-1 flex overflow-hidden">
           <main className="flex-1 overflow-y-auto p-6 bg-[#F5F7FA] min-w-0">{children}</main>
-          {role !== "ADMIN" && <SmartMatchingSidebar role={role} />}
+          {/* {role !== "ADMIN" && <SmartMatchingSidebar role={role} />} */}
         </div>
       </div>
     </div>

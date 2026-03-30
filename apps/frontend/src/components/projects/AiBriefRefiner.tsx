@@ -1,12 +1,20 @@
-"use client";
-
 import { useState } from "react";
 import { Sparkles, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { post } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+
+type RefinementResponse = {
+  refinedDescription: string;
+  screeningQuestions: string[];
+  acceptanceCriteria: string[];
+};
 
 type AiBriefRefinerProps = {
   value: string;
   onChange: (value: string) => void;
+  projectTitle: string;
+  onRefined?: (data: RefinementResponse) => void;
   placeholder?: string;
   error?: string;
   minLength?: number;
@@ -15,11 +23,13 @@ type AiBriefRefinerProps = {
 
 /**
  * AI Brief Refiner – helps clients improve their project description.
- * Shows shimmer when "generating", allows edit/discard of AI suggestions.
+ * Calls backend Groq API to get a professional description, questions, and criteria.
  */
 export function AiBriefRefiner({
   value,
   onChange,
+  projectTitle,
+  onRefined,
   placeholder,
   error,
   minLength = 10,
@@ -27,19 +37,31 @@ export function AiBriefRefiner({
 }: AiBriefRefinerProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [originalValue, setOriginalValue] = useState("");
+  const { token } = useAuth();
 
   async function handleImprove() {
-    if (!value.trim()) return;
+    if (!value.trim() || !projectTitle.trim()) return;
     setOriginalValue(value);
     setIsGenerating(true);
 
-    // Simulate AI delay (no backend yet – replace with API call when available)
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const result = await post<RefinementResponse>(
+        "/ai/refine-brief",
+        { title: projectTitle, description: value },
+        token ?? undefined
+      );
 
-    // Simple enhancement: add structure and expand (mock)
-    const enhanced = enhanceBrief(value);
-    onChange(enhanced);
-    setIsGenerating(false);
+      if (result) {
+        onChange(result.refinedDescription);
+        if (onRefined) {
+          onRefined(result);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refine brief:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function handleDiscard() {
@@ -55,82 +77,55 @@ export function AiBriefRefiner({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        rows={5}
+        rows={6}
         disabled={isGenerating}
         className={cn(
           "w-full rounded-xl border px-4 py-3 text-sm resize-none transition-colors",
-          "placeholder:text-muted-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "placeholder:text-muted-foreground bg-white",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 focus-visible:border-indigo-500",
           "disabled:opacity-70 disabled:cursor-wait",
-          error ? "border-destructive" : "border-[#E2E8F0]",
+          error ? "border-destructive" : "border-slate-200",
           isGenerating && "animate-pulse"
         )}
       />
       {isGenerating && (
-        <div className="absolute inset-0 rounded-xl bg-white/80 flex items-center justify-center pointer-events-none">
-          <div className="flex items-center gap-2 text-primary">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm font-medium">Improving your description...</span>
-          </div>
+        <div className="absolute inset-0 rounded-xl bg-white/80 flex flex-col items-center justify-center pointer-events-none z-10">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
+          <span className="text-sm font-semibold text-indigo-900 tracking-tight">AI is crafting your project brief...</span>
         </div>
       )}
-      <div className="mt-2 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleImprove}
-          disabled={!value.trim() || value.trim().length < minLength || isGenerating}
-          className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-            "bg-[#7C3AED]/10 text-[#7C3AED] hover:bg-[#7C3AED]/20",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#7C3AED]/10"
-          )}
-        >
-          <Sparkles size={16} className="shrink-0" />
-          Improve with AI
-        </button>
-        {originalValue && !isGenerating && (
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleDiscard}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-[#F1F5F9] transition-colors"
+            onClick={handleImprove}
+            disabled={!value.trim() || !projectTitle.trim() || value.trim().length < minLength || isGenerating}
+            className={cn(
+              "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border shadow-sm",
+              "bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700 hover:shadow-md active:scale-95",
+              "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-indigo-600 disabled:shadow-none"
+            )}
           >
-            <RotateCcw size={14} />
-            Undo
+            <Sparkles size={16} className="shrink-0" />
+            Improve with AI
           </button>
+          {originalValue && !isGenerating && (
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors border border-transparent"
+            >
+              <RotateCcw size={14} />
+              Undo Changes
+            </button>
+          )}
+        </div>
+        {!isGenerating && value.length > 0 && (
+          <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400">
+            {value.length} characters
+          </span>
         )}
       </div>
     </div>
   );
-}
-
-/**
- * Mock enhancement – adds structure and clarity.
- * Replace with real API call when backend is ready.
- */
-function enhanceBrief(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) return trimmed;
-
-  // Simple enhancement: ensure it has some structure
-  const lines = trimmed.split(/\n+/).filter(Boolean);
-  if (lines.length >= 2) return trimmed;
-
-  // If it's one block, try to add bullet points for clarity
-  const words = trimmed.split(/\s+/);
-  if (words.length < 20) return trimmed;
-
-  // Add a brief intro and structure
-  const firstSentence = trimmed.match(/^[^.!?]+[.!?]/)?.[0] ?? trimmed.slice(0, 80) + "...";
-  const rest = trimmed.slice(firstSentence.length).trim();
-  if (!rest) return trimmed;
-
-  const bullets = rest
-    .split(/[.;]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 10)
-    .slice(0, 4);
-
-  if (bullets.length === 0) return trimmed;
-
-  return [firstSentence, "", "Key requirements:", ...bullets.map((b) => `• ${b}`)].join("\n");
 }

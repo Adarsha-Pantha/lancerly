@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { put } from "@/lib/api";
@@ -69,6 +69,12 @@ export default function RoleSelectionPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user?.role === "ADMIN") {
+      router.replace("/admin/dashboard");
+    }
+  }, [user, router]);
 
   if (!token || !user) {
     router.push("/login");

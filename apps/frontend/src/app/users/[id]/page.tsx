@@ -31,6 +31,18 @@ type PublicProfile = {
     state: string | null;
     availability: boolean | null;
   } | null;
+  projects?: {
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    budgetMin?: number | null;
+    budgetMax?: number | null;
+    contract?: {
+      id: string;
+      reviews?: { rating: number; comment: string | null; revieweeId: string }[] | null;
+    } | null;
+  }[];
 };
 
 export default function UserProfilePage() {
@@ -59,7 +71,7 @@ export default function UserProfilePage() {
     }
     try {
       setLoading(true);
-      const data = await get<PublicProfile>(`/profile/${userId}`, token);
+      const data = await get<PublicProfile>(`/profile/${userId}`, token || undefined);
       setProfile(data);
     } catch (err: unknown) {
       const msg = String((err as Error)?.message || "").toLowerCase();
@@ -203,6 +215,8 @@ export default function UserProfilePage() {
           onMessage={token ? handleMessage : undefined}
           onContact={token ? handleMessage : undefined}
           messageLoading={addingFriend}
+          projects={profile.projects}
+          userId={profile.id}
         />
       </div>
     );
@@ -235,6 +249,8 @@ export default function UserProfilePage() {
         onHire={token ? handleHire : undefined}
         onMessage={token ? handleMessage : undefined}
         messageLoading={addingFriend}
+        projects={profile.projects}
+        userId={profile.id}
       />
     </div>
   );

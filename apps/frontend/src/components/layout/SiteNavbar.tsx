@@ -22,7 +22,7 @@ export default function SiteNavbar({ user }: SiteNavbarProps) {
   const links = user
     ? [
         { href: "/home", label: "Home" },
-        { href: "/dashboard", label: "Dasjhgfghfghboard" },
+        { href: "/dashboard", label: "Dashboard" },
         { href: "/messages", label: "Messages" },
       ]
     : [

@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { SubscriptionSection } from "@/components/settings/SubscriptionSection";
+import Footer from "@/components/Footer";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001").replace(/\/+$/, "");
 
@@ -52,8 +54,8 @@ type SettingsData = {
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "security", label: "Security", icon: Shield },
-  { id: "email", label: "Email", icon: Mail },
   { id: "payments", label: "Payments", icon: CreditCard },
+  { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "privacy", label: "Privacy", icon: Globe },
   { id: "danger", label: "Danger Zone", icon: Trash2 },
 ] as const;
@@ -88,6 +90,14 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab") as any;
+      if (tab && TABS.some(t => t.id === tab)) {
+        setActiveTab(tab);
+      }
+    }
+    
     if (!token) {
       router.replace("/login");
       return;
@@ -294,412 +304,363 @@ export default function SettingsPage() {
     );
   }
 
+  type TabId = "profile" | "security" | "payments" | "subscription" | "privacy" | "danger";
+
+  interface SidebarItem {
+    id: TabId;
+    label: string;
+    icon: any;
+    roles?: string[];
+  }
+
+  interface SidebarGroup {
+    label: string;
+    items: SidebarItem[];
+  }
+
+  const SIDEBAR_GROUPS: SidebarGroup[] = [
+    {
+      label: "Billing",
+      items: [
+        { id: "subscription", label: "Membership", icon: CreditCard, roles: ["CLIENT"] },
+        { id: "payments", label: "Billing & Payments", icon: CreditCard, roles: ["FREELANCER"] },
+      ]
+    },
+    {
+      label: "User Settings",
+      items: [
+        { id: "profile", label: "My Profile", icon: User },
+        { id: "security", label: "Password & Security", icon: Shield },
+        { id: "privacy", label: "Privacy Settings", icon: Globe },
+        { id: "danger", label: "Close Account", icon: Trash2 },
+      ]
+    }
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        <div className="flex flex-col lg:flex-row gap-12">
+          
+          {/* Minimalist Sidebar */}
+          <aside className="lg:w-64 shrink-0">
+            <h1 className="text-5xl font-semibold text-slate-900 mb-8">Settings</h1>
+            
+            <div className="space-y-8">
+              {SIDEBAR_GROUPS.map((group) => {
+                const visibleItems = group.items.filter(item => !item.roles || item.roles.includes(user?.role || ""));
+                if (visibleItems.length === 0) return null;
 
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Tabs */}
-        <div className="md:w-48 shrink-0">
-          <nav className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
-            {TABS.filter((t) => t.id !== "payments" || user?.role === "FREELANCER").map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon size={18} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                return (
+                  <div key={group.label}>
+                    <h2 className="text-sm font-bold text-slate-900 mb-3 px-3 uppercase tracking-wider">{group.label}</h2>
+                    <nav className="space-y-0.5">
+                      {visibleItems.map((item) => {
+                        const isActive = activeTab === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => setActiveTab(item.id)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2 text-sm transition-all group relative",
+                              isActive 
+                                ? "text-slate-900 font-semibold" 
+                                : "text-slate-500 hover:text-slate-800"
+                            )}
+                          >
+                            <span className="relative z-10 transition-transform group-hover:translate-x-0.5">{item.label}</span>
+                            {isActive && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#6b27d9] rounded-full" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {activeTab === "profile" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile</CardTitle>
-                <CardDescription>Update your public profile information</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center">
-                      {settings.profile?.avatarUrl ? (
-                        <img
-                          src={`${API_BASE}${settings.profile.avatarUrl}`}
-                          alt="Avatar"
-                          className="w-full h-full object-cover"
+          {/* Main Content Area */}
+          <main className="flex-1 min-w-0">
+            <header className="mb-8">
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {TABS.find(t => t.id === activeTab)?.label || "Settings"}
+              </h2>
+            </header>
+
+            <div className="space-y-6">
+              {activeTab === "profile" && (
+                <div className="space-y-6">
+                  {/* Account Card */}
+                  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-slate-900">Account</h3>
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#6b27d9] hover:border-[#6b27d9] transition-all"
+                      >
+                        <Camera size={14} />
+                      </button>
+                    </div>
+                    <div className="p-8 space-y-8">
+                      <div className="flex items-start gap-8">
+                        <div className="relative shrink-0">
+                          <div className="w-20 h-20 rounded-lg bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center">
+                            {settings.profile?.avatarUrl ? (
+                              <img
+                                src={`${API_BASE}${settings.profile.avatarUrl}`}
+                                alt="Avatar"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <User size={32} className="text-slate-300" />
+                            )}
+                          </div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            onChange={handleAvatarUpload}
+                          />
+                        </div>
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                          <div>
+                            <p className="text-xs font-bold text-slate-900 mb-1">Name</p>
+                            <p className="text-sm text-slate-600">{settings.profile?.name || "Not set"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900 mb-1">Email</p>
+                            <p className="text-sm text-slate-600">{settings.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Profile Details Card */}
+                  <div className="bg-white border border-slate-200 rounded-lg">
+                    <div className="px-6 py-4 border-b border-slate-100">
+                      <h3 className="text-lg font-semibold text-slate-900">Profile Details</h3>
+                    </div>
+                    <div className="p-8 space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                        <div className="space-y-1.5 font-medium">
+                          <label className="text-xs font-bold text-slate-900 uppercase">Headline</label>
+                          <Input
+                            value={profileForm.headline ?? ""}
+                            onChange={(e) => setProfileForm({ ...profileForm, headline: e.target.value })}
+                            placeholder="e.g. Senior Developer"
+                            className="h-10 border-slate-200 focus:border-[#6b27d9] focus:ring-0 rounded-md"
+                          />
+                        </div>
+                        <div className="space-y-1.5 font-medium">
+                          <label className="text-xs font-bold text-slate-900 uppercase">Skills</label>
+                          <Input
+                            value={(profileForm.skills ?? []).join(", ")}
+                            onChange={(e) =>
+                              setProfileForm({
+                                ...profileForm,
+                                skills: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
+                              })
+                            }
+                            placeholder="React, Design..."
+                            className="h-10 border-slate-200 focus:border-[#6b27d9] focus:ring-0 rounded-md"
+                          />
+                        </div>
+                        <div className="md:col-span-2 space-y-1.5 font-medium">
+                          <label className="text-xs font-bold text-slate-900 uppercase">Bio</label>
+                          <textarea
+                            value={profileForm.bio ?? ""}
+                            onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                            rows={4}
+                            className="w-full border border-slate-200 focus:border-[#6b27d9] focus:ring-0 rounded-md p-3 text-sm"
+                            placeholder="Tell your story..."
+                          />
+                        </div>
+                        <div className="space-y-1.5 font-medium">
+                          <label className="text-xs font-bold text-slate-900 uppercase">Country</label>
+                          <Input
+                            value={profileForm.country ?? ""}
+                            onChange={(e) => setProfileForm({ ...profileForm, country: e.target.value })}
+                            className="h-10 border-slate-200 rounded-md"
+                          />
+                        </div>
+                        <div className="space-y-1.5 font-medium">
+                          <label className="text-xs font-bold text-slate-900 uppercase">City</label>
+                          <Input
+                            value={profileForm.city ?? ""}
+                            onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                            className="h-10 border-slate-200 rounded-md"
+                          />
+                        </div>
+                      </div>
+                      <div className="pt-4">
+                        <Button 
+                          onClick={handleProfileUpdate} 
+                          disabled={saving}
+                          className="bg-white border border-[#6b27d9] text-[#6b27d9] hover:bg-[#6b27d9] hover:text-white px-6 rounded-md font-bold transition-all"
+                        >
+                          {saving ? "Saving..." : "Update Profile"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "security" && (
+                <div className="space-y-6">
+                  <div className="bg-white border border-slate-200 rounded-lg p-8">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-6">Password & Security</h3>
+                    <div className="space-y-8 max-w-md">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-900 uppercase">Current Password</label>
+                        <Input
+                          type={showPasswords.current ? "text" : "password"}
+                          value={passwordData.currentPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                          className="h-10 border-slate-200 rounded-md"
                         />
-                      ) : (
-                        <User size={40} className="text-muted-foreground" />
-                      )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-900 uppercase">New Password</label>
+                        <Input
+                          type={showPasswords.new ? "text" : "password"}
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                          className="h-10 border-slate-200 rounded-md"
+                        />
+                      </div>
+                      <Button 
+                        onClick={handlePasswordUpdate} 
+                        disabled={saving}
+                        className="bg-[#6b27d9] text-white px-6 rounded-md font-bold"
+                      >
+                        Update Password
+                      </Button>
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={avatarUploading}
-                    >
-                      <Camera size={14} />
-                    </Button>
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Profile photo</p>
-                    <p className="text-sm text-muted-foreground">JPEG, PNG, GIF or WebP. Max 5MB.</p>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Name</label>
-                    <Input
-                      value={profileForm.name ?? ""}
-                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                      placeholder="Your display name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Headline</label>
-                    <Input
-                      value={profileForm.headline ?? ""}
-                      onChange={(e) => setProfileForm({ ...profileForm, headline: e.target.value })}
-                      placeholder="e.g. Full-stack Developer | React & Node.js"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Bio</label>
-                    <textarea
-                      value={profileForm.bio ?? ""}
-                      onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
-                      rows={4}
-                      className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      placeholder="Tell others about yourself"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Skills</label>
-                    <Input
-                      value={(profileForm.skills ?? []).join(", ")}
-                      onChange={(e) =>
-                        setProfileForm({
-                          ...profileForm,
-                          skills: e.target.value
-                            .split(",")
-                            .map((s) => s.trim())
-                            .filter(Boolean),
-                        })
-                      }
-                      placeholder="e.g. React, Node.js, TypeScript (comma-separated)"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">Country</label>
-                      <Input
-                        value={profileForm.country ?? ""}
-                        onChange={(e) => setProfileForm({ ...profileForm, country: e.target.value })}
-                        placeholder="Country"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">City</label>
-                      <Input
-                        value={profileForm.city ?? ""}
-                        onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
-                        placeholder="City"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">State/Region</label>
-                      <Input
-                        value={profileForm.state ?? ""}
-                        onChange={(e) => setProfileForm({ ...profileForm, state: e.target.value })}
-                        placeholder="State"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">Timezone</label>
-                    <Input
-                      value={profileForm.timezone ?? ""}
-                      onChange={(e) => setProfileForm({ ...profileForm, timezone: e.target.value })}
-                      placeholder="e.g. America/New_York"
-                    />
-                  </div>
-                  <Button onClick={handleProfileUpdate} disabled={saving}>
-                    <Save size={16} />
-                    Save Profile
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
 
-          {activeTab === "security" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Security</CardTitle>
-                <CardDescription>Manage password and two-factor authentication</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between py-4 border-b border-border">
-                  <div>
-                    <h3 className="font-medium text-foreground">Two-Factor Authentication</h3>
-                    <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.twoFA}
-                      onChange={(e) => setSettings({ ...settings, twoFA: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
-                  </label>
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Change Password</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">Current Password</label>
-                      <Input
-                        type={showPasswords.current ? "text" : "password"}
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        placeholder="Current password"
-                        rightIcon={
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswords((p) => ({ ...p, current: !p.current }))}
-                            className="text-muted-foreground hover:text-foreground p-1"
-                          >
-                            {showPasswords.current ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        }
-                      />
+              {activeTab === "payments" && user?.role === "FREELANCER" && (
+                <div className="bg-white border border-slate-200 rounded-lg p-8">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-6">Billing & Payments</h3>
+                  <div className="p-8 border border-slate-100 rounded-lg text-center space-y-4">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                      <CreditCard size={24} />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
-                      <Input
-                        type={showPasswords.new ? "text" : "password"}
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        placeholder="New password"
-                        rightIcon={
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswords((p) => ({ ...p, new: !p.new }))}
-                            className="text-muted-foreground hover:text-foreground p-1"
-                          >
-                            {showPasswords.new ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">Confirm New Password</label>
-                      <Input
-                        type={showPasswords.confirm ? "text" : "password"}
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        placeholder="Confirm new password"
-                        rightIcon={
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswords((p) => ({ ...p, confirm: !p.confirm }))}
-                            className="text-muted-foreground hover:text-foreground p-1"
-                          >
-                            {showPasswords.confirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        }
-                      />
-                    </div>
-                    <Button onClick={handlePasswordUpdate} disabled={saving}>
-                      Update Password
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === "email" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Email</CardTitle>
-                <CardDescription>Change your email address</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Current: <strong className="text-foreground">{settings.email}</strong>
-                </p>
-                {settings.pendingEmail && (
-                  <p className="text-sm text-amber-600">Pending verification: {settings.pendingEmail}</p>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">New Email</label>
-                  <Input
-                    type="email"
-                    value={emailForm.newEmail}
-                    onChange={(e) => setEmailForm({ ...emailForm, newEmail: e.target.value })}
-                    placeholder="New email address"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Current Password</label>
-                  <Input
-                    type={showPasswords.email ? "text" : "password"}
-                    value={emailForm.password}
-                    onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
-                    placeholder="Confirm with password"
-                  />
-                </div>
-                <Button
-                  onClick={handleEmailChange}
-                  disabled={saving || !emailForm.newEmail || !emailForm.password}
-                >
-                  Request Email Change
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === "payments" && user?.role === "FREELANCER" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Payments</CardTitle>
-                <CardDescription>Connect Stripe to receive payments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {stripeStatus?.connected && stripeStatus?.chargesEnabled ? (
-                  <div className="flex items-center gap-2 text-emerald-600">
-                    <span className="font-medium">Stripe connected</span>
-                  </div>
-                ) : (
-                  <Button onClick={handleConnectStripe} disabled={stripeLoading}>
-                    {stripeLoading ? "Redirecting…" : (
-                      <>
-                        Connect Stripe
-                        <ExternalLink size={16} />
-                      </>
+                    <h4 className="font-bold text-slate-900">
+                      {stripeStatus?.connected ? "Stripe Connected" : "No payment method connected"}
+                    </h4>
+                    <p className="text-sm text-slate-500 max-w-xs mx-auto">
+                      {stripeStatus?.connected 
+                        ? "Your account is ready to receive payouts." 
+                        : "Connect your Stripe account to start receiving payments for your work."}
+                    </p>
+                    {!stripeStatus?.connected && (
+                      <Button 
+                        onClick={handleConnectStripe} 
+                        disabled={stripeLoading}
+                        className="bg-[#6b27d9] text-white px-8 rounded-md font-bold mt-4"
+                      >
+                        {stripeLoading ? "Loading..." : "Setup Stripe"}
+                      </Button>
                     )}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === "privacy" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Privacy & Preferences</CardTitle>
-                <CardDescription>Control your visibility and notifications</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  { key: "availability" as const, label: "Availability", desc: "Show you're available for projects", value: settings.availability },
-                  { key: "emailNotifications" as const, label: "Email Notifications", desc: "Receive account updates", value: settings.emailNotifications },
-                  { key: "profileVisibility" as const, label: "Profile Visibility", desc: "Make profile visible to others", value: settings.profileVisibility },
-                ].map(({ key, label, desc, value }) => (
-                  <div key={key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                    <div>
-                      <h3 className="font-medium text-foreground">{label}</h3>
-                      <p className="text-sm text-muted-foreground">{desc}</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={value}
-                        onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
-                    </label>
                   </div>
-                ))}
-                <Button onClick={handleSettingsUpdate} disabled={saving}>
-                  Save Preferences
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                </div>
+              )}
 
-          {activeTab === "danger" && (
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="text-destructive">Delete Account</CardTitle>
-                <CardDescription>This action cannot be undone. Your data will be anonymized.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!showDeleteConfirm ? (
-                  <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
-                    I want to delete my account
-                  </Button>
-                ) : (
+              {activeTab === "subscription" && user?.role === "CLIENT" && (
+                <SubscriptionSection />
+              )}
+
+              {activeTab === "privacy" && (
+                <div className="bg-white border border-slate-200 rounded-lg p-8 space-y-8">
+                  <h3 className="text-lg font-semibold text-slate-900">Privacy Settings</h3>
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
-                      <Input
-                        type={showPasswords.delete ? "text" : "password"}
-                        value={deleteForm.password}
-                        onChange={(e) => setDeleteForm({ ...deleteForm, password: e.target.value })}
-                        placeholder="Your password"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1.5">Type DELETE to confirm</label>
-                      <Input
-                        value={deleteForm.confirmation}
-                        onChange={(e) => setDeleteForm({ ...deleteForm, confirmation: e.target.value })}
-                        placeholder="DELETE"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowDeleteConfirm(false);
-                          setDeleteForm({ password: "", confirmation: "" });
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleDeleteAccount}
-                        disabled={saving || deleteForm.confirmation !== "DELETE" || !deleteForm.password}
-                      >
-                        Delete Account
-                      </Button>
-                    </div>
+                    {[
+                      { key: "availability" as const, label: "Availability Status", desc: "Show you're available for projects", value: settings.availability },
+                      { key: "emailNotifications" as const, label: "Email Updates", desc: "Receive updates about your account", value: settings.emailNotifications },
+                    ].map(({ key, label, desc, value }) => (
+                      <div key={key} className="flex items-center justify-between py-4 border-b border-slate-50 last:border-0">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{label}</p>
+                          <p className="text-xs text-slate-500">{desc}</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={value}
+                            onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-[#6b27d9] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5" />
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  <Button 
+                    onClick={handleSettingsUpdate} 
+                    disabled={saving}
+                    className="bg-[#6b27d9] text-white px-6 rounded-md font-bold"
+                  >
+                    Save Privacy
+                  </Button>
+                </div>
+              )}
+
+              {activeTab === "danger" && (
+                <div className="bg-white border border-rose-200 rounded-lg p-8">
+                  <h3 className="text-lg font-semibold text-rose-600 mb-2">Close Account</h3>
+                  <p className="text-sm text-slate-500 mb-6 font-medium">Be careful. This action is permanent.</p>
+                  
+                  {!showDeleteConfirm ? (
+                    <button 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-rose-600 text-sm font-bold hover:underline"
+                    >
+                      Close my account
+                    </button>
+                  ) : (
+                    <div className="space-y-6 max-w-sm">
+                      <div className="space-y-1.5 font-medium">
+                        <label className="text-xs font-bold text-slate-900">Confirm Password</label>
+                        <Input
+                          type="password"
+                          value={deleteForm.password}
+                          onChange={(e) => setDeleteForm({ ...deleteForm, password: e.target.value })}
+                          className="h-10 border-slate-200 rounded-md"
+                        />
+                      </div>
+                      <div className="flex gap-4 font-bold">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="flex-1 rounded-md"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleDeleteAccount}
+                          disabled={saving || !deleteForm.password}
+                          className="flex-1 rounded-md"
+                        >
+                          Close Account
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </main>
         </div>
       </div>
+      <Footer/>
     </div>
   );
 }

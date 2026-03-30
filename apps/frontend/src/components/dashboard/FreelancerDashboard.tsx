@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { get } from "@/lib/api";
 import ActiveProjectsWidget from "./widgets/ActiveProjectsWidget";
 import NotificationsWidget from "./widgets/NotificationsWidget";
@@ -16,9 +16,10 @@ export default function FreelancerDashboard() {
   const { user, token } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
     if (token) {
@@ -27,51 +28,28 @@ export default function FreelancerDashboard() {
   }, [token]);
 
   const loadDashboardData = async () => {
+    setLoading(true);
     try {
-      // Load projects
-      const projectsData = await get<any[]>("/projects/me", token);
-      setProjects(projectsData || []);
-
-      // Generate notifications
-      const projectNotifications = projectsData
-        .filter((p: any) => p.status === "OPEN" || p.status === "IN_PROGRESS")
-        .slice(0, 3)
-        .map((p: any, idx: number) => ({
-          id: `notif-${idx}`,
-          type: idx === 0 ? ("proposal" as const) : ("message" as const),
-          title: idx === 0 ? "New proposal received" : "Message from client",
-          description: idx === 0
-            ? `Proposal for ${p.title}`
-            : `Message from ${p.clientId} about ${p.title}`,
-          time: "2h ago",
-        }));
-
-      setNotifications(projectNotifications);
-
-      // Generate sample messages
-      setMessages([
-        {
-          id: "1",
-          sender: "Sarah",
-          content: "Hi! I am just getting organized for the week ahead",
-          time: "11:30",
-          type: "text" as const,
-        },
-        {
-          id: "2",
-          sender: "John",
-          content: "Tips for effective design workflow",
-          time: "11:34",
-          type: "video" as const,
-        },
-        {
-          id: "3",
-          sender: "Emma",
-          content: "",
-          time: "11:35",
-          type: "audio" as const,
-        },
+      const [contractsData, notificationsData, conversationsData, statsData] = await Promise.all([
+        get<any[]>("/contracts/me?role=FREELANCER", token as string),
+        get<any[]>("/notifications", token as string),
+        get<any[]>("/conversations", token as string),
+        get<any>("/contracts/stats?role=FREELANCER", token as string),
       ]);
+
+      setContracts(contractsData || []);
+      setNotifications(notificationsData || []);
+      setConversations(conversationsData || []);
+      setStats(statsData);
+      
+      console.log("[FRONTEND] Contracts Received:", JSON.stringify(contractsData, null, 2));
+      console.log("[FRONTEND] Milestones Found in Contracts:", 
+        contractsData?.map((c: any) => ({ 
+          id: c.id, 
+          mCount: c.milestones?.length || 0,
+          mTitles: c.milestones?.map((m: any) => m.title) 
+        }))
+      );
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -79,114 +57,175 @@ export default function FreelancerDashboard() {
     }
   };
 
+  // Transform contracts for ActiveProjectsWidget
+  const activeProjects = useMemo(() => 
+    contracts
+      .filter((c: any) => c.status === "ACTIVE")
+      .map((c: any) => {
+        const totalMilestones = c.milestones?.length || 0;
+        const completedMilestones = c.milestones?.filter((m: any) => 
+          m.status === 'APPROVED' || m.status === 'PAID'
+        ).length || 0;
+        
+        return {
+          id: c.project?.id || c.projectId,
+          title: c.project?.title || "Untitled Project",
+          clientName: c.client?.profile?.name || "Client",
+          progress: totalMilestones > 0 
+            ? Math.floor((completedMilestones / totalMilestones) * 100)
+            : 0,
+          daysCompleted: Math.floor((Date.now() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+          totalDays: 30, 
+          status: c.status,
+        };
+      })
+  , [contracts]);
+
+  // Transform milestones for TodayTasksWidget
+  const upcomingMilestones = useMemo(() => {
+    const allMilestones = contracts.flatMap(c => 
+      (c.milestones || []).map((m: any) => ({ 
+        ...m, 
+        projectTitle: c.project?.title, 
+        client: c.client 
+      }))
+    );
+    
+    return allMilestones
+      .filter(m => m.status !== 'PAID') 
+      .sort((a, b) => {
+        const dateA = new Date(a.dueDate || a.createdAt).getTime();
+        const dateB = new Date(b.dueDate || b.createdAt).getTime();
+        return dateA - dateB;
+      })
+      .slice(0, 6)
+      .map(m => ({
+        id: m.id,
+        title: m.title,
+        description: `Client: ${m.client?.profile?.name || 'Client'} • ${m.projectTitle}`,
+        tags: [m.status.replace(/_/g, " ")],
+        progress: (m.status === 'COMPLETED' || m.status === 'APPROVED') ? 100 : (m.status === 'IN_PROGRESS' ? 50 : 0),
+        files: 0,
+        completed: (m.status === 'COMPLETED' || m.status === 'APPROVED') ? 1 : 0,
+        total: 1,
+        teamMembers: [{ name: m.client?.profile?.name || "C" }],
+      }));
+  }, [contracts]);
+
+  console.log("Upcoming Milestones (Processed):", upcomingMilestones);
+
+  // Transform messages for ActivityWidget
+  const recentMessages = useMemo(() => 
+    conversations.slice(0, 5).map((conv: any) => ({
+      id: conv.id,
+      sender: conv.participants?.find((p: any) => p.userId !== user?.id)?.user?.profile?.name || "User",
+      content: conv.lastMessage?.content || "No messages yet",
+      time: conv.lastMessage ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
+      type: "text" as const,
+    }))
+  , [conversations, user]);
+
+  // Transform milestones for CalendarWidget
+  const calendarEvents = useMemo(() => {
+    return contracts.flatMap(c => 
+      (c.milestones || [])
+        .map((m: any) => ({
+          date: m.dueDate || m.createdAt,
+          title: m.title
+        }))
+    );
+  }, [contracts]);
+
+  // Transform stats for StatsWidget
+  const dashboardStats = useMemo(() => {
+    const totalEarned = stats?.totalSpent || 0; 
+    return {
+      totalHours: `$${(totalEarned / 100).toLocaleString()}`,
+      data: [
+        { month: "Active", hours: stats?.activeCount || 0 },
+        { month: "Done", hours: stats?.completedCount || 0 },
+        { month: "Proposed", hours: stats?.proposedCount || 0 },
+      ]
+    };
+  }, [stats]);
+
   if (!token || !user) return null;
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-64 lg:col-span-2" />
-          <div className="space-y-4">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-48" />
-          </div>
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <header>
+          <Skeleton className="h-10 w-64 mb-3" />
+          <Skeleton className="h-4 w-96" />
+        </header>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-[400px] lg:col-span-2 rounded-3xl" />
+          <Skeleton className="h-[400px] rounded-3xl" />
+          <Skeleton className="h-[350px] rounded-3xl" />
+          <Skeleton className="h-[350px] rounded-3xl" />
+          <Skeleton className="h-[350px] rounded-3xl" />
         </div>
       </div>
     );
   }
 
-  // Transform projects for ActiveProjectsWidget
-  const activeProjects = projects
-    .filter((p: any) => p.status === "OPEN" || p.status === "IN_PROGRESS")
-    .slice(0, 4)
-    .map((p: any) => ({
-      id: p.id,
-      title: p.title,
-      clientName: "Client", // TODO: Get from project
-      progress: Math.floor(Math.random() * 50 + 50),
-      daysCompleted: Math.floor(Math.random() * 20 + 5),
-      totalDays: Math.floor(Math.random() * 30 + 20),
-      status: p.status,
-    }));
-
-  // Transform projects for TodayTasksWidget
-  const todayTasks = projects
-    .filter((p: any) => p.status === "IN_PROGRESS")
-    .slice(0, 3)
-    .map((p: any, idx: number) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description.substring(0, 80) + "...",
-      tags: p.skills?.slice(0, 2) || ["Development", "Design"],
-      progress: Math.floor(Math.random() * 80 + 10),
-      files: Math.floor(Math.random() * 20 + 3),
-      completed: Math.floor(Math.random() * 30 + 5),
-      total: 34,
-      teamMembers: [
-        { name: "Alex" },
-        { name: "Sam" },
-        { name: "Jordan" },
-      ],
-    }));
-
-  // Stats data
-  const statsData = [
-    { month: "Jan", hours: 120 },
-    { month: "Feb", hours: 145 },
-    { month: "Mar", hours: 132 },
-    { month: "Apr", hours: 168 },
-    { month: "May", hours: 155 },
-    { month: "Jun", hours: 142 },
-    { month: "Jul", hours: 178 },
-    { month: "Aug", hours: 165 },
-    { month: "Sep", hours: 189 },
-  ];
-
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Active Projects */}
-          <ActiveProjectsWidget projects={activeProjects} role="FREELANCER" />
+    <div className="max-w-[1600px] mx-auto space-y-8 animate-in mt-[-20px] slide-in-from-bottom-4 duration-700">
+      {/* Header Section */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2 font-display">
+            Freelancer <span className="text-brand-purple">Workspace</span>
+          </h1>
+          <p className="text-slate-500 font-medium">
+            Manage your contracts, track earnings, and collaborate with clients.
+          </p>
+        </div>
+      </header>
 
-          {/* Today Tasks */}
-          <TodayTasksWidget tasks={todayTasks} />
+      {/* Main Bento Grid - 12 cols */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-8">
+
+        {/* ── LEFT COLUMN (col 1-5): Active Projects then Upcoming Milestones ── */}
+        <div className="md:col-span-6
+         space-y-6">
+          {/* Row 1 left: Active Projects */}
+          <ActiveProjectsWidget projects={activeProjects} role="FREELANCER" />
+          {/* Row 2 left: Upcoming Milestones */}
+          <TodayTasksWidget tasks={upcomingMilestones} />
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Notifications */}
+        {/* ── MIDDLE COLUMN (col 6-9): Calendar spans rows 1+2 ── */}
+        <div className="md:col-span-3">
+          <CalendarWidget events={calendarEvents} />
+        </div>
+
+        {/* ── RIGHT COLUMN (col 10-12): Updates spans rows 1+2 ── */}
+        <div className="md:col-span-3">
           <NotificationsWidget
-            notifications={notifications}
+            notifications={notifications.slice(0, 8).map((n: any) => ({
+              id: n.id,
+              type: "message",
+              title: n.title,
+              description: n.message,
+              time: new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            }))}
             onClear={() => setNotifications([])}
           />
+        </div>
 
-          {/* Calendar */}
-          <CalendarWidget
-            events={[
-              { date: 6, title: "Project Review" },
-              { date: 10, title: "Client Meeting" },
-              { date: 18, title: "Deadline" },
-              { date: 31, title: "Monthly Report" },
-            ]}
+        {/* ── ROW 3: Recent Chat (7 cols) + Portfolio/Stats (5 cols) ── */}
+        <div className="md:col-span-7">
+          <ActivityWidget messages={recentMessages} />
+        </div>
+
+        <div className="md:col-span-5">
+          <StatsWidget
+            totalHours={dashboardStats.totalHours}
+            data={dashboardStats.data}
           />
         </div>
-      </div>
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Stats */}
-        <StatsWidget totalHours="1,234 h 30 min" data={statsData} />
-
-        {/* Activity/Team Chat */}
-        <div className="lg:col-span-2">
-          <ActivityWidget messages={messages} />
-        </div>
       </div>
     </div>
   );

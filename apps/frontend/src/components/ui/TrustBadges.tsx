@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck, Lock, FileCheck } from "lucide-react";
+import { ShieldCheck, ShieldOff, Clock, Lock, FileCheck } from "lucide-react";
 
 type TrustBadgesProps = {
   kycVerified?: boolean;
@@ -8,11 +8,37 @@ type TrustBadgesProps = {
   compact?: boolean;
 };
 
-export function KYCVerifiedBadge() {
+
+export function KYCVerifiedBadge({ kycStatus }: { kycStatus?: string | null }) {
+  if (kycStatus === "APPROVED") {
+    return (
+      <span className="trust-badge flex flex-row items-center gap-2">
+        <ShieldCheck size={14} />
+        KYC Verified
+      </span>
+    );
+  }
+  if (kycStatus === "PENDING") {
+    return (
+      <span className="flex flex-row items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+        <Clock size={13} />
+        Verification Pending
+      </span>
+    );
+  }
+  if (kycStatus === "REJECTED") {
+    return (
+      <span className="flex flex-row items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+        <ShieldOff size={13} />
+        Not Verified
+      </span>
+    );
+  }
+  // NOT_SUBMITTE
   return (
-    <span className="trust-badge">
-      <ShieldCheck size={14} />
-      KYC Verified
+    <span className="flex flex-row items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
+      <ShieldOff size={13} />
+      Not Verified
     </span>
   );
 }

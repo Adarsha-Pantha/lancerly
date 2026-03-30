@@ -3,18 +3,19 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, Users, Target, Shield, Globe } from "lucide-react";
+
 const teamMembers = [
   {
     name: "Sarah Johnson",
     role: "CEO & Founder",
     bio: "Visionary leader with 10+ years in freelance marketplace innovation.",
-    image: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80"
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80"
   },
   {
     name: "Michael Chen",
     role: "CTO",
     bio: "Tech expert specializing in AI and scalable platform architecture.",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80"
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80"
   },
   {
     name: "Emily Davis",
@@ -60,14 +61,14 @@ export default function AboutPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <Link 
+            {/* <Link
               href="/landing"
               className="inline-flex items-center gap-2 text-slate-blue hover:text-mint transition-colors mb-8"
             >
               <ArrowLeft size={20} />
               Back to Home
-            </Link>
-            
+            </Link> */}
+
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -100,22 +101,22 @@ export default function AboutPage() {
               <h2 className="text-3xl font-bold text-slate-blue mb-6">Our Story</h2>
               <div className="space-y-4 text-slate-blue/70 leading-relaxed">
                 <p>
-                  Founded in 2024, Lancerly emerged from a simple observation: the freelance industry 
-                  was broken. Platforms took huge commissions, matching was inefficient, and trust 
+                  Founded in 2024, Lancerly emerged from a simple observation: the freelance industry
+                  was broken. Platforms took huge commissions, matching was inefficient, and trust
                   was hard to come by.
                 </p>
                 <p>
-                  Our founders, themselves veteran freelancers and clients, decided to build something 
-                  better. A platform that uses cutting-edge AI to make perfect matches, that protects 
+                  Our founders, themselves veteran freelancers and clients, decided to build something
+                  better. A platform that uses cutting-edge AI to make perfect matches, that protects
                   both parties with smart contracts and escrow, and that puts community first.
                 </p>
                 <p>
-                  Today, we're proud to serve thousands of freelancers and businesses worldwide, 
+                  Today, we're proud to serve thousands of freelancers and businesses worldwide,
                   facilitating successful collaborations and building the future of work.
                 </p>
               </div>
             </motion.div>
-            
+
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -139,7 +140,7 @@ export default function AboutPage() {
             <h2 className="text-3xl md:text-4xl font-bold text-slate-blue mb-4">Our Values</h2>
             <p className="text-xl text-slate-blue/70">The principles that guide everything we do</p>
           </div>
-          
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, i) => (
               <motion.div
@@ -168,7 +169,7 @@ export default function AboutPage() {
             <h2 className="text-3xl md:text-4xl font-bold text-slate-blue mb-4">Meet Our Team</h2>
             <p className="text-xl text-slate-blue/70">The passionate people behind Lancerly</p>
           </div>
-          
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {teamMembers.map((member, i) => (
               <motion.div
@@ -202,22 +203,22 @@ export default function AboutPage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-gradient-to-r from-mint to-mint/80 rounded-2xl p-12 text-white"
+            className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-12 text-white"
           >
-            <h2 className="text-3xl font-bold mb-4">Ready to Join Our Community?</h2>
-            <p className="text-lg mb-8 opacity-90">
+            <h2 className="text-3xl font-bold mb-4 text-white">Ready to Join Our Community?</h2>
+            <p className="text-lg mb-8 text-violet-100">
               Become part of the future of freelance work. Sign up today and experience the Lancerly difference.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/register"
-                className="px-8 py-3 bg-white text-mint font-semibold rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-8 py-3 bg-white text-violet-600 font-semibold rounded-lg hover:bg-violet-50 transition-colors"
               >
                 Get Started
               </Link>
               <Link
                 href="/projects/browse"
-                className="px-8 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-mint transition-colors"
+                className="px-8 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-violet-600 transition-colors"
               >
                 Browse Projects
               </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Briefcase, FileText, Code, Palette } from "lucide-react";
+import { ChevronLeft, ChevronRight, Briefcase, FileText, Code, Palette, MapPin, Clock } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -24,15 +24,15 @@ interface ActiveProjectsWidgetProps {
 const getProjectIcon = (title: string) => {
   const lower = title.toLowerCase();
   if (lower.includes("design") || lower.includes("ui") || lower.includes("ux")) {
-    return <Palette className="text-white" size={20} />;
+    return <Palette className="text-brand-purple" size={20} />;
   }
   if (lower.includes("code") || lower.includes("develop") || lower.includes("app")) {
-    return <Code className="text-white" size={20} />;
+    return <Code className="text-brand-purple" size={20} />;
   }
   if (lower.includes("write") || lower.includes("content") || lower.includes("blog")) {
-    return <FileText className="text-white" size={20} />;
+    return <FileText className="text-brand-purple" size={20} />;
   }
-  return <Briefcase className="text-white" size={20} />;
+  return <Briefcase className="text-brand-purple" size={20} />;
 };
 
 export default function ActiveProjectsWidget({ projects, role }: ActiveProjectsWidgetProps) {
@@ -60,58 +60,93 @@ export default function ActiveProjectsWidget({ projects, role }: ActiveProjectsW
           <button
             onClick={prev}
             disabled={currentIndex === 0}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-brand-purple hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-brand-purple hover:bg-purple-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={20} />
           </button>
           <button
             onClick={next}
             disabled={currentIndex + 2 >= projects.length}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-brand-purple hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-brand-purple hover:bg-purple-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={20} />
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {visibleProjects.map((project) => (
-          <div
-            key={project.id}
-            onClick={() => router.push(`/projects/${project.id}`)}
-            className="relative bg-brand-purple rounded-xl p-6 cursor-pointer hover:shadow-soft transition-shadow"
+
+      {projects.length === 0 ? (
+        <div className="py-20 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+          <Briefcase size={48} className="mb-4 opacity-20" />
+          <p className="text-sm font-medium">No active projects yet</p>
+          <button 
+            onClick={() => router.push('/projects/create')}
+            className="mt-4 text-xs font-bold text-brand-purple hover:underline"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                {getProjectIcon(project.title)}
-              </div>
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-xs font-semibold">
-                {(project.clientName || project.freelancerName || "U").charAt(0).toUpperCase()}
+            Post a new project →
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {visibleProjects.map((project) => (
+            <div
+              key={project.id}
+              onClick={() => router.push(`/projects/${project.id}`)}
+              className="relative group bg-white border border-slate-100 rounded-3xl p-6 cursor-pointer hover:border-purple-200 hover:shadow-xl hover:shadow-purple-50 transition-all duration-300 overflow-hidden"
+            >
+              {/* Background Accent */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-16 -mt-16 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-6">
+                 <div className="flex items-center gap-2">
+
+                  <div className="p-3 bg-purple-50 rounded-2xl text-white transition-colors duration-300">
+                    {getProjectIcon(project.title)}
+                  </div>
+                  <div>
+
+                  <h3 className="text-slate-900 font-bold mb-1 text-black">{project.title}</h3>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                    <Clock size={12} />
+                    <span>Started {new Date(Date.now() - project.daysCompleted * 86400000).toLocaleDateString()}</span>
+                  </div>
+                  </div>
+
+                 </div>
+
+                  <div className="w-40 h-10 rounded-2xl bg-slate-100 border border-white shadow-sm flex items-center justify-center text-slate-600 text-xs font-bold font-display">
+                    {(project.clientName || project.freelancerName || "U").toUpperCase()}
+                  </div>
+                </div>
+
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Progress</span>
+                    <span className="text-brand-purple font-bold">{project.progress}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100/50">
+                    <div
+                      className="h-full bg-brand-purple rounded-full transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(124,58,237,0.3)]"
+                      style={{ width: `${project.progress}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="pt-2 flex items-center justify-between">
+                    <div className="flex -space-x-2">
+                       <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white" />
+                       <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white" />
+                    </div>
+                    <span className="px-3 py-1 bg-purple-50 text-brand-purple text-[10px] font-bold rounded-full uppercase tracking-wider">
+                      {project.status.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-            <h3 className="text-white font-semibold mb-1">{project.title}</h3>
-            <p className="text-white/80 text-sm mb-4">
-              by {role === "CLIENT" ? project.freelancerName || "Freelancer" : project.clientName || "Client"}
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-white/80">Completed: {project.progress}%</span>
-              </div>
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full transition-all"
-                  style={{ width: `${project.progress}%` }}
-                ></div>
-              </div>
-              <div className="flex items-center justify-between text-xs text-white/70">
-                <span>Days: {project.daysCompleted}/{project.totalDays}</span>
-                <span className="px-2 py-0.5 bg-white/20 rounded text-xs">
-                  {project.status}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -11,14 +11,17 @@ import TodayTasksWidget from "./widgets/TodayTasksWidget";
 import StatsWidget from "./widgets/StatsWidget";
 import ActivityWidget from "./widgets/ActivityWidget";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+import { Briefcase } from "lucide-react";
 
 export default function ClientDashboard() {
   const { user, token } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
     if (token) {
@@ -28,54 +31,20 @@ export default function ClientDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Load projects
-      const projectsData = await get<any[]>("/projects/me", token);
-      setProjects(projectsData || []);
-
-      // Generate notifications from projects and proposals
-      const projectNotifications = projectsData
-        .filter((p: any) => p.status === "OPEN" || p.status === "IN_PROGRESS")
-        .slice(0, 3)
-        .map((p: any, idx: number) => ({
-          id: `notif-${idx}`,
-          type: "event" as const,
-          title: "Upcoming event",
-          description: `${p.title} | Time: 120 min`,
-          time: "11 AM - 11:45 AM",
-          date: new Date(Date.now() + idx * 86400000).toLocaleDateString("en-US", {
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-          }),
-          duration: "120 min",
-        }));
-
-      setNotifications(projectNotifications);
-
-      // Generate sample messages
-      setMessages([
-        {
-          id: "1",
-          sender: "Tom",
-          content: "Hi! I am just getting organized for the week ahead",
-          time: "11:30",
-          type: "text" as const,
-        },
-        {
-          id: "2",
-          sender: "Karen",
-          content: "Cool video! Check it out",
-          time: "11:34",
-          type: "video" as const,
-        },
-        {
-          id: "3",
-          sender: "Mike",
-          content: "",
-          time: "11:35",
-          type: "audio" as const,
-        },
+      setLoading(true);
+      const [contractsData, notificationsData, conversationsData, statsData] = await Promise.all([
+        get<any[]>("/contracts/me?role=CLIENT", token || undefined),
+        get<any[]>("/notifications", token || undefined),
+        get<any[]>("/conversations", token || undefined),
+        get<any>("/contracts/stats?role=CLIENT", token || undefined),
       ]);
+
+      console.log("Client Dashboard Raw Contracts:", contractsData);
+
+      setContracts(contractsData || []);
+      setNotifications(notificationsData || []);
+      setConversations(conversationsData || []);
+      setStats(statsData || null);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -87,110 +56,152 @@ export default function ClientDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-64" />
-        </div>
+      <div className="max-w-7xl  mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-64 lg:col-span-2" />
-          <div className="space-y-4">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-48" />
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-96 w-full rounded-xl" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-64 w-full rounded-xl" />
+            <Skeleton className="h-80 w-full rounded-xl" />
           </div>
         </div>
       </div>
     );
   }
 
-  // Transform projects for ActiveProjectsWidget
-  const activeProjects = projects
-    .filter((p: any) => p.status === "OPEN" || p.status === "IN_PROGRESS")
+  // Transform contracts for ActiveProjectsWidget
+  const activeProjects = contracts
+    .filter((c: any) => c.status === "ACTIVE")
+    .map((c: any) => {
+      const totalMilestones = c.milestones?.length || 0;
+      const completedMilestones = c.milestones?.filter((m: any) => 
+        m.status === "APPROVED" || m.status === "PAID"
+      ).length || 0;
+
+      return {
+        id: c.project.id,
+        title: c.project.title,
+        freelancerName: c.freelancer?.profile?.name || "Freelancer",
+        progress: totalMilestones > 0 
+          ? Math.floor((completedMilestones / totalMilestones) * 100)
+          : 0,
+        daysCompleted: Math.floor((Date.now() - new Date(c.startDate).getTime()) / (1000 * 60 * 60 * 24)),
+        totalDays: c.endDate 
+          ? Math.floor((new Date(c.endDate).getTime() - new Date(c.startDate).getTime()) / (1000 * 60 * 60 * 24))
+          : 30, 
+        status: c.status,
+      };
+    });
+
+  // Transform milestones for TodayTasksWidget
+  const todayTasks = contracts
+    .flatMap((c: any) => (c.milestones || []).map((m: any) => ({ ...m, projectTitle: c.project.title, freelancer: c.freelancer })))
+    .filter((m: any) => m.status !== "PAID")
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     .slice(0, 4)
-    .map((p: any) => ({
-      id: p.id,
-      title: p.title,
-      freelancerName: "Freelancer", // TODO: Get from proposal
-      progress: Math.floor(Math.random() * 50 + 50),
-      daysCompleted: Math.floor(Math.random() * 20 + 5),
-      totalDays: Math.floor(Math.random() * 30 + 20),
-      status: p.status,
+    .map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      description: `Project: ${m.projectTitle}`,
+      tags: [m.status.replace(/_/g, " ")],
+      progress: (m.status === "COMPLETED" || m.status === "APPROVED") ? 100 : (m.status === "IN_PROGRESS" ? 50 : 0),
+      files: m._count?.deliveries || 0,
+      completed: (m.status === "COMPLETED" || m.status === "APPROVED") ? 1 : 0,
+      total: 1,
+      teamMembers: m.freelancer?.profile ? [{ name: m.freelancer.profile.name, avatar: m.freelancer.profile.avatarUrl }] : [],
     }));
 
-  // Transform projects for TodayTasksWidget
-  const todayTasks = projects
-    .filter((p: any) => p.status === "IN_PROGRESS")
-    .slice(0, 3)
-    .map((p: any, idx: number) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description.substring(0, 80) + "...",
-      tags: p.skills?.slice(0, 2) || ["Project", "Design"],
-      progress: Math.floor(Math.random() * 80 + 10),
-      files: Math.floor(Math.random() * 20 + 3),
-      completed: Math.floor(Math.random() * 30 + 5),
-      total: 34,
-      teamMembers: [
-        { name: "Alice" },
-        { name: "Bob" },
-        { name: "Charlie" },
-        { name: "Diana" },
-      ],
-    }));
+  const calendarEvents = contracts.flatMap((c: any) => 
+    (c.milestones || [])
+      .map((m: any) => ({
+        date: m.dueDate || m.createdAt,
+        title: `${m.title} (${c.project.title})`
+      }))
+  );
 
-  // Stats data
-  const statsData = [
-    { month: "Jan", hours: 45 },
-    { month: "Feb", hours: 52 },
-    { month: "Mar", hours: 38 },
-    { month: "Apr", hours: 67 },
-    { month: "May", hours: 55 },
-    { month: "Jun", hours: 48 },
-    { month: "Jul", hours: 62 },
-    { month: "Aug", hours: 58 },
-    { month: "Sep", hours: 71 },
-  ];
+  // Stats data mapping
+  const displayStats = {
+    totalSpent: stats?.totalSpent ? `$${stats.totalSpent.toLocaleString()}` : "$0",
+    activeContracts: stats?.active || 0,
+    completedContracts: stats?.completed || 0,
+  };
+
+  // Chat messages transformation
+  const recentMessages = conversations.slice(0, 3).map((conv: any) => {
+    const lastMsg = conv.messages?.[conv.messages.length - 1];
+    return {
+      id: conv.id,
+      sender: conv.freelancer?.profile?.name || "Freelancer",
+      content: lastMsg?.content || "No messages yet",
+      time: lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
+      type: "text" as const,
+    };
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column */}
+    <div className="max-w-7xl max-h-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Welcome back, {user.name}</h1>
+          <p className="text-slate-500">Here's what's happening with your projects today.</p>
+        </div>
+        <Link
+          href="/contracts/me"
+          className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl hover:bg-amber-100 hover:shadow-sm transition-all"
+        >
+          <Briefcase size={16} />
+          <span className="text-sm font-medium">Contracts</span>
+        </Link>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Column - Main Content */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Calendar */}
+          <div className="h-2xl">
+            <CalendarWidget events={calendarEvents} />
+          </div>
+        </div>
         <div className="lg:col-span-2 space-y-6">
           {/* Active Projects */}
           <ActiveProjectsWidget projects={activeProjects} role="CLIENT" />
 
-          {/* Today Tasks */}
+          {/* Today Tasks / Milestones */}
           <TodayTasksWidget tasks={todayTasks} />
+
+          {/* Recent Activity / Chat */}  
+          <div className="h-2xl">
+            <ActivityWidget messages={recentMessages} />
+          </div>
         </div>
 
-        {/* Right Column */}
+        {/* Right Column - Sidebar Widgets */}
         <div className="space-y-6">
+          {/* Stats Widget */}
+          <StatsWidget 
+            totalHours={displayStats.totalSpent} 
+            data={[
+              { month: "Active", hours: stats?.active || 0 },
+              { month: "Done", hours: stats?.completed || 0 },
+              { month: "Total", hours: stats?.total || 0 }
+            ]} 
+            selectedMonth="Spending & Status"
+          />
+
           {/* Notifications */}
           <NotificationsWidget
-            notifications={notifications}
+            notifications={notifications.slice(0, 5).map(n => ({
+              id: n.id,
+              type: "event",
+              title: n.type.replace(/_/g, " "),
+              description: n.message,
+              time: new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              date: new Date(n.createdAt).toLocaleDateString(),
+            }))}
             onClear={() => setNotifications([])}
           />
-
-          {/* Calendar */}
-          <CalendarWidget
-            events={[
-              { date: 6, title: "Project Review" },
-              { date: 10, title: "Client Meeting" },
-              { date: 18, title: "Deadline" },
-              { date: 31, title: "Monthly Report" },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Stats */}
-        <StatsWidget totalHours="123 h 45 min" data={statsData} />
-
-        {/* Activity/Team Chat */}
-        <div className="lg:col-span-2">
-          <ActivityWidget messages={messages} />
         </div>
       </div>
     </div>

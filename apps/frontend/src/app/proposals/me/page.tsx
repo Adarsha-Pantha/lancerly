@@ -92,7 +92,7 @@ export default function MyProposalsPage() {
             <FileText className="text-slate-400 mx-auto mb-4" size={48} />
             <p className="text-slate-600 mb-4">No proposals yet</p>
             <button
-              onClick={() => router.push("/projects/browse")}
+              onClick={() => router.push("/home")}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
             >
               Browse Projects

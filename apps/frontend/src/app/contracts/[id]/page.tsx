@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { get, post, patch } from "@/lib/api";
-import { Loader2, Plus, Clock, DollarSign, FileText, ArrowRight, AlertTriangle, CheckCircle2, FileCheck } from "lucide-react";
+import { get, post, patch, postForm } from "@/lib/api";
+import { Loader2, Plus, Clock, DollarSign, FileText, ArrowRight, AlertTriangle, CheckCircle2, FileCheck, Scale, Star } from "lucide-react";
 import ProjectChat from "@/components/contracts/ProjectChat";
 import { MilestoneCard } from "@/components/contracts/MilestoneCard";
 import { EscrowStatus } from "@/components/contracts/EscrowStatus";
@@ -14,6 +14,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { KYCVerifiedBadge, DoubleBlindReviewCard } from "@/components/ui/TrustBadges";
 import { Button } from "@/components/ui/button";
+import { ReviewModal } from "@/components/contracts/ReviewModal";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -40,6 +41,7 @@ type Contract = {
       name: string;
       avatarUrl?: string;
       stripeAccountId?: string | null;
+      kycStatus?: string | null;
     };
   };
   client: {
@@ -90,6 +92,13 @@ export default function ContractPage() {
   const [projectConversationId, setProjectConversationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
   const [platformSettings, setPlatformSettings] = useState<{ freelancerServiceFee: number; clientProcessingFee: number } | null>(null);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeTitle, setDisputeTitle] = useState("");
+  const [disputeType, setDisputeType] = useState("OTHER");
+  const [disputeDesc, setDisputeDesc] = useState("");
+  const [disputeFile, setDisputeFile] = useState<File | null>(null);
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   useEffect(() => {
     if (!token || !user) {
@@ -242,6 +251,33 @@ export default function ContractPage() {
     }
   }
 
+  async function submitDispute(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !contract) return;
+    try {
+      setDisputeSubmitting(true);
+      const dispute = await post<{ id: string }>("/disputes", { contractId: contract.id, title: disputeTitle, type: disputeType, description: disputeDesc }, token);
+      
+      if (disputeFile) {
+        const formData = new FormData();
+        formData.append("file", disputeFile);
+        try {
+          await postForm(`/disputes/${dispute.id}/evidence`, formData, token);
+        } catch (err) {
+          console.error("Failed to upload evidence file:", err);
+        }
+      }
+
+      setShowDisputeModal(false);
+      setDisputeTitle(""); setDisputeType("OTHER"); setDisputeDesc(""); setDisputeFile(null);
+      alert("Dispute submitted. Our team will review it within 48 hours.");
+    } catch (err: unknown) {
+      alert((err as Error)?.message || "Failed to submit dispute");
+    } finally {
+      setDisputeSubmitting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 flex flex-col items-center justify-center gap-4">
@@ -278,8 +314,9 @@ export default function ContractPage() {
   const fundedCount = contract.milestones.filter((m) => m.status !== "PENDING" || m.stripePaymentIntentId).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 px-4">
-      <div className="max-w-6xl mx-auto">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 px-4">
+        <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <Button
             variant="ghost"
@@ -288,9 +325,9 @@ export default function ContractPage() {
           >
             ← Back to Contracts
           </Button>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <h1 className="text-3xl font-bold text-foreground">{contract.project.title}</h1>
-            <KYCVerifiedBadge />
+            <KYCVerifiedBadge kycStatus={contract.freelancer?.profile?.kycStatus} />
           </div>
           <p className="text-muted-foreground mb-6">{contract.project.description}</p>
           
@@ -426,6 +463,14 @@ export default function ContractPage() {
                       <AlertTriangle size={16} className="mr-2" />
                       Terminate contract
                     </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDisputeModal(true)}
+                      className="border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                    >
+                      <Scale size={16} className="mr-2" />
+                      Raise Dispute
+                    </Button>
                     {isClient &&
                       contract.milestones.length > 0 &&
                       contract.milestones.every((m) => m.status === "PAID") && (
@@ -434,6 +479,82 @@ export default function ContractPage() {
                           Mark as completed
                         </Button>
                       )}
+                  </div>
+                )}
+
+                {/* Raise Dispute Modal */}
+                {showDisputeModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDisputeModal(false)}>
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {/* <Scale size={18} className="text-amber-600" /> */}
+                        <h3 className="text-lg font-bold text-slate-900">Raise a Dispute</h3>
+                      </div>
+                      <p className="text-sm text-slate-500 mb-5">Describe the issue. Our team will review it within 48 hours.</p>
+                      <form onSubmit={submitDispute} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Dispute Type</label>
+                          <select
+                            value={disputeType}
+                            onChange={(e) => setDisputeType(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                          >
+                            <option value="PAYMENT">Payment Issue</option>
+                            <option value="SCOPE">Scope Dispute</option>
+                            <option value="DELIVERY">Delivery Problem</option>
+                            <option value="QUALITY">Quality Issue</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                          <input
+                            type="text"
+                            required
+                            value={disputeTitle}
+                            onChange={(e) => setDisputeTitle(e.target.value)}
+                            placeholder="Brief summary of the issue"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                          <textarea
+                            required
+                            minLength={10}
+                            value={disputeDesc}
+                            onChange={(e) => setDisputeDesc(e.target.value)}
+                            placeholder="Describe the issue in detail…"
+                            rows={4}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Evidence (optional)</label>
+                          <input
+                            type="file"
+                            onChange={(e) => setDisputeFile(e.target.files?.[0] || null)}
+                            className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                          />
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                          <button
+                            type="submit"
+                            disabled={disputeSubmitting}
+                            className="px-4 py-2 bg-[#6b27d9] text-white rounded-lg text-sm font-semibold disabled:opacity-60"
+                          >
+                            {disputeSubmitting ? "Submitting…" : "Submit Dispute"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowDisputeModal(false)}
+                            className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 )}
               </div>
@@ -692,11 +813,43 @@ export default function ContractPage() {
                 </p>
               </div>
             )}
+
+            {contract.status === "COMPLETED" && (
+              <div className="mt-8 pt-8 border-t border-[#E2E8F0]">
+                <div className="flex flex-col items-center text-center max-w-md mx-auto">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-4">
+                    <Star size={24} />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Project Completed!</h3>
+                  <p className="text-sm text-slate-500 mb-6">
+                    How was your experience working on this contract? Your feedback helps the community.
+                  </p>
+                  <Button
+                    onClick={() => setShowReviewModal(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+                  >
+                    <Star size={16} className="mr-2" />
+                    Leave a Review
+                  </Button>
+                </div>
+              </div>
+            )}
           </WorkspaceLayout>
         </div>
       </div>
     </div>
-  );
+
+    {token && (
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        contractId={contractId}
+        token={token}
+        onSuccess={loadContract}
+      />
+    )}
+  </>
+);
 }
 
 function FundMilestoneForm({
