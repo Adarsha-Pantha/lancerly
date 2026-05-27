@@ -37,7 +37,7 @@ export function PortfolioUploadModal({
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Portfolio</p>
-            <h3 className="text-base font-black text-slate-900">Add a project</h3>
+            <h3 className="text-base font-semibold text-slate-900">Add a project</h3>
           </div>
           <button
             type="button"
@@ -110,7 +110,7 @@ export function PortfolioUploadModal({
                     <ImageIcon className="size-4 text-slate-400" />
                     <span className="truncate">{image ? image.name : "No file selected"}</span>
                   </div>
-                  <label className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
                     <Upload className="size-4" />
                     Choose file
                     <input
@@ -130,7 +130,7 @@ export function PortfolioUploadModal({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-5 py-3 rounded-2xl border-2 border-slate-200 text-sm font-black text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-60"
+              className="px-5 py-3 rounded-2xl border-2 border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-60"
             >
               Cancel
             </button>
@@ -165,7 +165,7 @@ export function PortfolioUploadModal({
                   setSaving(false);
                 }
               }}
-              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-black hover:brightness-110 transition-all disabled:opacity-60"
+              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-60"
             >
               {saving ? "Saving…" : "Add project"}
             </button>

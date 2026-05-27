@@ -16,17 +16,8 @@ import { PortfolioUploadModal } from "@/components/profile/PortfolioUploadModal"
 
 function ProfileStudioShell({ children }: { children: ReactNode }) {
   return (
-    <div className="profile-shell min-h-screen">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 md:py-12">
-        <header className="mb-8 md:mb-12 max-w-2xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-violet-600 mb-2">Your presence</p>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-foreground tracking-tight text-balance">
-            Profile studio
-          </h1>
-          <p className="text-muted-foreground mt-3 text-base leading-relaxed">
-            Strong profiles get more replies. Keep your photo, headline, and portfolio current — small updates make a big difference.
-          </p>
-        </header>
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {children}
       </div>
     </div>

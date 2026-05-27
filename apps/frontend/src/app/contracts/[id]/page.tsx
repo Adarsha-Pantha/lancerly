@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { get, post, patch, postForm } from "@/lib/api";
 import { Loader2, Plus, Clock, DollarSign, FileText, ArrowRight, AlertTriangle, CheckCircle2, FileCheck, Scale, Star } from "lucide-react";
 import ProjectChat from "@/components/contracts/ProjectChat";
@@ -75,6 +76,7 @@ export default function ContractPage() {
   const router = useRouter();
   const params = useParams();
   const { token, user } = useAuth();
+  const { toast } = useToast();
   const contractId = params.id as string;
 
   const [contract, setContract] = useState<Contract | null>(null);
@@ -180,9 +182,10 @@ export default function ContractPage() {
       setMilestoneDescription("");
       setMilestoneAmount("");
       setMilestoneDueDate("");
+      toast("Milestone created successfully", "success");
       await loadContract();
     } catch (err: unknown) {
-      alert((err as Error)?.message || "Failed to create milestone");
+      toast((err as Error)?.message || "Failed to create milestone", "error");
     }
   }
 
@@ -198,19 +201,17 @@ export default function ContractPage() {
 
   async function approveMilestone(milestoneId: string) {
     if (!token) return;
-    if (!confirm("Approve this milestone?")) return;
-
     try {
       await patch(`/contracts/milestones/${milestoneId}/approve`, undefined, token);
+      toast("Milestone approved — payment released to freelancer", "success");
       await loadContract();
     } catch (err: unknown) {
       const msg = (err as Error)?.message || "";
       if (msg.includes("not funded") || msg.includes("requires_payment_method")) {
-        if (confirm("This milestone hasn't been fully funded yet. Would you like to complete the payment now?")) {
-          router.push(`/settings/payments/${milestoneId}`);
-        }
+        toast("This milestone hasn't been funded yet. Redirecting to payment…", "error");
+        setTimeout(() => router.push(`/settings/payments/${milestoneId}`), 1500);
       } else {
-        alert(msg || "Failed to approve milestone");
+        toast(msg || "Failed to approve milestone", "error");
       }
     }
   }
@@ -222,10 +223,11 @@ export default function ContractPage() {
       await patch(`/contracts/${contract.id}/terminate`, { reason: terminateReason || undefined }, token);
       setShowTerminateModal(false);
       setTerminateReason("");
+      toast("Contract terminated", "success");
       await loadContract();
       router.push("/contracts/me");
     } catch (err: unknown) {
-      alert((err as Error)?.message || "Failed to terminate contract");
+      toast((err as Error)?.message || "Failed to terminate contract", "error");
     } finally {
       setTerminating(false);
     }
@@ -233,23 +235,23 @@ export default function ContractPage() {
 
   async function completeMilestone(milestoneId: string) {
     if (!token) return;
-    if (!confirm("Mark this milestone as complete? The client will review your work.")) return;
     try {
       await patch(`/contracts/milestones/${milestoneId}/complete`, undefined, token);
+      toast("Milestone marked as complete — awaiting client review", "success");
       await loadContract();
     } catch (err: unknown) {
-      alert((err as Error)?.message || "Failed to mark complete");
+      toast((err as Error)?.message || "Failed to mark complete", "error");
     }
   }
 
   async function completeContract() {
     if (!token || !contract) return;
-    if (!confirm("Mark this contract as completed? This will close the project.")) return;
     try {
       await patch(`/contracts/${contract.id}/complete`, undefined, token);
+      toast("Contract marked as completed!", "success");
       await loadContract();
     } catch (err: unknown) {
-      alert((err as Error)?.message || "Failed to complete contract");
+      toast((err as Error)?.message || "Failed to complete contract", "error");
     }
   }
 
@@ -272,9 +274,9 @@ export default function ContractPage() {
 
       setShowDisputeModal(false);
       setDisputeTitle(""); setDisputeType("OTHER"); setDisputeDesc(""); setDisputeFile(null);
-      alert("Dispute submitted. Our team will review it within 48 hours.");
+      toast("Dispute submitted. Our team will review it within 48 hours.", "success");
     } catch (err: unknown) {
-      alert((err as Error)?.message || "Failed to submit dispute");
+      toast((err as Error)?.message || "Failed to submit dispute", "error");
     } finally {
       setDisputeSubmitting(false);
     }
@@ -327,11 +329,48 @@ export default function ContractPage() {
           >
             ← Back to Contracts
           </Button>
-          <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-start justify-between gap-3 mb-2">
             <h1 className="text-3xl font-bold text-foreground">{contract.project.title}</h1>
-            <KYCVerifiedBadge kycStatus={contract.freelancer?.profile?.kycStatus} />
+            <div className="flex items-center gap-2 shrink-0">
+              <KYCVerifiedBadge kycStatus={contract.freelancer?.profile?.kycStatus} />
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                contract.status === "ACTIVE"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : contract.status === "COMPLETED"
+                  ? "bg-sky-50 text-sky-700 border-sky-200"
+                  : "bg-red-50 text-red-700 border-red-200"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  contract.status === "ACTIVE" ? "bg-emerald-500" : contract.status === "COMPLETED" ? "bg-sky-500" : "bg-red-500"
+                }`} />
+                {contract.status.charAt(0) + contract.status.slice(1).toLowerCase()}
+              </span>
+            </div>
           </div>
-          <p className="text-muted-foreground mb-6">{contract.project.description}</p>
+          <p className="text-muted-foreground mb-4">{contract.project.description}</p>
+          {/* Milestone summary strip */}
+          {contract.milestones.length > 0 && (() => {
+            const paid = contract.milestones.filter(m => m.status === "PAID").length;
+            const total = contract.milestones.length;
+            const pct = Math.round((paid / total) * 100);
+            return (
+              <div className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-slate-500 font-medium">Milestone progress</span>
+                    <span className="text-xs font-black text-slate-700">{paid}/{total} paid</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? "#16a34a" : "#7c3aed" }} />
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-slate-400">Budget</p>
+                  <p className="text-sm font-black text-slate-800">${contract.agreedBudget.toLocaleString()}</p>
+                </div>
+              </div>
+            );
+          })()}
           
           {!isClient && !contract.freelancer.profile.stripeAccountId && (
             <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
@@ -461,15 +500,9 @@ export default function ContractPage() {
                 </div>
 
                 {contract.status === "ACTIVE" && (
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowTerminateModal(true)}
-                      className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                    >
-                      <AlertTriangle size={16} className="mr-2" />
-                      Terminate contract
-                    </Button>
+                  <div className="space-y-3">
+                    {/* Primary action */}
+                    <div className="flex flex-wrap gap-3">
                     <Button
                       variant="outline"
                       onClick={() => setShowDisputeModal(true)}
@@ -493,81 +526,20 @@ export default function ContractPage() {
                         </Button>
                       );
                     })()}
-                  </div>
-                )}
+                    </div>
 
-                {/* Raise Dispute Modal */}
-                {showDisputeModal && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDisputeModal(false)}>
-                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2 mb-1">
-                        {/* <Scale size={18} className="text-amber-600" /> */}
-                        <h3 className="text-lg font-bold text-slate-900">Raise a Dispute</h3>
-                      </div>
-                      <p className="text-sm text-slate-500 mb-5">Describe the issue. Our team will review it within 48 hours.</p>
-                      <form onSubmit={submitDispute} className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Dispute Type</label>
-                          <select
-                            value={disputeType}
-                            onChange={(e) => setDisputeType(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                          >
-                            <option value="PAYMENT">Payment Issue</option>
-                            <option value="SCOPE">Scope Dispute</option>
-                            <option value="DELIVERY">Delivery Problem</option>
-                            <option value="QUALITY">Quality Issue</option>
-                            <option value="OTHER">Other</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                          <input
-                            type="text"
-                            required
-                            value={disputeTitle}
-                            onChange={(e) => setDisputeTitle(e.target.value)}
-                            placeholder="Brief summary of the issue"
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                          <textarea
-                            required
-                            minLength={10}
-                            value={disputeDesc}
-                            onChange={(e) => setDisputeDesc(e.target.value)}
-                            placeholder="Describe the issue in detail…"
-                            rows={4}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Evidence (optional)</label>
-                          <input
-                            type="file"
-                            onChange={(e) => setDisputeFile(e.target.files?.[0] || null)}
-                            className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
-                          />
-                        </div>
-                        <div className="flex gap-3 pt-1">
-                          <button
-                            type="submit"
-                            disabled={disputeSubmitting}
-                            className="px-4 py-2 bg-[#6b27d9] text-white rounded-lg text-sm font-semibold disabled:opacity-60"
-                          >
-                            {disputeSubmitting ? "Submitting…" : "Submit Dispute"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowDisputeModal(false)}
-                            className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
+                    {/* Danger zone — separated visually */}
+                    <div className="pt-3 border-t border-slate-100">
+                      <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Danger zone</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowTerminateModal(true)}
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 text-xs"
+                      >
+                        <AlertTriangle size={14} className="mr-1.5" />
+                        Terminate contract
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -647,6 +619,7 @@ export default function ContractPage() {
                     </div>
                   </div>
                 )}
+
               </div>
             )}
 
@@ -897,9 +870,9 @@ export default function ContractPage() {
 
             {activeTab === "chat" && !projectConversationId && (
               <div className="rounded-xl border border-dashed border-[#E2E8F0] bg-white/50 p-12 text-center">
-                <p className="text-muted-foreground font-medium">Messages unavailable</p>
+                <p className="text-muted-foreground font-medium">No conversation yet</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Chat will be available once the project conversation is set up.
+                  The project chat will appear here once a message thread is started for this project.
                 </p>
               </div>
             )}
@@ -917,7 +890,7 @@ export default function ContractPage() {
               />
             )}
 
-            {contract.status === "COMPLETED" && (
+            {contract.status === "COMPLETED" && activeTab === "overview" && (
               <div className="mt-8 pt-8 border-t border-[#E2E8F0]">
                 <div className="flex flex-col items-center text-center max-w-md mx-auto">
                   <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-4">

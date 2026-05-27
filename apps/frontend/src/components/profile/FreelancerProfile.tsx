@@ -148,18 +148,19 @@ function ProfileCompletionCard({
 
   return (
     <div className="profile-card sticky top-24">
-      {/* Gradient header */}
-      <div className="bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-600 px-6 pt-6 pb-8 rounded-t-3xl">
-        <p className="text-white/80 text-xs font-bold uppercase tracking-widest mb-4">Profile strength</p>
-        {/* Donut */}
-        <div className="flex items-center gap-5">
+      {/* Thin accent bar */}
+      <div className="h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-t-3xl" />
+      {/* Clean header */}
+      <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Profile strength</p>
+        <div className="flex items-center gap-4">
           <div className="relative shrink-0">
-            <svg width="90" height="90" viewBox="0 0 90 90" className="-rotate-90">
-              <circle cx="45" cy="45" r={radius} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+            <svg width="76" height="76" viewBox="0 0 90 90" className="-rotate-90">
+              <circle cx="45" cy="45" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
               <circle
                 cx="45" cy="45" r={radius}
                 fill="none"
-                stroke="white"
+                stroke={arcColor}
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
@@ -168,12 +169,12 @@ function ProfileCompletionCard({
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-white text-xl font-black tabular-nums leading-none">{percent}%</span>
+              <span className="text-lg font-bold tabular-nums leading-none" style={{ color: arcColor }}>{percent}%</span>
             </div>
           </div>
           <div>
-            <p className="text-white text-xl font-black leading-tight">{label}</p>
-            <p className="text-white/70 text-sm mt-1">{completed}/{FREELANCER_STEPS.length} complete</p>
+            <p className="text-sm font-semibold text-slate-800 leading-tight">{label}</p>
+            <p className="text-xs text-slate-400 mt-1">{completed}/{FREELANCER_STEPS.length} complete</p>
           </div>
         </div>
       </div>
@@ -219,7 +220,7 @@ function ProfileCompletionCard({
           <button
             type="button"
             onClick={handleGo}
-            className="w-full py-3 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-110 shadow-[0_8px_24px_-6px_rgba(109,40,217,0.45)] transition-all"
+            className="w-full py-2.5 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-110 shadow-[0_6px_20px_-6px_rgba(109,40,217,0.4)] transition-all"
           >
             Complete your profile →
           </button>
@@ -256,7 +257,7 @@ function StatTile({
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</span>
       </div>
       {value !== undefined && (
-        <div className="text-3xl font-black tabular-nums leading-none text-slate-900">
+        <div className="text-xl font-bold tabular-nums leading-none text-slate-900">
           {value}
         </div>
       )}
@@ -297,10 +298,10 @@ export function FreelancerProfile({
     : undefined;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-7 lg:gap-9 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-7 items-start">
 
       {/* ── Left / main column ── */}
-      <div className="lg:col-span-2 space-y-7">
+      <div className="lg:col-span-2 space-y-5">
 
         {/* Profile header */}
         <ProfileHeader
@@ -347,14 +348,14 @@ export function FreelancerProfile({
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Hourly rate</span>
               </div>
               <div className="flex items-baseline gap-0.5">
-                <span className="text-lg font-black text-slate-400">$</span>
+                <span className="text-sm font-semibold text-slate-400">$</span>
                 <input
                   type="number"
                   value={data.hourlyRate || 0}
                   onChange={(e) => onUpdate({ hourlyRate: parseInt(e.target.value, 10) || 0 })}
-                  className="w-20 bg-transparent text-3xl font-black text-slate-900 tabular-nums focus:outline-none"
+                  className="w-20 bg-transparent text-xl font-bold text-slate-900 tabular-nums focus:outline-none"
                 />
-                <span className="text-sm font-bold text-slate-400">/hr</span>
+                <span className="text-sm font-semibold text-slate-400">/hr</span>
               </div>
             </div>
           ) : data.hourlyRate != null ? (
@@ -362,7 +363,7 @@ export function FreelancerProfile({
               icon={<DollarSign className="size-4 text-emerald-700" />}
               iconBg="bg-emerald-100"
               label="Hourly rate"
-              value={<>${data.hourlyRate}<span className="text-lg text-slate-400 font-bold">/hr</span></>}
+              value={<>${data.hourlyRate}<span className="text-sm text-slate-400 font-semibold">/hr</span></>}
               accent="border-emerald-200"
             />
           ) : null}
@@ -384,13 +385,13 @@ export function FreelancerProfile({
                 onClick={() => onUpdate({ availability: !data.availability })}
                 className="text-left"
               >
-                <p className={cn("text-lg font-black leading-tight", data.availability ? "text-violet-700" : "text-slate-500")}>
+                <p className={cn("text-base font-semibold leading-tight", data.availability ? "text-violet-700" : "text-slate-500")}>
                   {data.availability ? "● Available" : "○ Busy"}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-1 font-semibold">Tap to toggle</p>
               </button>
             ) : (
-              <p className={cn("text-lg font-black leading-tight", data.availability ? "text-violet-700" : "text-slate-500")}>
+              <p className={cn("text-base font-semibold leading-tight", data.availability ? "text-violet-700" : "text-slate-500")}>
                 {data.availability ? "● Available" : "○ Unavailable"}
               </p>
             )}
@@ -414,7 +415,7 @@ export function FreelancerProfile({
               icon={<Star className="size-4 text-amber-600 fill-amber-400" />}
               iconBg="bg-amber-100"
               label="Rating"
-              value={<>{rating.toFixed(1)}<span className="text-base text-slate-400 font-bold ml-1">/ 5</span></>}
+              value={<>{rating.toFixed(1)}<span className="text-sm text-slate-400 font-semibold ml-1">/ 5</span></>}
               sub={`${reviewCount} review${reviewCount !== 1 ? "s" : ""}`}
               accent="border-amber-200"
             />
@@ -507,7 +508,7 @@ export function FreelancerProfile({
                     )}
                     {/* Overlay */}
                     <div className="portfolio-card-overlay">
-                      <p className="text-white font-black text-sm line-clamp-1">{p.title}</p>
+                      <p className="text-white font-semibold text-sm line-clamp-1">{p.title}</p>
                       <p className="text-white/80 text-xs line-clamp-2 mt-0.5">{p.description}</p>
                       {p.liveLink && (
                         <a
@@ -523,7 +524,7 @@ export function FreelancerProfile({
                     </div>
                   </div>
                   <div className="p-4">
-                    <h4 className="font-black text-foreground text-sm">{p.title}</h4>
+                    <h4 className="font-semibold text-foreground text-sm">{p.title}</h4>
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{p.description}</p>
                     {p.skills && p.skills.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -585,9 +586,9 @@ export function FreelancerProfile({
 
                       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between gap-3 mb-1">
-                          <h4 className="font-black text-sm text-foreground">{proj.title}</h4>
+                          <h4 className="font-semibold text-sm text-foreground">{proj.title}</h4>
                           <span className={cn(
-                            "shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide",
+                            "shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide",
                             isCompleted
                               ? "bg-emerald-100 text-emerald-700"
                               : "bg-blue-100 text-blue-700"

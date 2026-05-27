@@ -1,20 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, DollarSign } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { post } from "@/lib/api";
+import { Sparkles, DollarSign, Clock, Loader2, RefreshCw, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-/**
- * Lightweight estimator (placeholder) to restore build.
- * It provides suggested min/max from text length and selected skills count.
- */
+type EstimateResult = {
+  suggestedBudget: { min: number; max: number };
+  suggestedDuration: number;
+  confidence: number;
+  matchedReason: string;
+  complexity: string;
+};
+
 export default function AiBudgetEstimator({
-  // Newer usage
   title,
   description,
   skills,
   onPick,
-  // Back-compat usage (PostProjectWizard)
   formData,
   onApplyEstimates,
 }: {
@@ -25,62 +29,178 @@ export default function AiBudgetEstimator({
   formData?: { title: string; description: string; skills: string };
   onApplyEstimates?: (min: string, max: string) => void;
 }) {
+  const { token } = useAuth();
+  const [result, setResult] = useState<EstimateResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const t = formData?.title ?? title ?? "";
   const d = formData?.description ?? description ?? "";
-  const skillsArr =
-    formData?.skills != null
-      ? formData.skills.split(",").map((s) => s.trim()).filter(Boolean)
-      : (skills ?? []);
+  const skillsArr = formData?.skills
+    ? formData.skills.split(",").map((s) => s.trim()).filter(Boolean)
+    : (skills ?? []);
 
-  const suggestion = useMemo(() => {
-    const lengthScore = Math.min(6, Math.max(1, Math.floor(d.trim().length / 200)));
-    const skillsScore = Math.min(6, Math.max(1, Math.floor((skillsArr?.length || 0) / 3) + 1));
-    const score = Math.max(lengthScore, skillsScore);
-    const min = score * 100;
-    const max = score * 200;
-    return { min, max, score };
-  }, [d, skillsArr]);
+  const canEstimate = t.trim().length >= 3 && d.trim().length >= 10;
+
+  const fetchEstimate = async () => {
+    if (!canEstimate || !token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await post<EstimateResult>(
+        "/projects/estimate",
+        { title: t, description: d, skills: skillsArr },
+        token
+      );
+      setResult(data);
+    } catch (e: any) {
+      setError(e?.message || "Failed to get estimate. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-fetch on mount if there is enough data
+  useEffect(() => {
+    if (canEstimate && !result && !loading) {
+      fetchEstimate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const complexityColor: Record<string, string> = {
+    Low: "text-emerald-700 bg-emerald-50 border-emerald-200",
+    Medium: "text-amber-700 bg-amber-50 border-amber-200",
+    High: "text-orange-700 bg-orange-50 border-orange-200",
+    Enterprise: "text-rose-700 bg-rose-50 border-rose-200",
+  };
 
   return (
-    <Card className="border-violet-200/70">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="size-5 text-violet-600" />
-          AI budget estimator
-        </CardTitle>
-        <CardDescription>
-          Suggested range based on your brief. (Basic fallback estimator)
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-slate-800">Suggested range</p>
-            <p className="text-xs font-semibold text-slate-400">score {suggestion.score}/6</p>
+    <div className="rounded-2xl border border-violet-200 bg-white overflow-hidden shadow-sm">
+      <div className="h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-violet-600" />
+            <p className="text-sm font-semibold text-slate-900">AI Budget Estimator</p>
           </div>
-          <p className="mt-2 text-2xl font-black text-slate-900 tabular-nums">
-            ${suggestion.min.toLocaleString()} – ${suggestion.max.toLocaleString()}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Tip: add more detail to improve accuracy.
-          </p>
+          {result && !loading && (
+            <button
+              type="button"
+              onClick={fetchEstimate}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-violet-600 transition-colors"
+            >
+              <RefreshCw className="size-3.5" />
+              Refresh
+            </button>
+          )}
         </div>
 
-        {(onPick || onApplyEstimates) && (
-          <button
-            type="button"
-            onClick={() => {
-              if (onPick) onPick(suggestion.min, suggestion.max);
-              if (onApplyEstimates) onApplyEstimates(String(suggestion.min), String(suggestion.max));
-            }}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white hover:bg-violet-700 transition-colors"
-          >
-            <DollarSign className="size-4" />
-            Use this range
-          </button>
+        {/* No data yet */}
+        {!canEstimate && (
+          <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
+            <p className="text-xs text-slate-400">
+              Add a project title and description to get an AI-powered budget estimate.
+            </p>
+          </div>
         )}
-      </CardContent>
-    </Card>
+
+        {/* Loading */}
+        {canEstimate && loading && (
+          <div className="flex items-center justify-center gap-3 py-6">
+            <Loader2 className="size-5 animate-spin text-violet-600" />
+            <p className="text-sm font-medium text-slate-600">Analyzing your project…</p>
+          </div>
+        )}
+
+        {/* Error */}
+        {canEstimate && !loading && error && (
+          <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-center space-y-2">
+            <p className="text-xs text-red-600">{error}</p>
+            <button
+              type="button"
+              onClick={fetchEstimate}
+              className="text-xs font-bold text-violet-600 hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Result */}
+        {canEstimate && !loading && result && (
+          <div className="space-y-3">
+            {/* Budget range */}
+            <div className="rounded-xl bg-violet-50 border border-violet-200 p-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-semibold text-violet-600 uppercase tracking-wider">
+                  Suggested Budget
+                </p>
+                <span
+                  className={cn(
+                    "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                    complexityColor[result.complexity] ?? "text-slate-600 bg-slate-50 border-slate-200"
+                  )}
+                >
+                  {result.complexity} complexity
+                </span>
+              </div>
+              <p className="text-xl font-bold text-slate-900 tabular-nums">
+                ${result.suggestedBudget.min.toLocaleString()} –{" "}
+                ${result.suggestedBudget.max.toLocaleString()}
+              </p>
+            </div>
+
+            {/* Duration + Confidence */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 flex items-center gap-2">
+                <Clock className="size-4 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                    Timeline
+                  </p>
+                  <p className="text-sm font-semibold text-slate-800">
+                    {result.suggestedDuration} days
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 flex items-center gap-2">
+                <TrendingUp className="size-4 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                    Confidence
+                  </p>
+                  <p className="text-sm font-semibold text-slate-800">{result.confidence}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* AI reasoning */}
+            <p className="text-xs text-slate-500 leading-relaxed">
+              {result.matchedReason}
+            </p>
+
+            {/* Apply button */}
+            {(onPick || onApplyEstimates) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onPick) onPick(result.suggestedBudget.min, result.suggestedBudget.max);
+                  if (onApplyEstimates)
+                    onApplyEstimates(
+                      String(result.suggestedBudget.min),
+                      String(result.suggestedBudget.max)
+                    );
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-violet-600 hover:bg-violet-700 px-4 py-2.5 text-xs font-semibold text-white transition-colors"
+              >
+                <DollarSign className="size-4" />
+                Use this range
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
-

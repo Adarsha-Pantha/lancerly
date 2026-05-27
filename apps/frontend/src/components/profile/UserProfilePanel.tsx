@@ -82,7 +82,7 @@ export function UserProfilePanel({
 
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl border-l border-slate-200 flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <p className="text-sm font-black text-slate-900">Profile</p>
+          <p className="text-sm font-semibold text-slate-900">Profile</p>
           <button
             type="button"
             onClick={onClose}
@@ -108,7 +108,7 @@ export function UserProfilePanel({
                 className="size-14 rounded-2xl border border-slate-200 object-cover"
               />
               <div className="min-w-0">
-                <p className="text-lg font-black text-slate-900 truncate">{name}</p>
+                <p className="text-lg font-semibold text-slate-900 truncate">{name}</p>
                 {profile.profile?.headline && (
                   <p className="text-sm text-slate-600 mt-1 leading-snug">{profile.profile.headline}</p>
                 )}
@@ -128,7 +128,7 @@ export function UserProfilePanel({
             <div className="mt-5 flex flex-wrap gap-2">
               <Link
                 href={`/users/${userId}`}
-                className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 onClick={onClose}
               >
                 <ExternalLink className="size-4" />
@@ -137,7 +137,7 @@ export function UserProfilePanel({
 
               {token && !profile.isOwnProfile &&
                 (profile.isFriend ? (
-                  <span className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-700">
+                  <span className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-700">
                     <Users className="size-4" />
                     Connected
                   </span>
@@ -146,7 +146,7 @@ export function UserProfilePanel({
                     type="button"
                     onClick={addFriend}
                     disabled={friendLoading}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white hover:bg-violet-700 transition-colors disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-violet-700 transition-colors disabled:opacity-60"
                   >
                     {friendLoading ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
                     Add friend

@@ -128,8 +128,8 @@ export default function ClientDashboard() {
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-7 pt-8 pb-7">
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-600 mb-2">{greeting}</p>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">{user?.name}</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-teal-600 mb-2">{greeting}</p>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">{user?.name}</h1>
             <p className="text-slate-500 text-sm leading-relaxed max-w-lg">
               {activeProjects.length > 0
                 ? `${activeProjects.length} project${activeProjects.length > 1 ? "s" : ""} currently in progress.`
@@ -171,7 +171,7 @@ export default function ClientDashboard() {
           ].map((s) => (
             <div key={s.label} className="px-6 py-4">
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{s.label}</p>
-              <p className={cn("text-2xl font-black tabular-nums", s.color)}>{s.value}</p>
+              <p className={cn("text-xl font-bold tabular-nums", s.color)}>{s.value}</p>
             </div>
           ))}
         </div>
@@ -202,7 +202,7 @@ export default function ClientDashboard() {
             <div className="px-5 pt-5 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Zap className="size-4 text-teal-500" />
-                <h3 className="text-sm font-black text-slate-900">Quick actions</h3>
+                <h3 className="text-sm font-semibold text-slate-800">Quick actions</h3>
               </div>
             </div>
             <div className="p-4 grid grid-cols-2 gap-3">

@@ -7,7 +7,6 @@ import Link from "next/link";
 import { get, postForm, del, post } from "@/lib/api";
 import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { FeedSidebar } from "@/components/feed/FeedSidebar";
-import { FeedDiscoverPanel } from "@/components/feed/FeedDiscoverPanel";
 import { FeedComposer } from "@/components/feed/FeedComposer";
 import { FeedPostCard } from "@/components/feed/FeedPostCard";
 import type { FeedPost, FeedComment } from "@/components/feed/types";
@@ -166,11 +165,40 @@ export default function FeedPage() {
       router.push("/login?redirect=/feed");
       return;
     }
+    // Optimistic update — flip immediately, revert on failure
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              isLiked: !p.isLiked,
+              _count: {
+                ...p._count,
+                likes: p.isLiked ? p._count.likes - 1 : p._count.likes + 1,
+              },
+            }
+          : p
+      )
+    );
     try {
       await post(`/feed/${postId}/like`, {}, token);
-      await loadFeed();
     } catch (err) {
       console.error("Failed to like post:", err);
+      // Revert on failure
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                isLiked: !p.isLiked,
+                _count: {
+                  ...p._count,
+                  likes: p.isLiked ? p._count.likes - 1 : p._count.likes + 1,
+                },
+              }
+            : p
+        )
+      );
     }
   }
 
@@ -275,10 +303,10 @@ export default function FeedPage() {
                 <Sparkles className="h-3.5 w-3.5" />
                 Community feed
               </div>
-              <h1 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+              <h1 className="mt-3 text-2xl font-bold text-slate-900">
                 {greetingLine(user?.name)}
               </h1>
-              <p className="mt-2 max-w-2xl text-muted-foreground text-base sm:text-lg leading-relaxed">
+              <p className="mt-1 max-w-2xl text-sm text-slate-500 leading-relaxed">
                 See what freelancers and clients are sharing, post wins and questions, and keep your network warm — all
                 in one calm, focused stream.
               </p>
@@ -299,27 +327,21 @@ export default function FeedPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-10">
           <div className="min-w-0 space-y-6">
-            <div className="animate-slideUp" style={{ animationDelay: "0.05s" }}>
-              <FeedDiscoverPanel />
-            </div>
-
-            <div className="animate-slideUp" style={{ animationDelay: "0.08s" }}>
-              <FeedComposer
-                userName={user?.name}
-                userAvatarUrl={user?.avatarUrl}
-                fallbackAvatar={fallbackAvatar}
-                content={content}
-                setContent={setContent}
-                previews={previews}
-                fileInputRef={fileInputRef}
-                posting={posting}
-                onSubmit={handleSubmit}
-                onPickFiles={() => fileInputRef.current?.click()}
-                onFileChange={handleFileSelect}
-                onRemoveFile={removeFile}
-                isImage={isImage}
-              />
-            </div>
+            <FeedComposer
+              userName={user?.name}
+              userAvatarUrl={user?.avatarUrl}
+              fallbackAvatar={fallbackAvatar}
+              content={content}
+              setContent={setContent}
+              previews={previews}
+              fileInputRef={fileInputRef}
+              posting={posting}
+              onSubmit={handleSubmit}
+              onPickFiles={() => fileInputRef.current?.click()}
+              onFileChange={handleFileSelect}
+              onRemoveFile={removeFile}
+              isImage={isImage}
+            />
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-dashed border-border bg-card/50">

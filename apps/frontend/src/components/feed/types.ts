@@ -6,6 +6,7 @@ export type FeedPost = {
   author: {
     id: string;
     email: string;
+    role?: string;
     profile: {
       name: string;
       avatarUrl: string | null;

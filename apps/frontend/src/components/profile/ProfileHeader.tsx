@@ -180,7 +180,7 @@ export function ProfileHeader({
 
         {/* Decorative banner — pure visual, no text inside */}
         <div className={cn(
-          "relative h-[7rem] sm:h-[8.5rem] w-full overflow-hidden",
+          "relative h-[120px] sm:h-[160px] w-full overflow-hidden",
           isClient ? "profile-banner-client" : "profile-banner-freelancer"
         )}>
           <div className="profile-orb-1 absolute -top-8 -left-8 size-44 rounded-full bg-white/10 blur-2xl pointer-events-none" />
@@ -202,7 +202,7 @@ export function ProfileHeader({
                 {/* Left: name + badge + headline */}
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <h1 className="font-display text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+                    <h1 className="font-display text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight leading-tight">
                       {name}
                     </h1>
                     {roleBadge}
@@ -232,14 +232,14 @@ export function ProfileHeader({
                       onClick={primaryCta.onClick}
                       disabled={primaryCta.loading}
                       className={cn(
-                        "inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-sm shadow-lg transition-all",
+                        "inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-sm shadow-lg transition-all",
                         "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:brightness-110 active:scale-[0.97] disabled:opacity-60",
                         "shadow-[0_6px_20px_-4px_rgba(109,40,217,0.5)]"
                       )}
                     >
                       {primaryCta.loading
                         ? <><span className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />Loading…</>
-                        : <>{primaryIcon}{primaryCta.label}</>}
+                        : <>{primaryIcon}<span className="font-semibold">{primaryCta.label}</span></>}
                     </button>
                   )}
                   {!isOwnProfile && secondaryCta && (
@@ -280,7 +280,7 @@ export function ProfileHeader({
         <div>{avatarBlock}</div>
         <div className="flex-1 min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-black font-display text-foreground tracking-tight">{name}</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold font-display text-foreground tracking-tight">{name}</h1>
             {roleBadge}
           </div>
           {headline && <p className="text-base text-muted-foreground leading-snug">{headline}</p>}
@@ -296,7 +296,7 @@ export function ProfileHeader({
           )}
           {!isOwnProfile && primaryCta && (
             <button type="button" onClick={primaryCta.onClick} disabled={primaryCta.loading}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-black text-sm shadow-[0_8px_28px_-4px_rgba(109,40,217,0.45)] hover:brightness-110 transition-all disabled:opacity-50">
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold text-sm shadow-[0_8px_28px_-4px_rgba(109,40,217,0.45)] hover:brightness-110 transition-all disabled:opacity-50">
               {primaryIcon}{primaryCta.label}
             </button>
           )}

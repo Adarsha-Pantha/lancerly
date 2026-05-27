@@ -67,6 +67,7 @@ export class FeedService {
           select: {
             id: true,
             email: true,
+            role: true,
             profile: {
               select: {
                 name: true,
@@ -95,6 +96,7 @@ export class FeedService {
           select: {
             id: true,
             email: true,
+            role: true,
             profile: {
               select: {
                 name: true,

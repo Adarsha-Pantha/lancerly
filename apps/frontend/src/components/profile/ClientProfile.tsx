@@ -121,17 +121,19 @@ function ProfileCompletionCard({
 
   return (
     <div className="profile-card sticky top-24">
-      {/* Client-themed gradient header (cyan/teal) */}
-      <div className="bg-gradient-to-br from-cyan-600 via-teal-600 to-emerald-600 px-6 pt-6 pb-8 rounded-t-3xl">
-        <p className="text-white/80 text-xs font-bold uppercase tracking-widest mb-4">Profile strength</p>
-        <div className="flex items-center gap-5">
+      {/* Thin accent bar */}
+      <div className="h-1 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-t-3xl" />
+      {/* Clean header */}
+      <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Profile strength</p>
+        <div className="flex items-center gap-4">
           <div className="relative shrink-0">
-            <svg width="90" height="90" viewBox="0 0 90 90" className="-rotate-90">
-              <circle cx="45" cy="45" r={radius} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+            <svg width="76" height="76" viewBox="0 0 90 90" className="-rotate-90">
+              <circle cx="45" cy="45" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
               <circle
                 cx="45" cy="45" r={radius}
                 fill="none"
-                stroke="white"
+                stroke="#06b6d4"
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
@@ -140,12 +142,12 @@ function ProfileCompletionCard({
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-white text-xl font-black tabular-nums leading-none">{percent}%</span>
+              <span className="text-lg font-bold tabular-nums leading-none text-cyan-600">{percent}%</span>
             </div>
           </div>
           <div>
-            <p className="text-white text-xl font-black leading-tight">{label}</p>
-            <p className="text-white/70 text-sm mt-1">{completed}/{CLIENT_STEPS.length} complete</p>
+            <p className="text-sm font-semibold text-slate-800 leading-tight">{label}</p>
+            <p className="text-xs text-slate-400 mt-1">{completed}/{CLIENT_STEPS.length} complete</p>
           </div>
         </div>
       </div>
@@ -188,7 +190,7 @@ function ProfileCompletionCard({
           <button
             type="button"
             onClick={handleGo}
-            className="w-full py-3 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-cyan-600 to-teal-600 hover:brightness-110 shadow-[0_8px_24px_-6px_rgba(14,116,144,0.45)] transition-all"
+            className="w-full py-2.5 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 hover:brightness-110 shadow-[0_6px_20px_-6px_rgba(14,116,144,0.4)] transition-all"
           >
             Complete your profile →
           </button>
@@ -227,10 +229,10 @@ export function ClientProfile({
     : undefined;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-7 lg:gap-9 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-7 items-start">
 
       {/* ── Main column ── */}
-      <div className="lg:col-span-2 space-y-7">
+      <div className="lg:col-span-2 space-y-5">
 
         <ProfileHeader
           name={data.name}
@@ -273,7 +275,7 @@ export function ClientProfile({
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Trust</span>
               </div>
-              <p className="text-lg font-black text-emerald-800">Verified client</p>
+              <p className="text-base font-semibold text-emerald-800">Verified client</p>
             </div>
           )}
           {verificationStatus === "pending" && (
@@ -284,7 +286,7 @@ export function ClientProfile({
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Trust</span>
               </div>
-              <p className="text-base font-black text-amber-800 leading-snug">Verification in progress</p>
+              <p className="text-sm font-semibold text-amber-800 leading-snug">Verification in progress</p>
             </div>
           )}
 
@@ -297,7 +299,7 @@ export function ClientProfile({
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Posted jobs</span>
               </div>
-              <p className="text-3xl font-black text-slate-900 tabular-nums">{postedJobs}</p>
+              <p className="text-xl font-bold text-slate-900 tabular-nums">{postedJobs}</p>
             </div>
           )}
 
@@ -310,7 +312,7 @@ export function ClientProfile({
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Invested</span>
               </div>
-              <p className="text-2xl font-black text-slate-900 tabular-nums">${totalSpending.toLocaleString()}</p>
+              <p className="text-xl font-bold text-slate-900 tabular-nums">${totalSpending.toLocaleString()}</p>
             </div>
           )}
 
@@ -323,7 +325,7 @@ export function ClientProfile({
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reviews</span>
               </div>
-              <p className="text-2xl font-black text-slate-900 tabular-nums">{reviewCount}</p>
+              <p className="text-xl font-bold text-slate-900 tabular-nums">{reviewCount}</p>
             </div>
           )}
 
@@ -389,7 +391,7 @@ export function ClientProfile({
                       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between gap-3 mb-1">
                           <div className="min-w-0">
-                            <h4 className="font-black text-sm text-foreground truncate">{proj.title}</h4>
+                            <h4 className="font-semibold text-sm text-foreground truncate">{proj.title}</h4>
                             {proj._count && proj._count.proposals > 0 && (
                               <p className="text-[11px] text-muted-foreground">
                                 {proj._count.proposals} proposal{proj._count.proposals !== 1 ? "s" : ""}
@@ -398,7 +400,7 @@ export function ClientProfile({
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
                             <span className={cn(
-                              "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide",
+                              "px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide",
                               isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-cyan-100 text-cyan-700"
                             )}>
                               {proj.status}

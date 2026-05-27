@@ -31,6 +31,7 @@ export default function FreelancerDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [proposalCount, setProposalCount] = useState(0);
   const [stripeConnected, setStripeConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -41,17 +42,19 @@ export default function FreelancerDashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [contractsData, notificationsData, conversationsData, statsData, stripeStatus] = await Promise.all([
+      const [contractsData, notificationsData, conversationsData, statsData, stripeStatus, proposalsData] = await Promise.all([
         get<any[]>("/contracts/me?role=FREELANCER", token as string),
         get<any[]>("/notifications", token as string),
         get<any[]>("/conversations", token as string),
         get<any>("/contracts/stats?role=FREELANCER", token as string),
         get<any>("/stripe/connect/status", token as string).catch(() => null),
+        get<any[]>("/proposals/me", token as string).catch(() => []),
       ]);
-      setContracts(contractsData || []);
-      setNotifications(notificationsData || []);
-      setConversations(conversationsData || []);
+      setContracts(Array.isArray(contractsData) ? contractsData : []);
+      setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+      setConversations(Array.isArray(conversationsData) ? conversationsData : []);
       setStats(statsData);
+      setProposalCount(Array.isArray(proposalsData) ? proposalsData.length : 0);
       setStripeConnected(stripeStatus?.chargesEnabled ?? false);
     } catch (e) {
       console.error("Dashboard load error:", e);
@@ -124,7 +127,7 @@ export default function FreelancerDashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 5 ? "Working late" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  const totalEarned = (stats?.totalSpent || 0) / 100;
+  const totalEarned = stats?.totalEarned || 0;
 
   if (loading) {
     return (
@@ -173,8 +176,8 @@ export default function FreelancerDashboard() {
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-7 pt-8 pb-7">
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-500 mb-2">{greeting}</p>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">{user?.name || "Freelancer"}</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-violet-500 mb-2">{greeting}</p>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">{user?.name || "Freelancer"}</h1>
             <p className="text-slate-500 text-sm leading-relaxed max-w-lg">
               {activeProjects.length > 0
                 ? `You have ${activeProjects.length} active project${activeProjects.length > 1 ? "s" : ""} in progress.`
@@ -210,16 +213,17 @@ export default function FreelancerDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 border-t border-slate-100">
           {[
             { label: "Total earned", value: `$${totalEarned.toLocaleString()}`, color: "text-emerald-600" },
-            { label: "Active now", value: stats?.activeCount ?? 0, color: "text-violet-600" },
-            { label: "Completed", value: stats?.completedCount ?? 0, color: "text-sky-600" },
-            { label: "Proposals", value: stats?.proposedCount ?? 0, color: "text-amber-600" },
+            { label: "Active now", value: stats?.active ?? 0, color: "text-violet-600" },
+            { label: "Completed", value: stats?.completed ?? 0, color: "text-sky-600" },
+            { label: "Proposals", value: proposalCount, color: "text-amber-600" },
           ].map((s) => (
             <div key={s.label} className="px-6 py-4">
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{s.label}</p>
-              <p className={cn("text-2xl font-black tabular-nums", s.color)}>{s.value}</p>
+              <p className={cn("text-xl font-bold tabular-nums", s.color)}>{s.value}</p>
             </div>
           ))}
         </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-7 space-y-6">
@@ -245,7 +249,7 @@ export default function FreelancerDashboard() {
             <div className="px-5 pt-5 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Zap className="size-4 text-violet-500" />
-                <h3 className="text-sm font-black text-slate-900">Quick actions</h3>
+                <h3 className="text-sm font-semibold text-slate-800">Quick actions</h3>
               </div>
             </div>
             <div className="p-4 grid grid-cols-2 gap-3">

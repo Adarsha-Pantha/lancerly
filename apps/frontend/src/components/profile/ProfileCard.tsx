@@ -58,7 +58,7 @@ export function ProfileCard({
                     {icon}
                   </span>
                 )}
-                <h2 className="text-lg font-black font-display text-foreground tracking-tight">{title}</h2>
+                <h2 className="text-lg font-semibold font-display text-foreground tracking-tight">{title}</h2>
               </div>
             )}
             {action && <div className="shrink-0">{action}</div>}

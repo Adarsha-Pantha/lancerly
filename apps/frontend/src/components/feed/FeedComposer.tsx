@@ -51,13 +51,12 @@ export function FeedComposer({
               className="size-10 rounded-2xl border border-slate-200 object-cover"
             />
             <div className="min-w-0">
-              <p className="text-sm font-black text-slate-900 truncate">{userName || "Share an update"}</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">{userName || "Share an update"}</p>
               <p className="text-[11px] text-slate-400">Post to your network</p>
             </div>
           </div>
         )}
         <div>
-          <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Create a post</p>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value.slice(0, MAX_CHARS))}
@@ -102,7 +101,7 @@ export function FeedComposer({
             <button
               type="button"
               onClick={() => (onPickFiles ? onPickFiles() : fileInputRef.current?.click())}
-              className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all"
             >
               <ImagePlus className="size-4" />
               Add media
@@ -112,7 +111,7 @@ export function FeedComposer({
           <button
             type="submit"
             disabled={posting}
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-xs font-black text-white hover:brightness-110 transition-all disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-xs font-semibold text-white hover:brightness-110 transition-all disabled:opacity-60"
           >
             <Send className="size-4" />
             {posting ? "Posting…" : "Post"}

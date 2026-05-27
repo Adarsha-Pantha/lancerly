@@ -16,7 +16,7 @@ export function FeedDiscoverPanel({ className }: { className?: string }) {
       >
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-violet-600" />
-          <span className="text-sm font-black text-slate-900">Discover Lancerly</span>
+          <span className="text-sm font-semibold text-slate-900">Discover Lancerly</span>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">new</span>
         </div>
         <ChevronDown className={cn("size-4 text-slate-400 transition-transform", open && "rotate-180")} />
@@ -28,7 +28,7 @@ export function FeedDiscoverPanel({ className }: { className?: string }) {
             <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
               <div className="flex items-center gap-2">
                 <Zap className="size-4 text-violet-700" />
-                <p className="text-xs font-black text-violet-900 uppercase tracking-wider">Get started</p>
+                <p className="text-xs font-semibold text-violet-900 uppercase tracking-wider">Get started</p>
               </div>
               <p className="text-xs text-violet-800/80 mt-2 leading-relaxed">
                 Post short updates, like others’ work, and keep your profile strong to get more invites.
@@ -38,7 +38,7 @@ export function FeedDiscoverPanel({ className }: { className?: string }) {
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-emerald-700" />
-                <p className="text-xs font-black text-emerald-900 uppercase tracking-wider">Safety</p>
+                <p className="text-xs font-semibold text-emerald-900 uppercase tracking-wider">Safety</p>
               </div>
               <p className="text-xs text-emerald-800/80 mt-2 leading-relaxed">
                 Be respectful. Harmful content may be automatically blocked by moderation.

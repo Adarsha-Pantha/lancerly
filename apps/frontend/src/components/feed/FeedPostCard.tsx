@@ -70,11 +70,23 @@ export function FeedPostCard({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={avatar} alt={authorName} className="size-10 rounded-2xl border border-slate-200 object-cover" />
             <div className="min-w-0">
-              <p className="text-sm font-black text-slate-900 truncate">{authorName}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-900 truncate">{authorName}</p>
+                {post.author?.role && post.author.role !== "ADMIN" && (
+                  <span className={cn(
+                    "shrink-0 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full border",
+                    post.author.role === "FREELANCER"
+                      ? "text-violet-700 bg-violet-50 border-violet-200"
+                      : "text-sky-700 bg-sky-50 border-sky-200"
+                  )}>
+                    {post.author.role === "FREELANCER" ? "Freelancer" : "Client"}
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-slate-400">
-                    {formatTime
-                      ? formatTime(post.createdAt)
-                      : new Date(post.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                {formatTime
+                  ? formatTime(post.createdAt)
+                  : new Date(post.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
           </div>
@@ -112,7 +124,7 @@ export function FeedPostCard({
             type="button"
             onClick={onLike}
             className={cn(
-              "inline-flex items-center gap-2 rounded-2xl border-2 px-4 py-2 text-xs font-black transition-all",
+              "inline-flex items-center gap-2 rounded-2xl border-2 px-4 py-2 text-xs font-semibold transition-all",
               post.isLiked ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             )}
           >
@@ -123,16 +135,18 @@ export function FeedPostCard({
           <button
             type="button"
             onClick={onToggleComments}
-            className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all"
+            className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all"
           >
             <MessageCircle className="size-4" />
             {post._count?.comments ?? 0}
           </button>
 
-          <div className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wider inline-flex items-center gap-1.5">
-            <ImageIcon className="size-3.5" />
-            {post.mediaUrls?.length ?? 0} media
-          </div>
+          {(post.mediaUrls?.length ?? 0) > 0 && (
+            <div className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wider inline-flex items-center gap-1.5">
+              <ImageIcon className="size-3.5" />
+              {post.mediaUrls.length} media
+            </div>
+          )}
         </div>
 
         {/* Comments */}
@@ -147,7 +161,7 @@ export function FeedPostCard({
                   return (
                     <div key={c.id} className="rounded-2xl bg-white border border-slate-200 p-3">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-black text-slate-800 truncate">{n}</p>
+                        <p className="text-xs font-semibold text-slate-800 truncate">{n}</p>
                         <p className="text-[10px] text-slate-400">
                           {new Date(c.createdAt).toLocaleString(undefined, { month: "short", day: "numeric" })}
                         </p>
@@ -170,7 +184,7 @@ export function FeedPostCard({
                 type="button"
                     onClick={() => (onSubmitComment ? onSubmitComment() : onAddComment ? onAddComment() : undefined)}
                 disabled={commentLoading}
-                className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white hover:bg-violet-700 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-violet-700 transition-colors disabled:opacity-60"
               >
                 <Send className="size-4" />
                 {commentLoading ? "Sending…" : "Send"}

@@ -60,7 +60,7 @@ export function InlineEditableSection({
                 {icon}
               </span>
             )}
-            <h2 className="text-lg font-black font-display text-foreground tracking-tight">{title}</h2>
+            <h2 className="text-lg font-semibold font-display text-foreground tracking-tight">{title}</h2>
           </div>
           {!editing && (
             <button
@@ -104,7 +104,7 @@ export function InlineEditableSection({
               <button
                 onClick={handleSave}
                 disabled={saving || draft.trim() === value}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-black hover:brightness-110 transition-all disabled:opacity-50 shadow-md"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50 shadow-md"
               >
                 <Check className="size-4" />
                 {saving ? "Saving…" : "Save"}

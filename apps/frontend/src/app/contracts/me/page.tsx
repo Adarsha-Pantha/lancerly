@@ -10,13 +10,11 @@ import {
   DollarSign,
   Calendar,
   ArrowRight,
-  Clock,
   FileText,
   TrendingUp,
   Briefcase,
   CheckCircle2,
   XCircle,
-  User,
 } from "lucide-react";
 
 type Contract = {
@@ -40,6 +38,7 @@ type Contract = {
       avatarUrl?: string;
     };
   };
+  milestones: { id: string; status: string }[];
   _count: {
     milestones: number;
     deliveries: number;
@@ -59,8 +58,7 @@ type ContractStats = {
 const STATUS_FILTERS = ["ALL", "ACTIVE", "COMPLETED", "TERMINATED"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-const VIOLET       = "#7c3aed";
-const VIOLET_LIGHT = "#eeecfc";
+const VIOLET = "#7c3aed";
 
 export default function MyContractsPage() {
   const router = useRouter();
@@ -123,7 +121,7 @@ export default function MyContractsPage() {
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="animate-spin" size={36} style={{ color: VIOLET }} />
-          <p className="text-sm text-gray-400 font-medium">Loading contracts…</p>
+          <p className="text-sm text-slate-400 font-medium">Loading contracts…</p>
         </div>
       </div>
     );
@@ -134,8 +132,8 @@ export default function MyContractsPage() {
 
       {/* ── Header ── */}
       <div>
-        <h1 className="text-3xl font-black font-bold text-gray-900 mb-1">Contracts</h1>
-        <p className="text-gray-400 text-sm">
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">Contracts</h1>
+        <p className="text-slate-500 text-sm">
           Manage agreements between you and{" "}
           {role === "CLIENT" ? "freelancers" : "clients"}
         </p>
@@ -165,29 +163,16 @@ export default function MyContractsPage() {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
-              style={
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 isActive
-                  ? { background: VIOLET, color: "#fff", boxShadow: `0 4px 14px -3px ${VIOLET}55` }
-                  : { background: "#f3f4f6", color: "#6b7280" }
-              }
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = VIOLET_LIGHT;
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = "#f3f4f6";
-              }}
+                  ? "bg-violet-600 text-white shadow-[0_4px_14px_-3px_rgba(124,58,237,0.4)]"
+                  : "bg-gray-100 text-slate-500 hover:bg-violet-50 hover:text-violet-700"
+              }`}
             >
               {status.charAt(0) + status.slice(1).toLowerCase()}
-              {/* Count badge */}
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-bold"
-                style={
-                  isActive
-                    ? { background: "rgba(255,255,255,0.25)", color: "#fff" }
-                    : { background: "#e5e7eb", color: "#6b7280" }
-                }
-              >
+              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                isActive ? "bg-white/25 text-white" : "bg-gray-200 text-slate-500"
+              }`}>
                 {tabCounts[status]}
               </span>
             </button>
@@ -204,23 +189,27 @@ export default function MyContractsPage() {
 
       {/* ── Empty state ── */}
       {!error && filteredContracts.length === 0 && (
-        <div className="bg-white border-2 border-gray-100 rounded-3xl p-16 text-center">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{ background: VIOLET_LIGHT }}
-          >
+        <div className="bg-white border-2 border-slate-100 rounded-3xl p-16 text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-violet-50">
             <Folder size={28} style={{ color: VIOLET }} />
           </div>
-          <p className="font-bold text-gray-800 mb-1">
+          <p className="font-bold text-slate-800 mb-1">
             {statusFilter === "ALL"
               ? "No contracts yet"
               : `No ${statusFilter.toLowerCase()} contracts`}
           </p>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-slate-400 mb-6">
             {role === "CLIENT"
-              ? "Accept a proposal to create a contract"
-              : "Get hired on a project to see your contracts here"}
+              ? "Post a project and accept a proposal to create your first contract"
+              : "Submit proposals and get hired to see your contracts here"}
           </p>
+          <button
+            onClick={() => router.push(role === "CLIENT" ? "/dashboard/projects/new" : "/home")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors"
+          >
+            {role === "CLIENT" ? "Post a project" : "Find work"}
+            <ArrowRight size={16} />
+          </button>
         </div>
       )}
 
@@ -262,7 +251,7 @@ function StatCard({
   const a = accent ? accentMap[accent] : { bg: "#f9fafb", color: "#6b7280" };
 
   return (
-    <div className="bg-white border-2 border-gray-100 rounded-2xl p-4">
+    <div className="bg-white border-2 border-slate-100 rounded-2xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -270,9 +259,9 @@ function StatCard({
         >
           {icon}
         </div>
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</span>
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</span>
       </div>
-      <p className="text-2xl font-black text-gray-900 tracking-tight">{value}</p>
+      <p className="text-xl font-bold text-slate-900">{value}</p>
     </div>
   );
 }
@@ -302,27 +291,17 @@ function ContractCard({
   const sStyle = statusStyle[statusNorm] ?? { bg: "#f9fafb", color: "#6b7280", dot: "#9ca3af" };
 
   return (
-    <div
-      className="bg-white border-2 border-gray-100 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-0.5"
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#c9c3f5";
-        e.currentTarget.style.boxShadow = "0 16px 40px -8px #4f3fe022";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "";
-        e.currentTarget.style.boxShadow = "";
-      }}
-    >
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 transition-all duration-200 hover:border-violet-200 hover:shadow-md hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-4 mb-5">
 
         {/* Left */}
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-bold text-gray-900 mb-2 truncate">
+          <h2 className="text-sm font-semibold text-slate-900 mb-2 truncate">
             {contract.project.title}
           </h2>
 
           {otherParty && (
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
+            <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
                 style={{ background: "#eeecfc", color: "#4f3fe0" }}
@@ -331,16 +310,16 @@ function ContractCard({
               </div>
               <span>
                 {currentUserRole === "CLIENT" ? "Freelancer" : "Client"}:{" "}
-                <span className="font-semibold text-gray-700">{otherParty}</span>
+                <span className="font-semibold text-slate-700">{otherParty}</span>
               </span>
             </div>
           )}
 
           {/* Meta row */}
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-400">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-400 mb-4">
             <div className="flex items-center gap-1.5">
               <DollarSign size={14} />
-              <span className="font-semibold text-gray-700">
+              <span className="font-semibold text-slate-700">
                 ${contract.agreedBudget.toLocaleString()}
               </span>
             </div>
@@ -350,13 +329,33 @@ function ContractCard({
             </div>
             <div className="flex items-center gap-1.5">
               <FileText size={14} />
-              <span>{contract._count.milestones} milestones</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Clock size={14} />
-              <span>{contract._count.timeEntries} time entries</span>
+              <span>{contract._count.milestones} milestone{contract._count.milestones !== 1 ? "s" : ""}</span>
             </div>
           </div>
+
+          {/* Milestone progress bar */}
+          {contract.milestones?.length > 0 && (() => {
+            const paid = contract.milestones.filter(m => m.status === "PAID").length;
+            const total = contract.milestones.length;
+            const pct = Math.round((paid / total) * 100);
+            return (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-slate-400">Milestone progress</span>
+                  <span className="text-xs font-bold text-slate-700">{paid}/{total} paid</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${pct}%`,
+                      background: pct === 100 ? "#16a34a" : "#7c3aed",
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Status badge */}

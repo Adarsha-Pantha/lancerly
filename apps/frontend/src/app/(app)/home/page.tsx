@@ -189,7 +189,7 @@ export default function HomePage() {
                 </span>
               )}
             </p>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-6 leading-tight tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-6 leading-tight">
               {isClient ? "Find the perfect freelancer" : "Find work you'll love"}
             </h1>
           </motion.div>
@@ -307,7 +307,12 @@ export default function HomePage() {
                       )}
                     </button>
                   ))}
-                  <div className="ml-auto py-3">
+                  <div className="ml-auto py-3 flex items-center gap-2">
+                    {sortBy === "best" && matches.length > 0 && (
+                      <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">
+                        AI ranked
+                      </span>
+                    )}
                     <span className="text-xs text-slate-400">
                       {loading ? "" : `${filteredProjects.length} jobs`}
                     </span>
@@ -443,8 +448,16 @@ export default function HomePage() {
                             )}
                           </div>
 
-                          {/* Budget */}
-                          <div className="shrink-0 text-right">
+                          {/* Budget + Match score */}
+                          <div className="shrink-0 text-right space-y-2">
+                            {sortBy === "best" && (project as any).matchScore > 0 && (
+                              <div className="flex justify-end">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-100 border border-violet-200 text-violet-700 text-xs font-black">
+                                  <Sparkles size={10} />
+                                  {Math.round((project as any).matchScore * 100)}% match
+                                </span>
+                              </div>
+                            )}
                             {project.budgetMin != null || project.budgetMax != null ? (
                               <>
                                 <p className="text-base font-bold text-slate-800 tabular-nums">

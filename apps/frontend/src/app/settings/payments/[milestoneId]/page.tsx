@@ -16,6 +16,7 @@ import {
   Briefcase,
   User,
   FileText,
+  CheckCircle2,
 } from 'lucide-react';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -136,6 +137,21 @@ export default function PaymentPage({ params }: { params: { milestoneId: string 
           Back to Contract
         </button>
 
+        {/* Step indicator */}
+        <div className="flex items-center gap-2 mb-8">
+          {["Review", "Pay", "Done"].map((label, i) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className={`flex items-center gap-2 ${i === 1 ? "opacity-100" : "opacity-40"}`}>
+                <span className={`flex size-6 items-center justify-center rounded-full text-[11px] font-semibold ${i === 1 ? "bg-violet-600 text-white" : i < 1 ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"}`}>
+                  {i < 1 ? <CheckCircle2 className="size-3.5" /> : i + 1}
+                </span>
+                <span className={`text-xs font-bold ${i === 1 ? "text-slate-900" : "text-slate-400"}`}>{label}</span>
+              </div>
+              {i < 2 && <div className="w-8 h-px bg-slate-200" />}
+            </div>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 
           {/* Left — Order summary */}
@@ -186,7 +202,10 @@ export default function PaymentPage({ params }: { params: { milestoneId: string 
                     <span className="font-medium text-slate-900">{fmt(milestone.amountCents)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Processing fee</span>
+                    <span>
+                      Platform fee (3%)
+                      <span className="ml-1.5 text-[10px] text-slate-400">held by Lancerly</span>
+                    </span>
                     <span className="font-medium text-slate-900">{fmt(milestone.clientFeeCents)}</span>
                   </div>
                   <div className="border-t border-slate-100 pt-3 flex justify-between">
@@ -214,6 +233,26 @@ export default function PaymentPage({ params }: { params: { milestoneId: string 
                     <p className="text-xs text-slate-500">Your payment details are encrypted by Stripe.</p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* What happens next */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">What happens next?</p>
+              <div className="space-y-4">
+                {[
+                  { step: "1", title: "Funds go into escrow", desc: "Your payment is held securely — the freelancer cannot access it yet." },
+                  { step: "2", title: "Freelancer does the work", desc: "They complete the milestone and mark it as done for your review." },
+                  { step: "3", title: "You approve and release", desc: "Once satisfied, approve the milestone and funds are released to the freelancer." },
+                ].map((s) => (
+                  <div key={s.step} className="flex items-start gap-3">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[11px] font-semibold text-violet-700">{s.step}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{s.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -244,6 +283,8 @@ export default function PaymentPage({ params }: { params: { milestoneId: string 
                 <CheckoutForm
                   milestoneId={params.milestoneId}
                   contractId={milestone?.contractId}
+                  totalCents={milestone?.totalCents}
+                  milestoneTitle={milestone?.title}
                 />
               </Elements>
 
