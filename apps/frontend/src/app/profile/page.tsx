@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
@@ -13,6 +13,25 @@ import {
   ProfileHeaderSkeleton,
 } from "@/components/profile";
 import { PortfolioUploadModal } from "@/components/profile/PortfolioUploadModal";
+
+function ProfileStudioShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="profile-shell min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+        <header className="mb-8 md:mb-12 max-w-2xl">
+          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-violet-600 mb-2">Your presence</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-foreground tracking-tight text-balance">
+            Profile studio
+          </h1>
+          <p className="text-muted-foreground mt-3 text-base leading-relaxed">
+            Strong profiles get more replies. Keep your photo, headline, and portfolio current — small updates make a big difference.
+          </p>
+        </header>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 type ProfileData = {
   id: string;
@@ -129,13 +148,16 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <ProfileHeaderSkeleton />
-        <div className="grid gap-6">
-          <div className="h-32 rounded-xl border border-border bg-card animate-pulse" />
-          <div className="h-48 rounded-xl border border-border bg-card animate-pulse" />
+      <ProfileStudioShell>
+        <div className="space-y-8">
+          <ProfileHeaderSkeleton />
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="h-36 rounded-2xl border border-border bg-card/80 animate-pulse shadow-inner" />
+            <div className="h-36 rounded-2xl border border-border bg-card/80 animate-pulse shadow-inner" />
+            <div className="h-48 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-500/5 to-transparent animate-pulse md:col-span-2" />
+          </div>
         </div>
-      </div>
+      </ProfileStudioShell>
     );
   }
 
@@ -194,9 +216,12 @@ export default function ProfilePage() {
     await handleUpdateProfile({ bio });
   };
 
+  const completedProjects =
+    profileData?.projects?.filter((p) => p.status === "COMPLETED").length ?? 0;
+
   if (role === "CLIENT") {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <ProfileStudioShell>
         <ClientProfile
           data={{
             name,
@@ -222,12 +247,12 @@ export default function ProfilePage() {
           projects={profileData?.projects}
           userId={profileData?.id}
         />
-      </div>
+      </ProfileStudioShell>
     );
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <ProfileStudioShell>
       <FreelancerProfile
         data={{
           name,
@@ -255,6 +280,9 @@ export default function ProfilePage() {
         projects={profileData?.projects}
         userId={profileData?.id}
         onAddPortfolio={() => setIsPortfolioModalOpen(true)}
+        completedProjects={completedProjects}
+        reviewCount={profileData?.reviewCount ?? 0}
+        rating={profileData?.rating ?? null}
       />
       
       <PortfolioUploadModal
@@ -262,6 +290,6 @@ export default function ProfilePage() {
         onClose={() => setIsPortfolioModalOpen(false)}
         onSubmit={handlePortfolioUpload}
       />
-    </div>
+    </ProfileStudioShell>
   );
 }

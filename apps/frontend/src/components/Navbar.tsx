@@ -48,24 +48,20 @@ export default function Navbar() {
   const navLinks = user
     ? user.role === "CLIENT"
       ? [
-        // { href: "/home", label: "Home", icon: Home },
-        // { href: "/dashboard/projects/mine", label: "My Projects", icon: LayoutDashboard },
-        // { href: "/messages", label: "Messages", icon: MessageCircle },
-        // { href: "#", label: "Bills", icon: Receipt },
-        // { href: "#", label: "Transaction", icon: ArrowLeftRight },
-        // { href: "#", label: "Contract", icon: FileSignature },
-        { href: "/home", label: "Home"},
+        { href: "/home", label: "Discover" },
         { href: "/dashboard/projects/mine", label: "My Projects" },
         { href: "/messages", label: "Messages" },
-        { href: "/transaction", label: "Transaction",},
-        { href: "/contracts/me", label: "Contract", },
+        { href: "/feed", label: "Feed" },
+        { href: "/settings?tab=payments", label: "Payments" },
+        { href: "/contracts/me", label: "Contracts" },
       ]
       : [
-        { href: "/home", label: "Home" },
-        { href: "/dashboard", label: "Dashboard"},
+        { href: "/home", label: "Discover" },
+        { href: "/dashboard", label: "Dashboard" },
         { href: "/messages", label: "Messages" },
-        { href: "/transaction", label: "Transaction" },
-        { href: "/contracts/me", label: "Contract", },
+        { href: "/feed", label: "Feed" },
+        { href: "/settings?tab=payments", label: "Payments" },
+        { href: "/contracts/me", label: "Contracts" },
       ]
     : [
       { href: "/landing", label: "Home", icon: Home },

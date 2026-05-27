@@ -8,6 +8,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as speakeasy from 'speakeasy';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UpdatePasswordDto,
@@ -477,5 +479,46 @@ export class SettingsService {
     return {
       message: 'Account deleted successfully',
     };
+  }
+
+  // ─── 2FA SETUP (generate secret + QR) ──────────────────────────────────────
+  async setup2FA(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, twoFA: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.twoFA) throw new ConflictException('2FA is already enabled');
+
+    const secret = speakeasy.generateSecret({ name: `Lancerly (${user.email})`, length: 20 });
+    // Store secret temporarily (not enabled yet)
+    await this.prisma.user.update({ where: { id: userId }, data: { twoFASecret: secret.base32 } });
+
+    const qrCode = await QRCode.toDataURL(secret.otpauth_url!);
+    return { qrCode, secret: secret.base32 };
+  }
+
+  // ─── 2FA ENABLE (verify OTP then flip flag) ─────────────────────────────────
+  async enable2FA(userId: string, token: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { twoFA: true, twoFASecret: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.twoFA) throw new ConflictException('2FA is already enabled');
+    if (!user.twoFASecret) throw new BadRequestException('Call /settings/2fa/setup first');
+
+    const valid = speakeasy.totp.verify({ secret: user.twoFASecret, encoding: 'base32', token, window: 1 });
+    if (!valid) throw new BadRequestException('Invalid verification code');
+
+    await this.prisma.user.update({ where: { id: userId }, data: { twoFA: true } });
+    return { message: '2FA enabled successfully' };
+  }
+
+  // ─── 2FA DISABLE ──────────────────────────────────────────────────────────────
+  async disable2FA(userId: string, token: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { twoFA: true, twoFASecret: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.twoFA) throw new BadRequestException('2FA is not enabled');
+
+    const valid = speakeasy.totp.verify({ secret: user.twoFASecret!, encoding: 'base32', token, window: 1 });
+    if (!valid) throw new BadRequestException('Invalid verification code');
+
+    await this.prisma.user.update({ where: { id: userId }, data: { twoFA: false, twoFASecret: null } });
+    return { message: '2FA disabled successfully' };
   }
 }

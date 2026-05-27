@@ -52,6 +52,8 @@ export class ProjectsController {
     @Query('skills') skills?: string,
     @Query('clientId') clientId?: string,
     @Query('type') type?: 'CLIENT_REQUEST' | 'FREELANCER_SHOWCASE',
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     const skillsArray = skills ? skills.split(',') : undefined;
     return this.projectsService.findAll({
@@ -60,6 +62,8 @@ export class ProjectsController {
       skills: skillsArray,
       clientId,
       type,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
     });
   }
 

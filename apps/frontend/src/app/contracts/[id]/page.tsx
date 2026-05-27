@@ -15,6 +15,8 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import { KYCVerifiedBadge, DoubleBlindReviewCard } from "@/components/ui/TrustBadges";
 import { Button } from "@/components/ui/button";
 import { ReviewModal } from "@/components/contracts/ReviewModal";
+import { MeetingsTab } from "@/components/contracts/MeetingsTab";
+import { DeliveriesTab } from "@/components/contracts/DeliveriesTab";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -366,7 +368,12 @@ export default function ContractPage() {
                       </h3>
                       {(() => {
                         const nextMilestone = contract.milestones.find(m => m.status !== "PAID");
-                        if (!nextMilestone) return <p className="text-sm text-muted-foreground">All milestones are completed and paid!</p>;
+                        if (!nextMilestone) return (
+                          <div className="text-center py-2">
+                            <p className="text-sm font-semibold text-green-700 mb-1">All milestones have been paid!</p>
+                            <p className="text-xs text-muted-foreground">Click <strong>Finish &amp; End Contract</strong> below to close this contract.</p>
+                          </div>
+                        );
                         
                         return (
                           <div className="space-y-4">
@@ -471,14 +478,21 @@ export default function ContractPage() {
                       <Scale size={16} className="mr-2" />
                       Raise Dispute
                     </Button>
-                    {isClient &&
-                      contract.milestones.length > 0 &&
-                      contract.milestones.every((m) => m.status === "PAID") && (
-                        <Button onClick={completeContract} className="bg-[#059669] hover:bg-[#047857]">
+                    {isClient && contract.milestones.length > 0 && (() => {
+                      const allPaid = contract.milestones.every((m) => m.status === "PAID");
+                      const pendingCount = contract.milestones.filter((m) => m.status !== "PAID").length;
+                      return (
+                        <Button
+                          onClick={completeContract}
+                          disabled={!allPaid}
+                          title={!allPaid ? `${pendingCount} milestone${pendingCount !== 1 ? "s" : ""} still unpaid` : "All milestones paid — ready to close"}
+                          className={allPaid ? "bg-[#059669] hover:bg-[#047857] text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"}
+                        >
                           <CheckCircle2 size={16} className="mr-2" />
-                          Mark as completed
+                          {allPaid ? "Finish & End Contract" : `Finish & End Contract (${pendingCount} unpaid)`}
                         </Button>
-                      )}
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -812,6 +826,19 @@ export default function ContractPage() {
                   Chat will be available once the project conversation is set up.
                 </p>
               </div>
+            )}
+
+            {activeTab === "meetings" && token && (
+              <MeetingsTab contractId={contractId} token={token} />
+            )}
+
+            {activeTab === "deliveries" && token && user && (
+              <DeliveriesTab
+                contractId={contractId}
+                token={token}
+                isFreelancer={user.role === "FREELANCER"}
+                isClient={user.role === "CLIENT"}
+              />
             )}
 
             {contract.status === "COMPLETED" && (

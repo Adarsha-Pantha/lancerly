@@ -132,4 +132,36 @@ export class AdminController {
   ) {
     return this.adminService.updateDispute(id, status, adminNotes, resolution);
   }
+
+  @Post('users/bulk-suspend')
+  @UseGuards(AdminGuard)
+  async bulkSuspendUsers(
+    @Body('userIds') userIds: string[],
+    @Body('suspend') suspend: boolean,
+  ) {
+    return this.adminService.bulkSuspendUsers(userIds, suspend);
+  }
+
+  @Get('activity/recent')
+  @UseGuards(AdminGuard)
+  async getRecentActivity(@Query('limit') limit?: string) {
+    return this.adminService.getRecentActivity(limit ? parseInt(limit, 10) : 12);
+  }
+
+  @Get('stats/categories')
+  @UseGuards(AdminGuard)
+  async getCategoryStats() {
+    return this.adminService.getCategoryStats();
+  }
+
+  @Get('stats/nav-badges')
+  @UseGuards(AdminGuard)
+  async getNavBadges() {
+    return this.adminService.getNavBadges();
+  }
+
+  @Get('stats/trust')
+  async getPlatformTrustStats() {
+    return this.adminService.getPlatformTrustStats();
+  }
 }

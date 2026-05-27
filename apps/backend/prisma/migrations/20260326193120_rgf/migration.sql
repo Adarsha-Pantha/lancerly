@@ -1,10 +1,7 @@
 -- CreateEnum
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
 CREATE TYPE "public"."KycStatus" AS ENUM ('NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateEnum
-========
->>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
 CREATE TYPE "public"."ModerationStatus" AS ENUM ('APPROVED', 'PENDING', 'FLAGGED', 'BLOCKED');
 
 -- CreateEnum
@@ -99,11 +96,8 @@ CREATE TABLE "public"."Project" (
     "status" TEXT NOT NULL DEFAULT 'OPEN',
     "moderationStatus" "public"."ModerationStatus" NOT NULL DEFAULT 'APPROVED',
     "moderationNotes" TEXT,
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
     "screeningQuestions" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "acceptanceCriteria" TEXT[] DEFAULT ARRAY[]::TEXT[],
-========
->>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "embedding" DOUBLE PRECISION[],
@@ -149,12 +143,9 @@ CREATE TABLE "public"."Message" (
     "content" TEXT NOT NULL,
     "moderationStatus" "public"."ModerationStatus" NOT NULL DEFAULT 'APPROVED',
     "moderationNotes" TEXT,
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "attachmentUrl" TEXT,
     "attachmentName" TEXT,
-========
->>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
@@ -304,16 +295,12 @@ CREATE TABLE "public"."PlatformSettings" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
     "freelancerServiceFee" DOUBLE PRECISION NOT NULL DEFAULT 10.0,
     "clientProcessingFee" DOUBLE PRECISION NOT NULL DEFAULT 3.0,
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
     "weeklyProjectLimit" INTEGER NOT NULL DEFAULT 3,
-========
->>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PlatformSettings_pkey" PRIMARY KEY ("id")
 );
 
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260326193120_rgf/migration.sql
 -- CreateTable
 CREATE TABLE "public"."Dispute" (
     "id" TEXT NOT NULL,
@@ -358,8 +345,6 @@ CREATE TABLE "public"."PortfolioProject" (
     CONSTRAINT "PortfolioProject_pkey" PRIMARY KEY ("id")
 );
 
-========
->>>>>>>> 9dc3a2b28fafdc4c314b1670f94635b47a2ab94a:apps/backend/prisma/migrations/20260314091023_lancerly/migration.sql
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 

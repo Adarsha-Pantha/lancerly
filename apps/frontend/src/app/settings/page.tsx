@@ -89,6 +89,11 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 2FA state
+  const [twoFAQr, setTwoFAQr] = useState<string | null>(null);
+  const [twoFAToken, setTwoFAToken] = useState("");
+  const [twoFALoading, setTwoFALoading] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -145,6 +150,50 @@ export default function SettingsPage() {
     } catch (e) {
       toast.toast((e as Error).message || "Failed to start Stripe onboarding", "error");
       setStripeLoading(false);
+    }
+  };
+
+  const handle2FASetup = async () => {
+    setTwoFALoading(true);
+    try {
+      const { qrCode } = await post<{ qrCode: string; secret: string }>("/settings/2fa/setup", {}, token ?? undefined);
+      setTwoFAQr(qrCode);
+      setTwoFAToken("");
+    } catch (e) {
+      toast.toast((e as Error).message || "Failed to setup 2FA", "error");
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handle2FAEnable = async () => {
+    if (!twoFAToken) return;
+    setTwoFALoading(true);
+    try {
+      await post("/settings/2fa/enable", { token: twoFAToken }, token ?? undefined);
+      toast.toast("2FA enabled successfully", "success");
+      setTwoFAQr(null);
+      setTwoFAToken("");
+      loadSettings();
+    } catch (e) {
+      toast.toast((e as Error).message || "Invalid code", "error");
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handle2FADisable = async () => {
+    if (!twoFAToken) { toast.toast("Enter your authenticator code to disable 2FA", "error"); return; }
+    setTwoFALoading(true);
+    try {
+      await post("/settings/2fa/disable", { token: twoFAToken }, token ?? undefined);
+      toast.toast("2FA disabled", "success");
+      setTwoFAToken("");
+      loadSettings();
+    } catch (e) {
+      toast.toast((e as Error).message || "Invalid code", "error");
+    } finally {
+      setTwoFALoading(false);
     }
   };
 
@@ -542,6 +591,62 @@ export default function SettingsPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* 2FA Section */}
+                  <div className="bg-white border border-slate-200 rounded-lg p-8">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Two-Factor Authentication</h3>
+                    <p className="text-sm text-slate-500 mb-6">
+                      {settings?.twoFA ? "2FA is currently enabled on your account." : "Add an extra layer of security with an authenticator app."}
+                    </p>
+
+                    {!settings?.twoFA ? (
+                      <div className="space-y-4 max-w-sm">
+                        {!twoFAQr ? (
+                          <Button onClick={handle2FASetup} disabled={twoFALoading} className="bg-[#6b27d9] text-white px-6 rounded-md font-bold">
+                            {twoFALoading ? "Setting up..." : "Enable 2FA"}
+                          </Button>
+                        ) : (
+                          <div className="space-y-4">
+                            <p className="text-sm text-slate-600">Scan this QR code with Google Authenticator or Authy:</p>
+                            <img src={twoFAQr} alt="2FA QR Code" className="w-48 h-48 border border-slate-200 rounded-lg" />
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-slate-900 uppercase">Verification Code</label>
+                              <Input
+                                value={twoFAToken}
+                                onChange={(e) => setTwoFAToken(e.target.value)}
+                                placeholder="Enter 6-digit code"
+                                maxLength={6}
+                                className="h-10 border-slate-200 rounded-md tracking-widest font-mono"
+                              />
+                            </div>
+                            <Button onClick={handle2FAEnable} disabled={twoFALoading || twoFAToken.length < 6} className="bg-[#6b27d9] text-white px-6 rounded-md font-bold">
+                              {twoFALoading ? "Verifying..." : "Verify & Enable"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-w-sm">
+                        <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
+                          <Shield size={16} />
+                          <span>2FA is active</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-900 uppercase">Authenticator Code</label>
+                          <Input
+                            value={twoFAToken}
+                            onChange={(e) => setTwoFAToken(e.target.value)}
+                            placeholder="Enter code to disable"
+                            maxLength={6}
+                            className="h-10 border-slate-200 rounded-md tracking-widest font-mono"
+                          />
+                        </div>
+                        <Button onClick={handle2FADisable} disabled={twoFALoading} variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50 px-6 rounded-md font-bold">
+                          {twoFALoading ? "Disabling..." : "Disable 2FA"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -553,20 +658,34 @@ export default function SettingsPage() {
                       <CreditCard size={24} />
                     </div>
                     <h4 className="font-bold text-slate-900">
-                      {stripeStatus?.connected ? "Stripe Connected" : "No payment method connected"}
+                      {stripeStatus?.chargesEnabled
+                        ? "Stripe Connected"
+                        : stripeStatus?.connected
+                        ? "Setup Incomplete"
+                        : "No payment method connected"}
                     </h4>
                     <p className="text-sm text-slate-500 max-w-xs mx-auto">
-                      {stripeStatus?.connected 
-                        ? "Your account is ready to receive payouts." 
+                      {stripeStatus?.chargesEnabled
+                        ? "Your account is ready to receive payouts."
+                        : stripeStatus?.connected
+                        ? "Your Stripe account was created but onboarding is not complete. You cannot receive payments until you finish setup."
                         : "Connect your Stripe account to start receiving payments for your work."}
                     </p>
-                    {!stripeStatus?.connected && (
-                      <Button 
-                        onClick={handleConnectStripe} 
+                    {!stripeStatus?.chargesEnabled && (
+                      <Button
+                        onClick={handleConnectStripe}
                         disabled={stripeLoading}
-                        className="bg-[#6b27d9] text-white px-8 rounded-md font-bold mt-4"
+                        className={`px-8 rounded-md font-bold mt-4 text-white ${
+                          stripeStatus?.connected
+                            ? "bg-amber-500 hover:bg-amber-600"
+                            : "bg-[#6b27d9]"
+                        }`}
                       >
-                        {stripeLoading ? "Loading..." : "Setup Stripe"}
+                        {stripeLoading
+                          ? "Loading..."
+                          : stripeStatus?.connected
+                          ? "Complete Setup"
+                          : "Setup Stripe"}
                       </Button>
                     )}
                   </div>

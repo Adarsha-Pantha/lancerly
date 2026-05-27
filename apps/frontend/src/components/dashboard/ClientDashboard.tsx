@@ -1,22 +1,19 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { get } from "@/lib/api";
 import ActiveProjectsWidget from "./widgets/ActiveProjectsWidget";
 import NotificationsWidget from "./widgets/NotificationsWidget";
 import CalendarWidget from "./widgets/CalendarWidget";
 import TodayTasksWidget from "./widgets/TodayTasksWidget";
-import StatsWidget from "./widgets/StatsWidget";
 import ActivityWidget from "./widgets/ActivityWidget";
-import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { Briefcase } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Plus, Search, MessageCircle, FileText, Users, Zap } from "lucide-react";
 
 export default function ClientDashboard() {
   const { user, token } = useAuth();
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -24,9 +21,8 @@ export default function ClientDashboard() {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    if (token) {
-      loadDashboardData();
-    }
+    if (token) void loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const loadDashboardData = async () => {
@@ -38,15 +34,12 @@ export default function ClientDashboard() {
         get<any[]>("/conversations", token || undefined),
         get<any>("/contracts/stats?role=CLIENT", token || undefined),
       ]);
-
-      console.log("Client Dashboard Raw Contracts:", contractsData);
-
       setContracts(contractsData || []);
       setNotifications(notificationsData || []);
       setConversations(conversationsData || []);
       setStats(statsData || null);
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
+    } catch (e) {
+      console.error("Dashboard load error:", e);
     } finally {
       setLoading(false);
     }
@@ -54,156 +47,188 @@ export default function ClientDashboard() {
 
   if (!token || !user) return null;
 
+  const activeProjects = contracts
+    .filter((c: any) => c.status === "ACTIVE")
+    .map((c: any) => {
+      const total = c.milestones?.length || 0;
+      const done = c.milestones?.filter((m: any) => m.status === "APPROVED" || m.status === "PAID").length || 0;
+      return {
+        id: c.project.id,
+        title: c.project.title,
+        freelancerName: c.freelancer?.profile?.name || "Freelancer",
+        progress: total > 0 ? Math.floor((done / total) * 100) : 0,
+        daysCompleted: Math.floor((Date.now() - new Date(c.startDate).getTime()) / 86400000),
+        totalDays: c.endDate ? Math.floor((new Date(c.endDate).getTime() - new Date(c.startDate).getTime()) / 86400000) : 30,
+        status: c.status,
+      };
+    });
+
+  const todayTasks = contracts
+    .flatMap((c: any) => (c.milestones || []).map((m: any) => ({ ...m, projectTitle: c.project.title, freelancer: c.freelancer })))
+    .filter((m: any) => m.status !== "PAID")
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(0, 6)
+    .map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      description: `Project: ${m.projectTitle}`,
+      tags: [String(m.status || "").replace(/_/g, " ")],
+      progress: m.status === "COMPLETED" || m.status === "APPROVED" ? 100 : m.status === "IN_PROGRESS" ? 50 : 0,
+      files: m._count?.deliveries || 0,
+      completed: m.status === "COMPLETED" || m.status === "APPROVED" ? 1 : 0,
+      total: 1,
+      teamMembers: m.freelancer?.profile ? [{ name: m.freelancer.profile.name, avatar: m.freelancer.profile.avatarUrl }] : [],
+    }));
+
+  const calendarEvents = contracts.flatMap((c: any) =>
+    (c.milestones || []).map((m: any) => ({
+      date: m.dueDate || m.createdAt,
+      title: `${m.title} (${c.project.title})`,
+    }))
+  );
+
+  const recentMessages = conversations.slice(0, 5).map((conv: any) => {
+    const lastMsg = conv.messages?.[conv.messages.length - 1];
+    return {
+      id: conv.id,
+      sender: conv.freelancer?.profile?.name || "Freelancer",
+      content: lastMsg?.content || "No messages yet",
+      time: lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Recently",
+      type: "text" as const,
+    };
+  });
+
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? "Working late" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const totalSpent = stats?.totalSpent ? `$${stats.totalSpent.toLocaleString()}` : "$0";
+
   if (loading) {
     return (
-      <div className="max-w-7xl  mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-64 w-full rounded-xl" />
-            <Skeleton className="h-96 w-full rounded-xl" />
+      <div className="space-y-6 max-w-[1400px] mx-auto pb-10">
+        <div className="h-44 rounded-3xl bg-gradient-to-br from-cyan-100 to-teal-50 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <div className="md:col-span-8 space-y-6">
+            <div className="h-[340px] rounded-2xl bg-slate-100 animate-pulse" />
+            <div className="h-[280px] rounded-2xl bg-slate-100 animate-pulse" />
           </div>
-          <div className="space-y-6">
-            <Skeleton className="h-64 w-full rounded-xl" />
-            <Skeleton className="h-80 w-full rounded-xl" />
+          <div className="md:col-span-4 space-y-6">
+            <div className="h-[280px] rounded-2xl bg-slate-100 animate-pulse" />
+            <div className="h-[260px] rounded-2xl bg-slate-100 animate-pulse" />
           </div>
         </div>
       </div>
     );
   }
 
-  // Transform contracts for ActiveProjectsWidget
-  const activeProjects = contracts
-    .filter((c: any) => c.status === "ACTIVE")
-    .map((c: any) => {
-      const totalMilestones = c.milestones?.length || 0;
-      const completedMilestones = c.milestones?.filter((m: any) => 
-        m.status === "APPROVED" || m.status === "PAID"
-      ).length || 0;
-
-      return {
-        id: c.project.id,
-        title: c.project.title,
-        freelancerName: c.freelancer?.profile?.name || "Freelancer",
-        progress: totalMilestones > 0 
-          ? Math.floor((completedMilestones / totalMilestones) * 100)
-          : 0,
-        daysCompleted: Math.floor((Date.now() - new Date(c.startDate).getTime()) / (1000 * 60 * 60 * 24)),
-        totalDays: c.endDate 
-          ? Math.floor((new Date(c.endDate).getTime() - new Date(c.startDate).getTime()) / (1000 * 60 * 60 * 24))
-          : 30, 
-        status: c.status,
-      };
-    });
-
-  // Transform milestones for TodayTasksWidget
-  const todayTasks = contracts
-    .flatMap((c: any) => (c.milestones || []).map((m: any) => ({ ...m, projectTitle: c.project.title, freelancer: c.freelancer })))
-    .filter((m: any) => m.status !== "PAID")
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-    .slice(0, 4)
-    .map((m: any) => ({
-      id: m.id,
-      title: m.title,
-      description: `Project: ${m.projectTitle}`,
-      tags: [m.status.replace(/_/g, " ")],
-      progress: (m.status === "COMPLETED" || m.status === "APPROVED") ? 100 : (m.status === "IN_PROGRESS" ? 50 : 0),
-      files: m._count?.deliveries || 0,
-      completed: (m.status === "COMPLETED" || m.status === "APPROVED") ? 1 : 0,
-      total: 1,
-      teamMembers: m.freelancer?.profile ? [{ name: m.freelancer.profile.name, avatar: m.freelancer.profile.avatarUrl }] : [],
-    }));
-
-  const calendarEvents = contracts.flatMap((c: any) => 
-    (c.milestones || [])
-      .map((m: any) => ({
-        date: m.dueDate || m.createdAt,
-        title: `${m.title} (${c.project.title})`
-      }))
-  );
-
-  // Stats data mapping
-  const displayStats = {
-    totalSpent: stats?.totalSpent ? `$${stats.totalSpent.toLocaleString()}` : "$0",
-    activeContracts: stats?.active || 0,
-    completedContracts: stats?.completed || 0,
-  };
-
-  // Chat messages transformation
-  const recentMessages = conversations.slice(0, 3).map((conv: any) => {
-    const lastMsg = conv.messages?.[conv.messages.length - 1];
-    return {
-      id: conv.id,
-      sender: conv.freelancer?.profile?.name || "Freelancer",
-      content: lastMsg?.content || "No messages yet",
-      time: lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
-      type: "text" as const,
-    };
-  });
-
   return (
-    <div className="max-w-7xl max-h-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Welcome back, {user.name}</h1>
-          <p className="text-slate-500">Here's what's happening with your projects today.</p>
-        </div>
-        <Link
-          href="/contracts/me"
-          className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl hover:bg-amber-100 hover:shadow-sm transition-all"
-        >
-          <Briefcase size={16} />
-          <span className="text-sm font-medium">Contracts</span>
-        </Link>
-      </header>
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-12">
+      <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200/80 shadow-[0_8px_40px_-12px_rgba(14,116,144,0.18)]">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left Column - Main Content */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Calendar */}
-          <div className="h-2xl">
-            <CalendarWidget events={calendarEvents} />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-7 pt-8 pb-7">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-600 mb-2">{greeting}</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">{user?.name}</h1>
+            <p className="text-slate-500 text-sm leading-relaxed max-w-lg">
+              {activeProjects.length > 0
+                ? `${activeProjects.length} project${activeProjects.length > 1 ? "s" : ""} currently in progress.`
+                : "No active projects yet. Post a project to find great freelancers."}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <Link
+              href="/dashboard/projects/new"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-bold text-sm hover:brightness-110 transition-all shadow-[0_6px_20px_-4px_rgba(14,116,144,0.5)]"
+            >
+              <Plus size={16} />
+              Post a Project
+            </Link>
+            <Link
+              href="/dashboard/browse"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl border-2 border-slate-200 bg-white text-slate-700 font-bold text-sm hover:border-teal-300 hover:bg-teal-50/40 transition-all"
+            >
+              <Search size={16} />
+              Find Talent
+            </Link>
+            <Link
+              href="/messages"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl border-2 border-slate-200 bg-white text-slate-700 font-bold text-sm hover:border-teal-300 hover:bg-teal-50/40 transition-all"
+            >
+              <MessageCircle size={16} />
+              Messages
+            </Link>
           </div>
         </div>
-        <div className="lg:col-span-2 space-y-6">
-          {/* Active Projects */}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 border-t border-slate-100">
+          {[
+            { label: "Total spent", value: totalSpent, color: "text-emerald-600" },
+            { label: "Active projects", value: stats?.active ?? activeProjects.length, color: "text-cyan-600" },
+            { label: "Completed", value: stats?.completed ?? 0, color: "text-teal-600" },
+            { label: "Total contracts", value: stats?.total ?? contracts.length, color: "text-violet-600" },
+          ].map((s) => (
+            <div key={s.label} className="px-6 py-4">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{s.label}</p>
+              <p className={cn("text-2xl font-black tabular-nums", s.color)}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-8 space-y-6">
           <ActiveProjectsWidget projects={activeProjects} role="CLIENT" />
-
-          {/* Today Tasks / Milestones */}
           <TodayTasksWidget tasks={todayTasks} />
-
-          {/* Recent Activity / Chat */}  
-          <div className="h-2xl">
-            <ActivityWidget messages={recentMessages} />
-          </div>
+          <ActivityWidget messages={recentMessages} />
         </div>
 
-        {/* Right Column - Sidebar Widgets */}
-        <div className="space-y-6">
-          {/* Stats Widget */}
-          <StatsWidget 
-            totalHours={displayStats.totalSpent} 
-            data={[
-              { month: "Active", hours: stats?.active || 0 },
-              { month: "Done", hours: stats?.completed || 0 },
-              { month: "Total", hours: stats?.total || 0 }
-            ]} 
-            selectedMonth="Spending & Status"
-          />
-
-          {/* Notifications */}
+        <div className="md:col-span-4 space-y-6">
           <NotificationsWidget
-            notifications={notifications.slice(0, 5).map(n => ({
+            notifications={notifications.slice(0, 6).map((n: any) => ({
               id: n.id,
               type: "event",
-              title: n.type.replace(/_/g, " "),
+              title: String(n.type || "").replace(/_/g, " "),
               description: n.message,
-              time: new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              time: new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
               date: new Date(n.createdAt).toLocaleDateString(),
             }))}
             onClear={() => setNotifications([])}
           />
+          <CalendarWidget events={calendarEvents} />
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+            <div className="px-5 pt-5 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Zap className="size-4 text-teal-500" />
+                <h3 className="text-sm font-black text-slate-900">Quick actions</h3>
+              </div>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+              {[
+                { label: "Post project", href: "/dashboard/projects/new", icon: Plus, color: "text-teal-700 bg-teal-50 border-teal-200" },
+                { label: "Find talent", href: "/dashboard/browse", icon: Users, color: "text-sky-700 bg-sky-50 border-sky-200" },
+                { label: "My contracts", href: "/contracts/me", icon: FileText, color: "text-violet-700 bg-violet-50 border-violet-200" },
+                { label: "Edit profile", href: "/profile", icon: FileText, color: "text-amber-700 bg-amber-50 border-amber-200" },
+              ].map((a) => (
+                <Link
+                  key={a.label}
+                  href={a.href}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-bold transition-all hover:shadow-sm hover:-translate-y-0.5",
+                    a.color
+                  )}
+                >
+                  <a.icon className="size-4 shrink-0" />
+                  {a.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

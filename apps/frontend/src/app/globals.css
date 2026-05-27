@@ -4,26 +4,44 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Warm off-white background — like a sheet of quality paper */
+    --background: 40 30% 98%;
+    --foreground: 20 10% 12%;
+
+    /* Card: pure white with warmth */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 20 10% 12%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 222 47% 11%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 263 70% 50%;
+    --popover-foreground: 20 10% 12%;
+
+    /* Primary: deep warm charcoal, not cold navy */
+    --primary: 20 10% 12%;
+    --primary-foreground: 40 30% 98%;
+
+    /* Secondary: warm light sand */
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 20 10% 30%;
+
+    /* Muted: warm neutral gray */
+    --muted: 40 15% 93%;
+    --muted-foreground: 20 8% 46%;
+
+    /* Accent: rich violet with warm undertone */
+    --accent: 258 68% 54%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+
+    /* Destructive */
+    --destructive: 2 76% 56%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 263 70% 50%;
-    --radius: 0.75rem;
+
+    /* Borders: warm light beige-gray */
+    --border: 35 18% 88%;
+    --input: 35 18% 88%;
+    --ring: 258 68% 54%;
+
+    /* Border radius — slightly more rounded for friendliness */
+    --radius: 0.625rem;
   }
 }
 
@@ -31,36 +49,217 @@
   * {
     @apply border-border;
   }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    background-image: radial-gradient(at 0% 0%, hsl(263 70% 50% / 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsl(174 85% 25% / 0.05) 0px, transparent 50%),
-      linear-gradient(135deg, hsl(210 40% 98%) 0%, hsl(210 40% 93%) 100%);
+    /* Warm, subtle grain-like gradient — feels paper-like, not cold */
+    background-color: hsl(40, 30%, 98%);
+    background-image:
+      radial-gradient(ellipse at 10% 0%, hsl(258 68% 54% / 0.04) 0px, transparent 55%),
+      radial-gradient(ellipse at 90% 100%, hsl(35 80% 60% / 0.04) 0px, transparent 55%);
   }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-display font-bold;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
+  /* Card: clean white with warm shadow */
   .bento-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-2xl transition-all duration-300 hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.12)] hover:border-white/60;
+    @apply bg-white border border-[hsl(35,18%,88%)] shadow-[0_1px_4px_0_rgba(0,0,0,0.06),0_4px_16px_0_rgba(0,0,0,0.04)] rounded-xl transition-all duration-200 hover:shadow-[0_2px_8px_0_rgba(0,0,0,0.08),0_8px_24px_0_rgba(0,0,0,0.06)];
   }
 
-  .text-brand-purple {
-    @apply text-[#7C3AED];
+  /* Brand purple */
+  .text-brand-purple { @apply text-[#6B4EFF]; }
+  .bg-brand-purple   { @apply bg-[#6B4EFF]; }
+
+  /* Warm amber accent */
+  .text-amber-brand  { @apply text-[#F59E0B]; }
+  .bg-amber-brand    { @apply bg-[#F59E0B]; }
+
+  /* Mint green */
+  .text-mint { @apply text-[#10B981]; }
+  .bg-mint   { @apply bg-[#10B981]; }
+
+  /* Warm shadow utility */
+  .shadow-warm {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
+  }
+  .shadow-warm-md {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07), 0 8px 24px rgba(0,0,0,0.06);
   }
 
-  .bg-brand-purple {
-    @apply bg-[#7C3AED];
+  /* Glass nav override */
+  .glass-nav {
+    @apply bg-white/95 backdrop-blur-md border-b border-[hsl(35,18%,88%)];
   }
 
-  .text-mint {
-    @apply text-[#10B981];
+  /* Smooth scrollbar */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* Feed & auth-style surfaces */
+  .glass-effect {
+    @apply bg-white/85 backdrop-blur-md border border-[hsl(35,18%,88%)] shadow-[0_2px_8px_rgba(0,0,0,0.04),0_12px_40px_rgba(107,78,255,0.07)];
   }
 
-  .bg-mint {
-    @apply bg-[#10B981];
+  .shadow-soft {
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.04),
+      0 12px 40px rgba(107, 78, 255, 0.07);
+  }
+
+  @keyframes feed-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slideUp {
+    animation: feed-slide-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-feed-fade-in {
+    animation: feed-slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PROFILE DESIGN SYSTEM  — completely distinct visual language
+  ══════════════════════════════════════════════════════════════ */
+
+  /* ── Page shell ── */
+  .profile-shell {
+    background-color: #f4f2ff;
+    background-image:
+      radial-gradient(ellipse 160% 90% at -5% -10%, rgba(139,92,246,0.18) 0%, transparent 52%),
+      radial-gradient(ellipse 110% 70% at 105% 5%,  rgba(236,72,153,0.13) 0%, transparent 48%),
+      radial-gradient(ellipse 90%  60% at 50% 110%, rgba(251,191,36,0.10) 0%, transparent 45%);
+    background-attachment: fixed;
+  }
+
+  /* ── Banner gradients ── */
+  .profile-banner-freelancer {
+    background: linear-gradient(
+      125deg,
+      hsl(263 85% 18%) 0%,
+      hsl(280 80% 30%) 30%,
+      hsl(300 72% 36%) 60%,
+      hsl(326 78% 40%) 100%
+    );
+  }
+  .profile-banner-client {
+    background: linear-gradient(
+      125deg,
+      hsl(215 90% 18%) 0%,
+      hsl(200 80% 26%) 35%,
+      hsl(175 72% 30%) 70%,
+      hsl(158 68% 34%) 100%
+    );
+  }
+
+  /* ── Animated orbs inside banner ── */
+  @keyframes porb1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(18px,-12px) scale(1.08)} }
+  @keyframes porb2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-14px,10px) scale(0.93)} }
+  @keyframes porb3 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(10px,8px)  scale(1.05)} 66%{transform:translate(-8px,-6px) scale(0.97)} }
+
+  .profile-orb-1 { animation: porb1 9s ease-in-out infinite; }
+  .profile-orb-2 { animation: porb2 12s ease-in-out infinite; }
+  .profile-orb-3 { animation: porb3 7s ease-in-out infinite; }
+
+  /* (avatar ring handled by inline gradient wrapper in ProfileHeader) */
+
+  /* ── Stat tiles ── */
+  .stat-tile {
+    @apply relative overflow-hidden rounded-3xl p-5 shadow-sm transition-all duration-300;
+  }
+  .stat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px -8px rgba(91,33,182,0.14);
+  }
+
+  /* ── Section cards ── */
+  .profile-card {
+    @apply relative overflow-hidden rounded-3xl bg-white border border-white shadow-[0_8px_32px_-12px_rgba(91,33,182,0.14)] transition-all duration-300;
+  }
+  .profile-card:hover {
+    box-shadow: 0 20px 50px -16px rgba(91,33,182,0.22);
+    transform: translateY(-1px);
+  }
+  .profile-card-inner { @apply relative z-10 p-6 sm:p-8; }
+  .profile-card-stripe {
+    @apply absolute inset-y-0 left-0 w-1 rounded-l-3xl;
+  }
+
+  /* ── Timeline (job history) ── */
+  .timeline-line {
+    @apply absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-violet-300 via-fuchsia-200 to-transparent;
+  }
+  .timeline-dot {
+    @apply absolute left-3 flex size-5 items-center justify-center rounded-full border-2 border-card shadow-md;
+  }
+
+  /* ── Skill pill colors (cycle through) ── */
+  .skill-pill-0 { @apply bg-violet-100 text-violet-900 border border-violet-200/80; }
+  .skill-pill-1 { @apply bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-200/80; }
+  .skill-pill-2 { @apply bg-sky-100 text-sky-900 border border-sky-200/80; }
+  .skill-pill-3 { @apply bg-emerald-100 text-emerald-900 border border-emerald-200/80; }
+  .skill-pill-4 { @apply bg-amber-100 text-amber-900 border border-amber-200/80; }
+  .skill-pill-5 { @apply bg-rose-100 text-rose-900 border border-rose-200/80; }
+  .skill-pill-6 { @apply bg-indigo-100 text-indigo-900 border border-indigo-200/80; }
+  .skill-pill-7 { @apply bg-teal-100 text-teal-900 border border-teal-200/80; }
+
+  /* ── Completion arc ── */
+  @keyframes arc-draw {
+    from { stroke-dashoffset: 220; }
+    to   { stroke-dashoffset: var(--arc-offset); }
+  }
+  .arc-animate {
+    animation: arc-draw 1.1s cubic-bezier(0.34,1.2,0.64,1) forwards;
+  }
+
+  /* ── Portfolio card hover ── */
+  .portfolio-card {
+    @apply relative overflow-hidden rounded-2xl border border-white bg-white shadow-md transition-all duration-300;
+  }
+  .portfolio-card:hover {
+    box-shadow: 0 24px 48px -16px rgba(91,33,182,0.25);
+    transform: translateY(-4px);
+  }
+  .portfolio-card-overlay {
+    @apply absolute inset-0 flex flex-col justify-end p-4 opacity-0 transition-opacity duration-300
+           bg-gradient-to-t from-black/70 via-black/30 to-transparent;
+  }
+  .portfolio-card:hover .portfolio-card-overlay { @apply opacity-100; }
+
+  /* ── Chip helpers (used in ProfileHeader) ── */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-secondary/80 px-3 py-1 text-xs text-muted-foreground border border-border/60;
+  }
+  .chip-amber {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900 border border-amber-200/70;
+  }
+  .chip-green {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 border border-emerald-200/70;
+  }
+
+  /* profile-section-card (legacy — keep for non-profile pages) */
+  .profile-section-card {
+    @apply rounded-2xl border border-border/80 bg-card p-6 shadow-[0_4px_24px_-8px_rgba(30,20,60,0.08)] transition-shadow duration-300 hover:shadow-[0_12px_40px_-12px_rgba(91,33,182,0.12)];
   }
 }

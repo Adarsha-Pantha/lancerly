@@ -156,7 +156,7 @@ export class ProjectsService {
       acceptanceCriteria: dto.acceptanceCriteria || [],
       projectType,
       status: 'OPEN',
-      moderationStatus: moderation.status,
+      moderationStatus: moderation.status === 'BLOCKED' ? 'BLOCKED' : 'APPROVED',
       moderationNotes: moderation.notes,
     };
 
@@ -195,6 +195,8 @@ export class ProjectsService {
     skills?: string[];
     clientId?: string;
     type?: ProjectKind;
+    page?: number;
+    limit?: number;
   }) {
     const where: any = {
       moderationStatus: 'APPROVED'
@@ -223,33 +225,41 @@ export class ProjectsService {
       where.projectType = filters.type;
     }
 
-    const projects = await this.prisma.project.findMany({
-      where,
-      include: {
-        client: {
-          select: {
-            id: true,
-            email: true,
-            profile: {
-              select: {
-                name: true,
-                avatarUrl: true,
+    const pageSize = Math.min(filters?.limit ?? 20, 100);
+    const page = Math.max((filters?.page ?? 1) - 1, 0);
+
+    const [total, projects] = await this.prisma.$transaction([
+      this.prisma.project.count({ where }),
+      this.prisma.project.findMany({
+        where,
+        include: {
+          client: {
+            select: {
+              id: true,
+              email: true,
+              profile: {
+                select: {
+                  name: true,
+                  avatarUrl: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            proposals: true,
+          _count: {
+            select: {
+              proposals: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: page * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
-    return projects;
+    return { data: projects, total, page: page + 1, pageSize };
   }
 
   /** Calculate best project matches for a freelancer using AI embeddings */

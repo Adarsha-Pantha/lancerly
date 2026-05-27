@@ -94,8 +94,8 @@ export default function ProjectsPage() {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const list = await get<ApiProject[]>("/projects");
-      const raw = Array.isArray(list) ? list : [];
+      const res = await get<{ data: ApiProject[] } | ApiProject[]>("/projects?status=OPEN&type=CLIENT_REQUEST&limit=100");
+      const raw = Array.isArray(res) ? res : ((res as { data: ApiProject[] }).data ?? []);
 
       // Map API shape to display shape and apply filters
       let filteredProjects = raw

@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { get, post } from "@/lib/api";
 import { toPublicUrl } from "@/lib/url";
+import { UserProfilePanel } from "@/components/profile/UserProfilePanel";
 import { useNotifications } from "@/context/NotificationContext";
 import {
   MessageCircle,
-  Plus,
   Search,
   Loader2,
   User,
@@ -51,6 +51,7 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [profilePanelUserId, setProfilePanelUserId] = useState<string | null>(null);
 
   const loadConversations = useCallback(async () => {
     if (!token) return;
@@ -129,13 +130,7 @@ export default function MessagesPage() {
             <h1 className="text-3xl font-bold text-slate-900 mb-2">Messages</h1>
             <p className="text-slate-600">Chat with clients and freelancers</p>
           </div>
-          <Link
-            href="/friends"
-            className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Plus size={18} />
-            <span>New Chat</span>
-          </Link>
+
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -178,10 +173,9 @@ export default function MessagesPage() {
                   key={conv.id}
                   className="flex items-center gap-4 p-4 hover:bg-purple-50/50 transition-colors"
                 >
-                  <Link
-                    href={`/users/${conv.participant.id}`}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setProfilePanelUserId(conv.participant.id); }}
                     className="relative flex-shrink-0 hover:opacity-80 transition-opacity"
-                    onClick={(e) => e.stopPropagation()}
                   >
                     <img
                       src={toPublicUrl(conv.participant.avatarUrl) || fallbackAvatar}
@@ -191,7 +185,7 @@ export default function MessagesPage() {
                     {conv.participant.isOnline && (
                       <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-white" />
                     )}
-                  </Link>
+                  </button>
                   <Link
                     href={`/messages/${conv.id}`}
                     className="flex-1 min-w-0"
@@ -259,6 +253,13 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
+
+      {profilePanelUserId && (
+        <UserProfilePanel
+          userId={profilePanelUserId}
+          onClose={() => setProfilePanelUserId(null)}
+        />
+      )}
     </div>
   );
 }

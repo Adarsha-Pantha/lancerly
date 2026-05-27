@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { get } from "@/lib/api";
 import { Loader2, TrendingUp, ShieldCheck, Clock, AlertCircle } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 
 interface FinanceStats {
   totalVolume: number;
@@ -48,6 +51,18 @@ export default function AdminFinancePage() {
   };
 
   if (!token || user?.role !== "ADMIN") return null;
+
+  // Build monthly chart data from recentTransactions
+  const chartData = useMemo(() => {
+    const map: Record<string, { month: string; volume: number; revenue: number }> = {};
+    (stats?.recentTransactions ?? []).forEach((t) => {
+      const key = new Date(t.date).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+      if (!map[key]) map[key] = { month: key, volume: 0, revenue: 0 };
+      map[key].volume += (t.amount || 0) / 100;
+      map[key].revenue += (t.platformRevenue || 0) / 100;
+    });
+    return Object.values(map).slice(-6);
+  }, [stats]);
 
   if (loading) {
     return (
@@ -110,6 +125,23 @@ export default function AdminFinancePage() {
             </div>
           ))}
         </div>
+
+        {chartData.length > 0 && (
+          <div className="fin-table-box" style={{ marginBottom: 20, padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 16 }}>Revenue vs Volume</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9ca3af" }} />
+                <YAxis tick={{ fontSize: 12, fill: "#9ca3af" }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip formatter={(v) => `$${Number(v ?? 0).toFixed(2)}`} />
+                <Legend />
+                <Bar dataKey="volume" name="Volume" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Platform Revenue" fill="#059669" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         <div className="fin-table-box">
           <div className="fin-table-head">

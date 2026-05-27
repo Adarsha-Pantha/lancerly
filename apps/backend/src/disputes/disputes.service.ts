@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class DisputesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly mail: MailService,
   ) {}
 
   private getUserId(auth?: string): string {
@@ -28,7 +30,7 @@ export class DisputesService {
       throw new ForbiddenException('You are not part of this contract');
     }
 
-    return this.prisma.dispute.create({
+    const dispute = await this.prisma.dispute.create({
       data: {
         contractId: dto.contractId,
         raisedById: userId,
@@ -38,13 +40,31 @@ export class DisputesService {
       },
       include: {
         contract: {
-          include: { project: { select: { title: true } } },
+          include: {
+            project: { select: { title: true } },
+            client: { select: { email: true, profile: { select: { name: true } } } },
+            freelancer: { select: { email: true, profile: { select: { name: true } } } },
+          },
         },
         evidence: {
           include: { uploadedBy: { select: { email: true, profile: { select: { name: true } } } } },
         },
       },
     });
+
+    // Notify the other party
+    const projectTitle = dispute.contract.project?.title ?? 'your project';
+    const otherEmail = dispute.contract.clientId === userId
+      ? dispute.contract.freelancer?.email
+      : dispute.contract.client?.email;
+    const otherName = dispute.contract.clientId === userId
+      ? (dispute.contract.freelancer?.profile?.name ?? 'there')
+      : (dispute.contract.client?.profile?.name ?? 'there');
+    if (otherEmail) {
+      this.mail.send({ to: otherEmail, template: 'dispute_opened', data: { name: otherName, projectTitle, title: dto.title } }).catch(() => null);
+    }
+
+    return dispute;
   }
 
   async getMine(auth: string) {
@@ -125,5 +145,34 @@ export class DisputesService {
         uploadedBy: { select: { email: true, profile: { select: { name: true } } } },
       },
     });
+  }
+
+  async resolve(id: string, resolution: string) {
+    const dispute = await this.prisma.dispute.update({
+      where: { id },
+      data: { status: 'RESOLVED', resolution } as any,
+      include: {
+        contract: {
+          include: {
+            project: { select: { title: true } },
+            client: { select: { email: true, profile: { select: { name: true } } } },
+            freelancer: { select: { email: true, profile: { select: { name: true } } } },
+          },
+        },
+      },
+    });
+
+    const projectTitle = dispute.contract.project?.title ?? 'your project';
+    const notify = [
+      { email: dispute.contract.client?.email, name: dispute.contract.client?.profile?.name ?? 'there' },
+      { email: dispute.contract.freelancer?.email, name: dispute.contract.freelancer?.profile?.name ?? 'there' },
+    ];
+    for (const { email, name } of notify) {
+      if (email) {
+        this.mail.send({ to: email, template: 'dispute_resolved', data: { name, projectTitle, resolution } }).catch(() => null);
+      }
+    }
+
+    return dispute;
   }
 }

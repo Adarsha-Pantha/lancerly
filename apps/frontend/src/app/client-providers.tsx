@@ -15,11 +15,9 @@ const APP_SHELL_ROUTES = [
   "/contracts",
   "/proposals",
   "/messages",
-  "/friends",
   "/analytics",
   "/skills",
   "/network",
-  "/users",
 ];
 
 // This component manages the lifecycle of the notification connection
@@ -111,9 +109,6 @@ function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/register") ||
     pathname?.startsWith("/role-selection") ||
     pathname?.startsWith("/oauth");
-
-  const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
-  const isHome = pathname === "/home" || pathname === "/";
 
   const isProjectDetail = pathname?.startsWith("/projects/") && pathname !== "/projects";
   const isHome = pathname === "/home" || pathname === "/";

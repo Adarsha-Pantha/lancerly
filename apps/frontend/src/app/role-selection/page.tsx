@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -45,7 +46,7 @@ const roles = [
   },
 ];
 
-export default function RoleSelectionPage() {
+function RoleSelectionInner() {
   const { token, user, refreshUser } = useAuth();
   const router = useRouter();
   const sp = useSearchParams();
@@ -76,10 +77,11 @@ export default function RoleSelectionPage() {
     }
   }, [user, router]);
 
-  if (!token || !user) {
-    router.push("/login");
-    return null;
-  }
+  useEffect(() => {
+    if (!token || !user) router.replace("/login");
+  }, [token, user, router]);
+
+  if (!token || !user) return null;
 
   return (
     <SiteLayout hideFooter>
@@ -190,5 +192,21 @@ export default function RoleSelectionPage() {
         </div>
       </div>
     </SiteLayout>
+  );
+}
+
+export default function RoleSelectionPage() {
+  return (
+    <Suspense
+      fallback={
+        <SiteLayout hideFooter>
+          <div className="min-h-[50vh] flex items-center justify-center text-slate-600">
+            Loading…
+          </div>
+        </SiteLayout>
+      }
+    >
+      <RoleSelectionInner />
+    </Suspense>
   );
 }

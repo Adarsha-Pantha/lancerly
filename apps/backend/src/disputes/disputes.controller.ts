@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, Body, Req, Param, UseInterceptors, UploadedFile,
+  Controller, Post, Get, Put, Body, Req, Param, UseInterceptors, UploadedFile,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -50,5 +50,10 @@ export class DisputesController {
   ) {
     const fileUrl = `/uploads/${file.filename}`;
     return this.svc.addEvidence(req.headers['authorization'] as string, id, fileUrl, file.originalname);
+  }
+
+  @Put(':id/resolve')
+  resolve(@Param('id') id: string, @Body('resolution') resolution: string) {
+    return this.svc.resolve(id, resolution);
   }
 }

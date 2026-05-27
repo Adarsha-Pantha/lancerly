@@ -8,8 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+} from '@nestjs/common';import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { SettingsService } from './settings.service';
 import {
@@ -120,5 +119,20 @@ export class SettingsController {
     @Body() dto: DeleteAccountDto,
   ) {
     return this.settingsService.deleteAccount(userId, dto);
+  }
+
+  @Post('2fa/setup')
+  setup2FA(@CurrentUser('userId') userId: string) {
+    return this.settingsService.setup2FA(userId);
+  }
+
+  @Post('2fa/enable')
+  enable2FA(@CurrentUser('userId') userId: string, @Body('token') token: string) {
+    return this.settingsService.enable2FA(userId, token);
+  }
+
+  @Post('2fa/disable')
+  disable2FA(@CurrentUser('userId') userId: string, @Body('token') token: string) {
+    return this.settingsService.disable2FA(userId, token);
   }
 }

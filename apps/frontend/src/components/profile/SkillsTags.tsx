@@ -21,22 +21,21 @@ export function SkillsTags({
   if (skills.length === 0) return null;
 
   return (
-    <div className={cn("flex flex-wrap gap-2", className)}>
+    <div className={cn("flex flex-wrap gap-2.5", className)}>
       {displaySkills.map((skill, idx) => (
         <span
           key={idx}
           className={cn(
-            "inline-flex items-center rounded-lg font-medium transition-colors",
-            size === "sm"
-              ? "px-2.5 py-1 text-xs bg-primary/10 text-primary"
-              : "px-3 py-1.5 text-sm bg-primary/10 text-primary"
+            "inline-flex items-center font-bold rounded-2xl border transition-all duration-200 hover:scale-[1.04] hover:shadow-md cursor-default",
+            `skill-pill-${idx % 8}`,
+            size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3.5 py-1.5 text-xs"
           )}
         >
           {skill}
         </span>
       ))}
       {remaining > 0 && (
-        <span className="px-3 py-1.5 text-sm text-muted-foreground">
+        <span className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-2xl bg-secondary text-muted-foreground border border-border">
           +{remaining} more
         </span>
       )}

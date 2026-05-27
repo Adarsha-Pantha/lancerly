@@ -1,91 +1,77 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { get, postForm, del, post } from "@/lib/api";
-import { toPublicUrl } from "@/lib/url";
-import {
-  Heart,
-  Trash2,
-  Image as ImageIcon,
-  Video,
-  X,
-  Loader2,
-  Send,
-  Megaphone,
-  BookOpen,
-  Rocket,
-  CheckCircle2,
-  Lightbulb,
-  Sparkles,
-  Compass,
-  ArrowRight,
-} from "lucide-react";
+import { Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { FeedSidebar } from "@/components/feed/FeedSidebar";
+import { FeedDiscoverPanel } from "@/components/feed/FeedDiscoverPanel";
+import { FeedComposer } from "@/components/feed/FeedComposer";
+import { FeedPostCard } from "@/components/feed/FeedPostCard";
+import type { FeedPost, FeedComment } from "@/components/feed/types";
 
-type Post = {
-  id: string;
-  content: string | null;
-  mediaUrls: string[];
-  createdAt: string;
-  author: {
-    id: string;
-    email: string;
-    profile: {
-      name: string;
-      avatarUrl: string | null;
-    } | null;
+function normalizePost(p: FeedPost): FeedPost {
+  return {
+    ...p,
+    _count: {
+      likes: p._count?.likes ?? 0,
+      comments: p._count?.comments ?? 0,
+    },
   };
-  _count: {
-    likes: number;
-  };
-  isLiked: boolean;
-};
+}
+
+function greetingLine(name: string | null | undefined): string {
+  const h = new Date().getHours();
+  const piece =
+    h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : h < 22 ? "Good evening" : "Happy late night";
+  return name ? `${piece}, ${name.split(" ")[0]}` : piece;
+}
 
 export default function FeedPage() {
   const { user, token, loading: authLoading, logout } = useAuth();
   const router = useRouter();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [posting, setPosting] = useState(false);
   const [content, setContent] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<Record<string, FeedComment[]>>({});
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // Wait for auth to finish loading
     if (authLoading) return;
-    
     if (!token) {
       router.replace("/login?redirect=/feed");
       return;
     }
-    
     loadFeed();
   }, [token, authLoading, router]);
 
-  async function loadFeed() {
+  async function loadFeed(showRefreshUi = false) {
     if (!token) return;
     try {
-      setLoading(true);
-      const data = await get<Post[]>("/feed", token);
-      setPosts(data);
-    } catch (err: any) {
+      if (showRefreshUi) setRefreshing(true);
+      else setLoading(true);
+      const data = await get<FeedPost[]>("/feed", token);
+      setPosts(data.map(normalizePost));
+    } catch (err: unknown) {
       console.error("Failed to load feed:", err);
-      const msg = err?.message || "";
+      const msg = err && typeof err === "object" && "message" in err ? String((err as Error).message) : "";
       const authErrors = ["Unauthorized", "token", "expired", "User not found", "Missing token", "Invalid token"];
       if (authErrors.some((p) => msg.toLowerCase().includes(p.toLowerCase()))) {
-        // Clear expired/invalid token
         logout();
         router.replace("/login?redirect=/feed");
-      } else {
-        // For other errors, just show loading state as false
-        console.error("Feed loading error:", err);
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -111,8 +97,8 @@ export default function FeedPage() {
 
     validFiles.forEach((file) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviews((prev) => [...prev, e.target?.result as string]);
+      reader.onload = (ev) => {
+        setPreviews((prev) => [...prev, ev.target?.result as string]);
       };
       if (file.type.startsWith("image/")) {
         reader.readAsDataURL(file);
@@ -140,7 +126,6 @@ export default function FeedPage() {
       router.push("/login?redirect=/feed");
       return;
     }
-
     if (!content.trim() && selectedFiles.length === 0) {
       alert("Please add some content or media");
       return;
@@ -164,9 +149,12 @@ export default function FeedPage() {
         fileInputRef.current.value = "";
       }
       await loadFeed();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Post creation error:", err);
-      const errorMsg = err?.message || "Failed to create post. Please check your connection and try again.";
+      const errorMsg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as Error).message)
+          : "Failed to create post. Please check your connection and try again.";
       alert(errorMsg);
     } finally {
       setPosting(false);
@@ -178,11 +166,10 @@ export default function FeedPage() {
       router.push("/login?redirect=/feed");
       return;
     }
-
     try {
       await post(`/feed/${postId}/like`, {}, token);
       await loadFeed();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to like post:", err);
     }
   }
@@ -190,21 +177,51 @@ export default function FeedPage() {
   async function handleDelete(postId: string) {
     if (!confirm("Delete this post?")) return;
     if (!token) return;
-
     try {
       await del(`/feed/${postId}`, token);
       await loadFeed();
-    } catch (err: any) {
-      alert(err?.message || "Failed to delete post");
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as Error).message) : "Failed to delete post";
+      alert(msg);
+    }
+  }
+
+  async function toggleComments(postId: string) {
+    const isOpen = expandedComments[postId];
+    setExpandedComments((prev) => ({ ...prev, [postId]: !isOpen }));
+    if (!isOpen && !comments[postId] && token) {
+      try {
+        const data = await get<FeedComment[]>(`/feed/${postId}/comments`, token);
+        setComments((prev) => ({ ...prev, [postId]: data }));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  async function handleAddComment(postId: string) {
+    const text = commentInputs[postId]?.trim();
+    if (!text || !token) return;
+    setCommentLoading((prev) => ({ ...prev, [postId]: true }));
+    try {
+      const newComment = await post<FeedComment>(`/feed/${postId}/comments`, { content: text }, token);
+      setComments((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), newComment] }));
+      setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId ? { ...p, _count: { ...p._count, comments: p._count.comments + 1 } } : p
+        )
+      );
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as Error).message) : "Failed to add comment";
+      alert(msg);
+    } finally {
+      setCommentLoading((prev) => ({ ...prev, [postId]: false }));
     }
   }
 
   function isImage(url: string) {
     return /\.(png|jpe?g|gif|webp|svg)$/i.test(url) || url.startsWith("data:image");
-  }
-
-  function isVideo(url: string) {
-    return /\.(mp4|webm|ogg|mov)$/i.test(url) || url.startsWith("blob:") && url.includes("video");
   }
 
   function formatTime(dateString: string) {
@@ -218,437 +235,158 @@ export default function FeedPage() {
 
     if (days > 7) {
       return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    } else if (days > 0) {
-      return `${days}d ago`;
-    } else if (hours > 0) {
-      return `${hours}h ago`;
-    } else if (minutes > 0) {
-      return `${minutes}m ago`;
-    } else {
-      return "Just now";
     }
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return "Just now";
   }
 
-  const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-    user?.name || "User"
-  )}`;
+  const fallbackAvatar = useMemo(
+    () => `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.name || "User")}`,
+    [user?.name]
+  );
 
-  const whatsNewHighlights = [
-    {
-    title: "Role-based dashboards",
-      description: "Switch between Client and Freelancer views to track projects, payments, and invites in one place.",
-      icon: Megaphone,
-      tag: "New",
-    },
-    {
-      title: "Smart settings center",
-      description: "Manage availability, notifications, two-factor auth, and privacy from a single streamlined screen.",
-      icon: BookOpen,
-      tag: "Updated",
-    },
-    {
-      title: "Creative feed upgrades",
-      description: "Post videos, celebrate wins, and discover community highlights right from your home feed.",
-      icon: Sparkles,
-      tag: "Hot",
-    },
-  ];
-
-  const gettingStartedSteps = [
-    {
-      title: "Complete your profile",
-      description: "Add a headline, skills, and work history so clients know what makes you unique.",
-    },
-    {
-      title: "Share your first update",
-      description: "Post a project win, a question, or a work-in-progress to start engaging with others.",
-    },
-    {
-      title: "Explore opportunities",
-      description: "Use Explore and Find Work to discover briefs, collaborators, and communities to join.",
-    },
-  ];
-
-  const quickStartTips = [
-    {
-      title: "Follow the guidelines",
-      description: "Stay respectful, be transparent about availability, and credit collaborators.",
-      icon: BookOpen,
-    },
-    {
-      title: "Ask for feedback",
-      description: "Use the feed to request critique, share learnings, and support other builders.",
-      icon: Lightbulb,
-    },
-    {
-      title: "Act on insights",
-      description: "Use dashboards and alerts to follow up on leads, proposals, and conversations quickly.",
-      icon: Compass,
-    },
-    {
-      title: "Launch with confidence",
-      description: "Use project templates and our proposal tips to pitch faster and win more work.",
-      icon: Rocket,
-    },
-    {
-      title: "Celebrate milestones",
-      description: "Post your launches, hires, and testimonials so the community can cheer you on.",
-      icon: Heart,
-    },
-    {
-      title: "Stay consistent",
-      description: "Drop weekly updates to build your brand, attract clients, and grow trust.",
-      icon: CheckCircle2,
-    },
-  ];
-
-  // Show loading state while auth is loading or if no token
   if (authLoading || !token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 flex items-center justify-center">
+      <div className="min-h-[70vh] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="animate-spin text-purple-600 mx-auto mb-4" size={40} />
-          <p className="text-slate-600">
-            {authLoading ? "Loading..." : "Redirecting to login..."}
-          </p>
+          <Loader2 className="animate-spin text-violet-600 mx-auto mb-4" size={40} />
+          <p className="text-muted-foreground">{authLoading ? "Loading…" : "Redirecting to login…"}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 pb-12">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* Header */}
-        <div className="mb-8 animate-slideUp">
-          <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 text-sm font-semibold text-purple-700 bg-purple-50 rounded-full">
-            <Sparkles size={16} />
-            Home Feed
-          </div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">
-            Hey {user?.name || "there"}, here’s what’s happening on Lancerly
-          </h1>
-          <p className="text-slate-600 text-lg">
-            Catch community highlights, share your wins, and follow our quick-start guide to get the most out of the
-            platform.
-          </p>
-        </div>
-
-        {/* Home Highlights */}
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
-          <div className="glass-effect rounded-2xl p-6 border border-purple-100 shadow-soft">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-purple-100 text-purple-700">
-                  <Megaphone size={22} />
-                </div>
-                <div>
-                  <p className="text-sm uppercase tracking-wide text-slate-500">What’s new</p>
-                  <h2 className="text-xl font-semibold text-slate-900">Product updates & highlights</h2>
-                </div>
+    <div className="min-h-screen pb-16">
+      <div className="relative border-b border-border/80 bg-gradient-to-b from-violet-50/50 via-background to-background">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, hsl(258 68% 54% / 0.2), transparent),
+              radial-gradient(ellipse 60% 40% at 100% 0%, hsl(35 80% 60% / 0.12), transparent)`,
+          }}
+        />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="animate-slideUp">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-violet-700 shadow-sm backdrop-blur-sm">
+                <Sparkles className="h-3.5 w-3.5" />
+                Community feed
               </div>
-            </div>
-            <div className="space-y-4">
-              {whatsNewHighlights.map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <div key={idx} className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-white shadow-sm text-purple-600">
-                      <Icon size={18} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-900 flex items-center gap-2">
-                        {item.title}
-                        <span className="text-xs font-semibold uppercase text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
-                          {item.tag}
-                        </span>
-                      </p>
-                      <p className="text-sm text-slate-600">{item.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="glass-effect rounded-2xl p-6 border border-blue-100 shadow-soft">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-blue-100 text-blue-700">
-                <CheckCircle2 size={22} />
-              </div>
-              <div>
-                <p className="text-sm uppercase tracking-wide text-slate-500">Getting started</p>
-                <h2 className="text-xl font-semibold text-slate-900">Your first week on Lancerly</h2>
-              </div>
-            </div>
-            <ol className="space-y-4">
-              {gettingStartedSteps.map((step, idx) => (
-                <li key={idx} className="flex gap-3">
-                  <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">{step.title}</p>
-                    <p className="text-sm text-slate-600">{step.description}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </div>
-
-        <div className="glass-effect rounded-2xl p-6 border border-slate-200 shadow-soft mb-10">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-slate-500">Lancerly playbook</p>
-              <h2 className="text-2xl font-semibold text-slate-900">How to make the most of every post</h2>
-              <p className="text-slate-600 mt-2 max-w-2xl">
-                Follow these community guidelines and tips to build trust, grow your network, and turn ideas into paid
-                work faster.
+              <h1 className="mt-3 font-display text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
+                {greetingLine(user?.name)}
+              </h1>
+              <p className="mt-2 max-w-2xl text-muted-foreground text-base sm:text-lg leading-relaxed">
+                See what freelancers and clients are sharing, post wins and questions, and keep your network warm — all
+                in one calm, focused stream.
               </p>
             </div>
             <button
-              onClick={() => router.push("/landing")}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-purple-700 bg-purple-100 rounded-full hover:bg-purple-200 transition-colors"
+              type="button"
+              onClick={() => loadFeed(true)}
+              disabled={loading || refreshing}
+              className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm hover:bg-secondary transition-colors disabled:opacity-50"
             >
-              View full guidelines
-              <ArrowRight size={16} />
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
             </button>
           </div>
-          <div className="grid gap-4 mt-6 md:grid-cols-2">
-            {quickStartTips.map((tip, idx) => {
-              const Icon = tip.icon;
-              return (
-                <div key={idx} className="p-4 rounded-xl border border-slate-100 bg-white/80 flex gap-3">
-                  <div className="p-3 rounded-lg bg-slate-100 text-slate-700">
-                    <Icon size={18} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">{tip.title}</p>
-                    <p className="text-sm text-slate-600">{tip.description}</p>
-                  </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-10">
+          <div className="min-w-0 space-y-6">
+            <div className="animate-slideUp" style={{ animationDelay: "0.05s" }}>
+              <FeedDiscoverPanel />
+            </div>
+
+            <div className="animate-slideUp" style={{ animationDelay: "0.08s" }}>
+              <FeedComposer
+                userName={user?.name}
+                userAvatarUrl={user?.avatarUrl}
+                fallbackAvatar={fallbackAvatar}
+                content={content}
+                setContent={setContent}
+                previews={previews}
+                fileInputRef={fileInputRef}
+                posting={posting}
+                onSubmit={handleSubmit}
+                onPickFiles={() => fileInputRef.current?.click()}
+                onFileChange={handleFileSelect}
+                onRemoveFile={removeFile}
+                isImage={isImage}
+              />
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-24 rounded-2xl border border-dashed border-border bg-card/50">
+                <Loader2 className="animate-spin text-violet-600 mb-3" size={36} />
+                <p className="text-muted-foreground">Loading your feed…</p>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/40 to-card p-10 sm:p-14 text-center shadow-soft animate-slideUp">
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-100 text-violet-600">
+                  <Sparkles className="h-8 w-8" />
                 </div>
-              );
-            })}
+                <h2 className="font-display text-2xl font-bold text-foreground">The stream is quiet</h2>
+                <p className="mt-2 text-muted-foreground max-w-md mx-auto">
+                  Be the first to share a launch, a lesson learned, or a question — your post helps others discover you.
+                </p>
+                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/dashboard/browse"
+                    className="inline-flex items-center rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+                  >
+                    Browse projects
+                  </Link>
+                  <Link
+                    href="/friends"
+                    className="inline-flex items-center rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-secondary transition-colors"
+                  >
+                    Grow your network
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {posts.map((post, index) => (
+                  <FeedPostCard
+                    key={post.id}
+                    post={post}
+                    index={index}
+                    currentUserId={user?.id}
+                    token={token}
+                    fallbackAvatar={fallbackAvatar}
+                    isOwnPost={post.author.id === user?.id}
+                    formatTime={formatTime}
+                    isImage={isImage}
+                    expanded={!!expandedComments[post.id]}
+                    comments={comments[post.id]}
+                    commentInput={commentInputs[post.id] ?? ""}
+                    commentLoading={!!commentLoading[post.id]}
+                    onLike={() => handleLike(post.id)}
+                    onDelete={() => handleDelete(post.id)}
+                    onToggleComments={() => toggleComments(post.id)}
+                    onCommentChange={(v) => setCommentInputs((prev) => ({ ...prev, [post.id]: v }))}
+                    onSubmitComment={() => handleAddComment(post.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <FeedSidebar
+              userName={user?.name}
+              userAvatarUrl={user?.avatarUrl}
+              fallbackAvatar={fallbackAvatar}
+              postCount={posts.length}
+            />
           </div>
         </div>
-
-        {/* Create Post Card */}
-        {token && (
-          <div className="glass-effect rounded-2xl shadow-soft p-6 mb-8 animate-slideUp">
-            <div className="flex items-start gap-4 mb-4">
-              <img
-                src={toPublicUrl(user?.avatarUrl || undefined) || fallbackAvatar}
-                alt={user?.name || "You"}
-                className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-200"
-              />
-              <div className="flex-1">
-                <p className="font-semibold text-slate-900 mb-1">{user?.name || "You"}</p>
-                <p className="text-sm text-slate-500">What's on your mind?</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Share your thoughts, ideas, or updates..."
-                className="w-full p-4 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none transition-all bg-white/50"
-                rows={4}
-              />
-
-              {/* File Previews */}
-              {previews.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {previews.map((preview, index) => (
-                    <div key={index} className="relative group rounded-xl overflow-hidden">
-                      {isImage(preview) ? (
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-40 object-cover"
-                        />
-                      ) : (
-                        <video
-                          src={preview}
-                          className="w-full h-40 object-cover"
-                          controls={false}
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all hover:scale-105"
-                  >
-                    <ImageIcon size={18} />
-                    <span className="hidden sm:inline">Photo</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all hover:scale-105"
-                  >
-                    <Video size={18} />
-                    <span className="hidden sm:inline">Video</span>
-                  </button>
-                </div>
-                <button
-                  type="submit"
-                  disabled={posting || (!content.trim() && selectedFiles.length === 0)}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105"
-                >
-                  {posting ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>Posting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send size={18} />
-                      <span>Post</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </form>
-          </div>
-        )}
-
-        {/* Feed Posts */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <Loader2 className="animate-spin text-purple-600 mx-auto mb-4" size={40} />
-              <p className="text-slate-600">Loading feed...</p>
-            </div>
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="glass-effect rounded-2xl shadow-soft p-16 text-center animate-slideUp">
-            <div className="max-w-md mx-auto">
-              <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Heart className="text-purple-600" size={40} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">No posts yet</h3>
-              <p className="text-slate-600 mb-6">Be the first to share something with the community!</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {posts.map((post, index) => (
-              <div
-                key={post.id}
-                className="glass-effect rounded-2xl shadow-soft overflow-hidden animate-slideUp"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {/* Post Header */}
-                <div className="p-5 border-b border-slate-100">
-                  <div className="flex items-start justify-between">
-                    <Link
-                      href={`/users/${post.author.id}`}
-                      className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                    >
-                      <img
-                        src={toPublicUrl(post.author.profile?.avatarUrl || undefined) || fallbackAvatar}
-                        alt={post.author.profile?.name || "User"}
-                        className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-200"
-                      />
-                      <div>
-                        <p className="font-semibold text-slate-900 hover:text-purple-600 transition-colors">
-                          {post.author.profile?.name || post.author.email}
-                        </p>
-                        <p className="text-sm text-slate-500">{formatTime(post.createdAt)}</p>
-                      </div>
-                    </Link>
-                    {token && post.author.id === user?.id && (
-                      <button
-                        onClick={() => handleDelete(post.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                        title="Delete post"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Post Content */}
-                {post.content && (
-                  <div className="p-5">
-                    <p className="text-slate-800 whitespace-pre-wrap leading-relaxed text-[15px]">
-                      {post.content}
-                    </p>
-                  </div>
-                )}
-
-                {/* Post Media */}
-                {post.mediaUrls.length > 0 && (
-                  <div className={`grid gap-2 ${post.mediaUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-                    {post.mediaUrls.map((url, idx) => {
-                      const publicUrl = toPublicUrl(url);
-                      return (
-                        <div key={idx} className="relative overflow-hidden">
-                          {isImage(publicUrl) ? (
-                            <img
-                              src={publicUrl}
-                              alt={`Post media ${idx + 1}`}
-                              className="w-full h-auto object-cover"
-                            />
-                          ) : (
-                            <video
-                              src={publicUrl}
-                              controls
-                              className="w-full h-auto"
-                            >
-                              Your browser does not support the video tag.
-                            </video>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Post Actions */}
-                <div className="p-4 border-t border-slate-100">
-                  <button
-                    onClick={() => handleLike(post.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all hover:scale-105 ${
-                      post.isLiked
-                        ? "text-red-600 bg-red-50"
-                        : "text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Heart size={20} className={post.isLiked ? "fill-current" : ""} />
-                    <span className="text-sm font-semibold">{post._count.likes}</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

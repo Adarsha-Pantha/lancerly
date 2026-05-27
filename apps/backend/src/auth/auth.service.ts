@@ -10,12 +10,14 @@ import type { Request } from 'express';
 import { Role } from '@prisma/client';
 import { RegisterDto, LoginDto } from './dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly mail: MailService,
   ) {}
 
   /* ------------------------ helpers ------------------------ */
@@ -127,6 +129,9 @@ export class AuthService {
       email: created.email,
       role: created.role,
     });
+
+    // Send welcome email (best-effort)
+    this.mail.send({ to: created.email, template: 'welcome', data: { name: created.profile?.name ?? 'there' } }).catch(() => null);
 
     return { user: this.flattenUser(created), token };
   }

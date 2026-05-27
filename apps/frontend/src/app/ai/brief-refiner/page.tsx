@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -13,10 +13,11 @@ export default function BriefRefinerPage() {
   const [refinedOutput, setRefinedOutput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (!token || !user) {
-    router.replace("/login?redirect=/ai/brief-refiner");
-    return null;
-  }
+  useEffect(() => {
+    if (!token || !user) router.replace("/login?redirect=/ai/brief-refiner");
+  }, [token, user, router]);
+
+  if (!token || !user) return null;
 
   const handleRefine = async () => {
     if (!rawInput.trim()) return;

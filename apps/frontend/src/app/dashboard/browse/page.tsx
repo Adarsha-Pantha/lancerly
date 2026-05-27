@@ -41,22 +41,28 @@ export default function DashboardBrowsePage() {
   const [projects, setProjects]     = useState<ApiProject[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
+  const [page, setPage]             = useState(1);
+  const [total, setTotal]           = useState(0);
+  const PAGE_SIZE = 12;
 
-  const loadProjects = useCallback(async () => {
+  const loadProjects = useCallback(async (p = page) => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       params.set("status", "OPEN");
       params.set("type", "CLIENT_REQUEST");
-      const list = await get<ApiProject[]>(`/projects?${params.toString()}`, token ?? undefined);
-      setProjects(Array.isArray(list) ? list : []);
+      params.set("page", String(p));
+      params.set("limit", String(PAGE_SIZE));
+      const res = await get<{ data: ApiProject[]; total: number }>(`/projects?${params.toString()}`, token ?? undefined);
+      setProjects(Array.isArray(res) ? res : (res.data ?? []));
+      setTotal(Array.isArray(res) ? res.length : (res.total ?? 0));
     } catch {
       setError("Failed to load projects.");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, page]);
 
   useEffect(() => {
     loadProjects();
@@ -71,6 +77,13 @@ export default function DashboardBrowsePage() {
       (p.skills ?? []).some((s) => s.toLowerCase().includes(q))
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function goToPage(newPage: number) {
+    setPage(newPage);
+    loadProjects(newPage);
+  }
 
   return (
     <div className="space-y-8 py-2">
@@ -131,7 +144,7 @@ export default function DashboardBrowsePage() {
           <p className="text-red-500 text-sm mb-6">{error}</p>
           <button
             type="button"
-            onClick={loadProjects}
+            onClick={() => loadProjects()}
             className="inline-flex items-center gap-2 h-10 px-7 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
             style={{ background: VIOLET }}
           >
@@ -267,6 +280,31 @@ export default function DashboardBrowsePage() {
           ))}
         </div>
 
+      )}
+
+      {/* Pagination */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 pt-4">
+          <button
+            onClick={() => goToPage(page - 1)}
+            disabled={page <= 1}
+            className="px-4 py-2 rounded-xl text-sm font-semibold border-2 border-gray-100 bg-white disabled:opacity-40 transition-all hover:border-violet-200"
+            style={{ color: VIOLET }}
+          >
+            ← Previous
+          </button>
+          <span className="text-sm text-gray-500 font-medium">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => goToPage(page + 1)}
+            disabled={page >= totalPages}
+            className="px-4 py-2 rounded-xl text-sm font-semibold border-2 border-gray-100 bg-white disabled:opacity-40 transition-all hover:border-violet-200"
+            style={{ color: VIOLET }}
+          >
+            Next →
+          </button>
+        </div>
       )}
     </div>
   );

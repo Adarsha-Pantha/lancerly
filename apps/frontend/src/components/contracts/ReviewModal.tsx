@@ -1,123 +1,123 @@
 "use client";
 
-import { useState } from "react";
-import { Star, X, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { post } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { X, Star } from "lucide-react";
+import { useMemo, useState } from "react";
 
-interface ReviewModalProps {
-  isOpen: boolean;
+export function ReviewModal({
+  open,
+  // Back-compat props used by contract workspace
+  isOpen,
+  onClose,
+  contractId,
+  token,
+  onSuccess,
+  onSubmit,
+  title = "Leave a review",
+  submitLabel = "Submit review",
+}: {
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
-  contractId: string;
-  token: string;
-  onSuccess: () => void;
-}
-
-export function ReviewModal({ isOpen, onClose, contractId, token, onSuccess }: ReviewModalProps) {
-  const [rating, setRating] = useState(0);
-  const [hover, setHover] = useState(0);
+  contractId?: string;
+  token?: string;
+  onSuccess?: () => void;
+  onSubmit?: (data: { rating: number; comment: string; contractId?: string; token?: string }) => Promise<void> | void;
+  title?: string;
+  submitLabel?: string;
+}) {
+  const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
-    if (rating === 0) {
-      setError("Please select a rating");
-      return;
-    }
+  const disabled = useMemo(() => submitting || rating < 1 || rating > 5, [submitting, rating]);
 
-    setSubmitting(true);
-    setError(null);
-    try {
-      await post("/reviews", { contractId, rating, comment }, token);
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to submit review");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const actuallyOpen = (isOpen ?? open) === true;
+  if (!actuallyOpen) return null;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        onClick={() => !submitting && onClose()}
+        aria-label="Close"
+      />
+
+      <div className="relative w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-base font-black text-slate-900">{title}</h3>
+          <button
+            type="button"
+            onClick={() => !submitting && onClose()}
+            className="p-2 rounded-2xl hover:bg-slate-100 transition-colors"
           >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-900">Rate your experience</h3>
-                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="flex justify-center gap-2 mb-8">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className="p-1 transition-transform hover:scale-110 active:scale-95"
-                    onMouseEnter={() => setHover(star)}
-                    onMouseLeave={() => setHover(0)}
-                    onClick={() => setRating(star)}
-                  >
-                    <Star
-                      className={`w-10 h-10 ${
-                        (hover || rating) >= star
-                          ? "fill-amber-400 text-amber-400"
-                          : "text-slate-300 fill-transparent"
-                      } transition-colors`}
-                    />
-                  </button>
-                ))}
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Share your feedback (optional)
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="How was it working on this contract?"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none h-32 text-slate-900"
-                />
-              </div>
-
-              {error && (
-                <p className="text-red-500 text-sm mb-4 bg-red-50 p-2 rounded border border-red-100 italic">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={onClose}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                  onClick={handleSubmit}
-                  disabled={submitting || rating === 0}
-                >
-                  {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Submit Review"}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
+            <X className="size-4 text-slate-500" />
+          </button>
         </div>
-      )}
-    </AnimatePresence>
+
+        <div className="p-6 space-y-5">
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rating</p>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setRating(s)}
+                  className="p-1 rounded-lg hover:bg-amber-50 transition-colors"
+                  aria-label={`Rate ${s}`}
+                >
+                  <Star className={s <= rating ? "size-6 fill-amber-400 text-amber-500" : "size-6 text-slate-200"} />
+                </button>
+              ))}
+              <span className="ml-2 text-sm font-black text-slate-700">{rating}.0</span>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Comment</p>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={4}
+              placeholder="Share what went well (optional)"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                if (disabled) return;
+                setSubmitting(true);
+                try {
+                  if (onSubmit) {
+                    await onSubmit({ rating, comment: comment.trim(), contractId, token });
+                  }
+                  // If used from contracts page, it may pass these instead.
+                  if (onSuccess) onSuccess();
+                  onClose();
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              disabled={disabled}
+              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-black hover:brightness-110 transition-all disabled:opacity-60"
+            >
+              {submitting ? "Submitting…" : submitLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => !submitting && onClose()}
+              className="px-5 py-3 rounded-2xl border-2 border-slate-200 text-sm font-black text-slate-700 hover:bg-slate-50 transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
+

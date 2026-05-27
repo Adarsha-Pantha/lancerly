@@ -104,6 +104,14 @@ export class StripeService {
     if (milestone.status !== 'PENDING' && milestone.status !== 'IN_PROGRESS' && milestone.status !== 'COMPLETED') {
       throw new BadRequestException('Milestone is not in a payable state');
     }
+    const milestoneDetails = {
+      title: milestone.title,
+      description: milestone.description ?? null,
+      projectTitle: milestone.contract.project.title,
+      contractId: milestone.contractId,
+      freelancerName: milestone.contract.freelancer.profile?.name ?? 'Freelancer',
+    };
+
     if (milestone.stripePaymentIntentId) {
       const existing = await stripe.paymentIntents.retrieve(milestone.stripePaymentIntentId);
       if (
@@ -112,7 +120,19 @@ export class StripeService {
         existing.status === 'requires_action' ||
         existing.status === 'requires_capture'
       ) {
-        return { clientSecret: existing.client_secret };
+        const settings = await this.getPlatformSettings();
+        const clientFeePercent = settings.clientProcessingFee / 100;
+        const base = milestone.amount;
+        const clientFee = milestone.clientFee ?? Math.round(base * clientFeePercent);
+        return {
+          clientSecret: existing.client_secret,
+          milestone: {
+            ...milestoneDetails,
+            amountCents: base,
+            clientFeeCents: clientFee,
+            totalCents: base + clientFee,
+          },
+        };
       }
       if (existing.status === 'succeeded') {
         throw new BadRequestException('Milestone is already paid');
@@ -122,6 +142,20 @@ export class StripeService {
     const stripeAccountId = milestone.contract.freelancer.profile?.stripeAccountId;
     if (!stripeAccountId) {
       throw new BadRequestException('Freelancer must complete Stripe Connect onboarding first');
+    }
+
+    // Verify the freelancer's Connect account has transfers capability active
+    const connectedAccount = await stripe.accounts.retrieve(stripeAccountId);
+    if (!connectedAccount.charges_enabled) {
+      throw new BadRequestException(
+        'Freelancer has not completed Stripe Connect onboarding. They must finish account setup before receiving payments.',
+      );
+    }
+    const transfersCapability = connectedAccount.capabilities?.transfers;
+    if (transfersCapability !== 'active') {
+      throw new BadRequestException(
+        `Freelancer's Stripe account does not have transfers capability enabled (status: ${transfersCapability ?? 'none'}). They must complete onboarding to receive payments.`,
+      );
     }
 
     const settings = await this.getPlatformSettings();
@@ -164,7 +198,15 @@ export class StripeService {
       },
     });
 
-    return { clientSecret: paymentIntent.client_secret };
+    return {
+      clientSecret: paymentIntent.client_secret,
+      milestone: {
+        ...milestoneDetails,
+        amountCents: milestoneAmount,
+        clientFeeCents: clientFee,
+        totalCents: totalAmountCharged,
+      },
+    };
   }
 
   /** Capture PaymentIntent when client approves milestone */

@@ -1,6 +1,6 @@
 // apps/backend/src/profile/profile.controller.ts
 import {
-  Controller, Get, Put, Body, Req, Param, UseInterceptors, UploadedFile, Post, UploadedFiles,
+  Controller, Get, Put, Body, Req, Param, UseInterceptors, UploadedFile, Post, UploadedFiles, Query,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
@@ -16,6 +16,14 @@ export class ProfileController {
   @Get('me')
   me(@Req() req: Request) {
     return this.svc.getMine(req.headers['authorization'] as string | undefined);
+  }
+
+  @Get('freelancers')
+  getFreelancers(
+    @Query('search') search?: string,
+    @Query('skill') skill?: string,
+  ) {
+    return this.svc.getFreelancers(search, skill);
   }
 
   @Get(':id')

@@ -1,63 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, ArrowRight, FileText } from "lucide-react";
-
-type SmartMatchingSidebarProps = {
-  role: "CLIENT" | "FREELANCER";
-  projects?: { id: string; title: string; matchScore?: number }[];
-};
+import { Sparkles, Zap, ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function SmartMatchingSidebar({
   role,
-  projects = [
-    { id: "1", title: "React Native Mobile App Development", matchScore: 95 },
-    { id: "2", title: "E-commerce API Integration", matchScore: 88 },
-    { id: "3", title: "UI/UX Design for SaaS Dashboard", matchScore: 82 },
-  ],
-}: SmartMatchingSidebarProps) {
+}: {
+  role: "CLIENT" | "FREELANCER" | "ADMIN";
+}) {
+  // Kept intentionally lightweight to restore build after file cleanup.
+  // You can later replace this with real matching/recommendation widgets.
   return (
-    <aside className="w-80 shrink-0 border-l border-slate-200 bg-white hidden xl:block">
-      <div className="p-4 border-b border-slate-100">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles size={18} className="text-mint" />
-          <h3 className="font-semibold text-brand-purple text-sm">Smart Matching</h3>
+    <div className="p-5 space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400" />
+        <div className="p-5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-violet-600" />
+            <p className="text-sm font-black text-slate-900">Smart matching</p>
+          </div>
+          <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+            Personalized recommendations will appear here based on your activity.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Link
+              href={role === "CLIENT" ? "/dashboard/projects/new" : "/dashboard/browse"}
+              className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-4 py-2.5 text-xs font-black text-white hover:bg-violet-700 transition-colors"
+            >
+              <Zap className="size-4" />
+              {role === "CLIENT" ? "Post a project" : "Browse projects"}
+            </Link>
+            <Link
+              href="/profile"
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Improve profile <ArrowRight className="size-4" />
+            </Link>
+          </div>
         </div>
-        <p className="text-xs text-slate-500">
-          {role === "FREELANCER"
-            ? "AI-recommended projects based on your skills"
-            : "AI-recommended freelancers for your projects"}
+      </div>
+
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-4 text-emerald-700" />
+          <p className="text-sm font-black text-emerald-900">Trust tip</p>
+        </div>
+        <p className="text-xs text-emerald-800/80 mt-2 leading-relaxed">
+          Keep communication inside the platform and use milestones for safer collaboration.
         </p>
       </div>
-      <div className="p-3 space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-        {projects.slice(0, 5).map((p) => (
-          <Link
-            key={p.id}
-            href={role === "FREELANCER" ? `/projects/${p.id}/propose` : `/projects/${p.id}/proposals`}
-            className="bento-card p-3 block hover:shadow-soft transition-shadow group"
-          >
-            <div className="flex items-start gap-2">
-              <div className="w-8 h-8 rounded-lg bg-mint/10 flex items-center justify-center shrink-0">
-                <FileText size={14} className="text-mint" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-brand-purple line-clamp-2 group-hover:text-mint transition-colors">
-                  {p.title}
-                </p>
-                {p.matchScore !== undefined && (
-                  <span className="inline-block mt-1 text-xs font-semibold text-mint">
-                    {p.matchScore}% match
-                  </span>
-                )}
-              </div>
-              <ArrowRight
-                size={14}
-                className="text-slate-400 group-hover:text-mint shrink-0 transition-colors"
-              />
-            </div>
-          </Link>
-        ))}
-      </div>
-    </aside>
+    </div>
   );
 }
+

@@ -48,6 +48,9 @@ export default function PublicProjectsBrowsePage() {
   const [projects, setProjects] = useState<ProjectCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 12;
 
   // Fetch only projects that clients are offering (for freelancers) — exclude freelancer showcase
   useEffect(() => {
@@ -59,9 +62,12 @@ export default function PublicProjectsBrowsePage() {
         const params = new URLSearchParams();
         params.set("status", "OPEN");
         params.set("type", "CLIENT_REQUEST");
-        const list = await get<ApiProject[]>(`/projects?${params.toString()}`);
+        params.set("page", String(page));
+        params.set("limit", String(PAGE_SIZE));
+        const res = await get<{ data: ApiProject[]; total: number } | ApiProject[]>(`/projects?${params.toString()}`);
         if (cancelled) return;
-        const raw = Array.isArray(list) ? list : [];
+        const raw: ApiProject[] = Array.isArray(res) ? res : (res.data ?? []);
+        const tot: number = Array.isArray(res) ? res.length : (res.total ?? 0);
         const mapped: ProjectCard[] = raw.map((p) => ({
           id: p.id,
           title: p.title,
@@ -78,6 +84,7 @@ export default function PublicProjectsBrowsePage() {
           skills: p.skills ?? [],
         }));
         setProjects(mapped);
+        setTotal(tot);
       } catch (e) {
         if (!cancelled) setError("Failed to load projects.");
       } finally {
@@ -88,7 +95,7 @@ export default function PublicProjectsBrowsePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page]);
 
   const filteredProjects = projects.filter((project) => {
     const matchesSearch =
@@ -97,6 +104,8 @@ export default function PublicProjectsBrowsePage() {
       project.skills.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesSearch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleProjectClick = (projectId: string) => {
     if (!token) {
@@ -302,6 +311,29 @@ export default function PublicProjectsBrowsePage() {
               <Briefcase className="w-16 h-16 text-slate-blue/30 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-slate-blue mb-2">No projects found</h3>
               <p className="text-slate-blue/70">Try adjusting your search or filters</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 pt-10">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 bg-white disabled:opacity-40 hover:border-mint transition-colors"
+              >
+                ← Previous
+              </button>
+              <span className="text-sm text-slate-blue/70 font-medium">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 bg-white disabled:opacity-40 hover:border-mint transition-colors"
+              >
+                Next →
+              </button>
             </div>
           )}
         </div>

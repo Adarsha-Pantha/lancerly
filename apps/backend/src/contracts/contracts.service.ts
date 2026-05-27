@@ -277,7 +277,6 @@ export class ContractsService {
             `Milestone "${milestone.title}" has been approved and paid`,
             { contractId: milestone.contractId, milestoneId },
           );
-          await this.maybeAutoCompleteContract(milestone.contractId);
           return paid;
         }
       } catch (e) {
@@ -300,11 +299,6 @@ export class ContractsService {
         milestoneId,
       },
     );
-
-    // Auto-complete contract if all milestones are now PAID (for non-Stripe case)
-    if (!milestone.stripePaymentIntentId) {
-      await this.maybeAutoCompleteContract(milestone.contractId);
-    }
 
     return updated;
   }

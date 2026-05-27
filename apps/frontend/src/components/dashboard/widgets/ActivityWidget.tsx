@@ -1,8 +1,8 @@
 "use client";
 
-import { Send, MessageSquare, MoreHorizontal } from "lucide-react";
-import { useState } from "react";
+import { MessageSquare, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 type Message = {
   id: string;
@@ -11,62 +11,96 @@ type Message = {
   content: string;
   time: string;
   type: "text" | "video" | "audio";
-  videoUrl?: string;
 };
 
 interface ActivityWidgetProps {
   messages: Message[];
 }
 
+const AVATAR_COLORS = [
+  "from-violet-500 to-fuchsia-500",
+  "from-sky-500 to-blue-600",
+  "from-emerald-500 to-teal-600",
+  "from-amber-500 to-orange-500",
+  "from-rose-500 to-pink-600",
+];
+
 export default function ActivityWidget({ messages }: ActivityWidgetProps) {
   const router = useRouter();
-  const [newMessage, setNewMessage] = useState("");
 
   return (
-    <div className="bento-card p-6 flex flex-col h-full min-h-[400px]">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={20} className="text-brand-purple" />
-          <h2 className="text-xl font-semibold text-slate-900">Recent Chats</h2>
+    <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-2xl bg-emerald-100">
+            <MessageSquare className="size-4 text-emerald-700" />
+          </div>
+          <div>
+            <h2 className="text-base font-black text-slate-900">Recent Chats</h2>
+            <p className="text-[11px] text-slate-400">{messages.length} conversation{messages.length !== 1 ? "s" : ""}</p>
+          </div>
         </div>
-        <button className="p-2 text-slate-400 hover:text-brand-purple hover:bg-purple-50 rounded-xl transition-all">
-          <MoreHorizontal size={20} />
+        <button
+          onClick={() => router.push("/messages")}
+          className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
+        >
+          Open inbox <ArrowRight className="size-3.5" />
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto mb-6 pr-2 custom-scrollbar">
+      <div className="divide-y divide-slate-50">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
-            <MessageSquare size={48} className="mb-4" />
-            <p>No active conversations</p>
+          <div className="py-14 flex flex-col items-center justify-center bg-slate-50 m-5 rounded-2xl border border-dashed border-slate-200">
+            <div className="size-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <MessageSquare className="size-5 text-slate-300" />
+            </div>
+            <p className="text-sm font-semibold text-slate-500">No conversations yet</p>
+            <p className="text-xs text-slate-400 mt-1">Messages from clients & freelancers appear here</p>
           </div>
         ) : (
-          messages.map((message) => (
-            <div 
-              key={message.id} 
-              className="flex items-start gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors cursor-pointer group"
-              onClick={() => router.push(`/messages?id=${message.id}`)}
+          messages.map((msg, idx) => (
+            <div
+              key={msg.id}
+              onClick={() => router.push(`/messages/${msg.id}`)}
+              className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/70 cursor-pointer transition-colors group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0">
-                {message.sender.charAt(0).toUpperCase()}
+              {/* Avatar */}
+              <div className={cn(
+                "size-10 shrink-0 rounded-2xl flex items-center justify-center text-white text-sm font-black shadow-sm bg-gradient-to-br",
+                AVATAR_COLORS[idx % AVATAR_COLORS.length]
+              )}>
+                {msg.sender.charAt(0).toUpperCase()}
               </div>
+
+              {/* Content */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-slate-900 font-semibold text-sm group-hover:text-brand-purple transition-colors">
-                    {message.sender}
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-sm font-black text-slate-900 group-hover:text-violet-700 transition-colors">
+                    {msg.sender}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium">{message.time}</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">{msg.time}</span>
                 </div>
-                <p className="text-slate-500 text-xs truncate leading-relaxed">
-                  {message.content}
-                </p>
+                <p className="text-xs text-slate-500 truncate">{msg.content}</p>
               </div>
+
+              {/* Unread dot (decorative) */}
+              <div className="size-2 rounded-full bg-violet-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           ))
         )}
       </div>
 
+      {messages.length > 0 && (
+        <div className="px-5 py-3 border-t border-slate-50">
+          <button
+            onClick={() => router.push("/messages")}
+            className="w-full py-2.5 rounded-2xl border-2 border-slate-200 text-xs font-bold text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50/40 transition-all"
+          >
+            View all messages
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-

@@ -36,7 +36,7 @@ export default function UserActivityPage() {
   const loadActivity = async () => {
     try {
       setLoading(true);
-      const data = await get<UserActivity>(`/admin/users/${userId}/activity`, token);
+      const data = await get<UserActivity>(`/admin/users/${userId}/activity`, token || undefined);
       setActivity(data);
     } catch (error) {
       console.error("Failed to load user activity:", error);

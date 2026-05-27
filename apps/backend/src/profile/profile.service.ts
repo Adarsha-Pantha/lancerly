@@ -179,6 +179,58 @@ export class ProfileService {
     });
   }
 
+  async getFreelancers(search?: string | null, skill?: string | null) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: 'FREELANCER',
+        profile: {
+          isComplete: true,
+          ...(skill
+            ? { skills: { array_contains: skill } }
+            : undefined),
+          ...(search
+            ? { name: { contains: search, mode: 'insensitive' as const } }
+            : undefined),
+        },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        profile: {
+          select: {
+            name: true,
+            headline: true,
+            avatarUrl: true,
+            skills: true,
+            hourlyRate: true,
+            rating: true,
+            reviewCount: true,
+            availability: true,
+            country: true,
+          },
+        },
+        receivedReviews: { select: { rating: true } },
+        contractsAsFreelancer: {
+          where: { status: 'COMPLETED' },
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    return users.map((u) => ({
+      id: u.id,
+      profile: u.profile,
+      completedJobs: u.contractsAsFreelancer.length,
+      rating:
+        u.receivedReviews.length > 0
+          ? u.receivedReviews.reduce((s, r) => s + r.rating, 0) / u.receivedReviews.length
+          : 0,
+      reviewCount: u.receivedReviews.length,
+    }));
+  }
+
   async updateMine(auth: string, dto: CompleteProfileDto, avatarUrl?: string) {
     const userId = await this.userIdFromAuth(auth);
     return this.prisma.profile.update({

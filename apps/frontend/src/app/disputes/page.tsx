@@ -114,6 +114,13 @@ export default function MyDisputesPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                     <span className="md-type">{TYPE_LABELS[d.type] || d.type}</span>
                     <span className="md-bdg" style={{ background: s.bg, color: s.color }}>{s.label}</span>
+                    <Link
+                      href={`/disputes/${d.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ fontSize: 11, color: "#6B4EFF", fontWeight: 600, textDecoration: "none" }}
+                    >
+                      Details →
+                    </Link>
                     <span style={{ fontSize: 11, color: "#9ca3af" }}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                 </div>

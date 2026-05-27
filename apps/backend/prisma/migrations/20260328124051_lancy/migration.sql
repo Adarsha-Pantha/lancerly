@@ -98,11 +98,8 @@ CREATE TABLE "public"."Project" (
     "status" TEXT NOT NULL DEFAULT 'OPEN',
     "moderationStatus" "public"."ModerationStatus" NOT NULL DEFAULT 'APPROVED',
     "moderationNotes" TEXT,
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260328124051_lancy/migration.sql
     "screeningQuestions" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "acceptanceCriteria" TEXT[] DEFAULT ARRAY[]::TEXT[],
-========
->>>>>>>> 39a902aa5a6085aeec88d714a528ce4578899e27:apps/backend/prisma/migrations/20260321110653_init/migration.sql
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "embedding" DOUBLE PRECISION[],
@@ -300,10 +297,7 @@ CREATE TABLE "public"."PlatformSettings" (
     "id" TEXT NOT NULL DEFAULT 'singleton',
     "freelancerServiceFee" DOUBLE PRECISION NOT NULL DEFAULT 10.0,
     "clientProcessingFee" DOUBLE PRECISION NOT NULL DEFAULT 3.0,
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260328124051_lancy/migration.sql
     "weeklyProjectLimit" INTEGER NOT NULL DEFAULT 3,
-========
->>>>>>>> 39a902aa5a6085aeec88d714a528ce4578899e27:apps/backend/prisma/migrations/20260321110653_init/migration.sql
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PlatformSettings_pkey" PRIMARY KEY ("id")
@@ -338,7 +332,6 @@ CREATE TABLE "public"."DisputeEvidence" (
     CONSTRAINT "DisputeEvidence_pkey" PRIMARY KEY ("id")
 );
 
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260328124051_lancy/migration.sql
 -- CreateTable
 CREATE TABLE "public"."PortfolioProject" (
     "id" TEXT NOT NULL,
@@ -354,8 +347,6 @@ CREATE TABLE "public"."PortfolioProject" (
     CONSTRAINT "PortfolioProject_pkey" PRIMARY KEY ("id")
 );
 
-========
->>>>>>>> 39a902aa5a6085aeec88d714a528ce4578899e27:apps/backend/prisma/migrations/20260321110653_init/migration.sql
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 
@@ -487,9 +478,6 @@ ALTER TABLE "public"."DisputeEvidence" ADD CONSTRAINT "DisputeEvidence_disputeId
 
 -- AddForeignKey
 ALTER TABLE "public"."DisputeEvidence" ADD CONSTRAINT "DisputeEvidence_uploadedById_fkey" FOREIGN KEY ("uploadedById") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-<<<<<<<< HEAD:apps/backend/prisma/migrations/20260328124051_lancy/migration.sql
 
 -- AddForeignKey
 ALTER TABLE "public"."PortfolioProject" ADD CONSTRAINT "PortfolioProject_freelancerId_fkey" FOREIGN KEY ("freelancerId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-========
->>>>>>>> 39a902aa5a6085aeec88d714a528ce4578899e27:apps/backend/prisma/migrations/20260321110653_init/migration.sql

@@ -7,12 +7,14 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { ModerationService } from '../common/moderation/moderation.service';
 
 @Injectable()
 export class FeedService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   /** Extract userId from "Authorization: Bearer <token>" header */
@@ -39,12 +41,26 @@ export class FeedService {
       throw new NotFoundException('Author (user) not found');
     }
 
+    // Content moderation
+    const contentToCheck = dto.content ?? '';
+    let moderationStatus: string = 'APPROVED';
+    let moderationNotes: string | null = null;
+    if (contentToCheck.trim()) {
+      const mod = await this.moderationService.analyzeContent(contentToCheck);
+      moderationStatus = mod.status;
+      moderationNotes = mod.notes;
+      if (mod.status === 'BLOCKED') {
+        throw new Error('Post blocked: ' + (mod.notes ?? 'Content policy violation'));
+      }
+    }
+
     const post = await this.prisma.post.create({
       data: {
-        // connect the relation instead of directly setting the foreign key
         author: { connect: { id: userId } },
         content: dto.content || null,
         mediaUrls: dto.mediaUrls || [],
+        moderationStatus: moderationStatus as any,
+        moderationNotes,
       },
       include: {
         author: {
@@ -62,6 +78,7 @@ export class FeedService {
         _count: {
           select: {
             likes: true,
+            comments: true,
           },
         },
       },
@@ -89,6 +106,7 @@ export class FeedService {
         _count: {
           select: {
             likes: true,
+            comments: true,
           },
         },
         likes: {
@@ -174,6 +192,43 @@ export class FeedService {
     });
 
     return { message: 'Post deleted successfully' };
+  }
+
+  /** Get comments for a post */
+  async getComments(postId: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+
+    return this.prisma.postComment.findMany({
+      where: { postId },
+      include: {
+        author: {
+          select: {
+            id: true,
+            profile: { select: { name: true, avatarUrl: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /** Add a comment to a post */
+  async addComment(userId: string, postId: string, content: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post not found');
+
+    return this.prisma.postComment.create({
+      data: { postId, authorId: userId, content },
+      include: {
+        author: {
+          select: {
+            id: true,
+            profile: { select: { name: true, avatarUrl: true } },
+          },
+        },
+      },
+    });
   }
 }
 

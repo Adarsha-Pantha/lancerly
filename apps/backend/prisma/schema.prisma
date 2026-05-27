@@ -16,6 +16,8 @@ model User {
   password  String
   role      Role      @default(FREELANCER)
   twoFA     Boolean   @default(false)
+  twoFASecret String?
+  isSuspended Boolean @default(false)
   emailNotifications Boolean @default(true)
   profileVisibility   Boolean @default(true)
   pendingEmail            String?
@@ -37,6 +39,7 @@ model User {
   posts       Post[]
   portfolioProjects PortfolioProject[] @relation("FreelancerPortfolio")
   likes       PostLike[]
+  postComments PostComment[]
   conversationsAsClient    Conversation[] @relation("ClientConversations")
   conversationsAsFreelancer Conversation[] @relation("FreelancerConversations")
   sentMessages Message[]
@@ -183,13 +186,21 @@ model Message {
   createdAt      DateTime      @default(now())
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 model Friendship {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
   friendId  String
-  user      User     @relation("UserFriendships", fields: [userId], references: [id])
-  friend    User     @relation("FriendUserFriendships", fields: [friendId], references: [id])
-  createdAt DateTime @default(now())
+  status    FriendshipStatus @default(ACCEPTED)
+  user      User             @relation("UserFriendships", fields: [userId], references: [id])
+  friend    User             @relation("FriendUserFriendships", fields: [friendId], references: [id])
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
 
   @@unique([userId, friendId])
 }
@@ -200,9 +211,12 @@ model Post {
   author    User      @relation(fields: [authorId], references: [id])
   content   String?
   mediaUrls String[]  @default([])
+  moderationStatus ModerationStatus @default(APPROVED)
+  moderationNotes  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   likes     PostLike[]
+  comments  PostComment[]
 }
 
 model PostLike {
@@ -214,6 +228,16 @@ model PostLike {
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
 }
 
 enum ModerationStatus {
@@ -282,6 +306,7 @@ model Contract {
   timeEntries   TimeEntry[]
   reviews       Review[]
   disputes      Dispute[]
+  meetings      Meeting[]
 }
 
 model Review {
@@ -404,6 +429,21 @@ model PortfolioProject {
   skills       String[]
   imageUrl     String?
   liveLink     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Meeting {
+  id           String   @id @default(uuid())
+  contractId   String
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  scheduledBy  String
+  roomName     String   @unique
+  roomUrl      String
+  title        String
+  scheduledAt  DateTime
+  status       String   @default("SCHEDULED") // SCHEDULED, ACTIVE, ENDED, CANCELLED
+  endedBy      String[] @default([])           // user IDs who have clicked "Leave"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
