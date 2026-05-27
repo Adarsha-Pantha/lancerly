@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, UseGuards, Req, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards, Req, Post, Body, Patch } from '@nestjs/common';
 import type { Request } from 'express';
 import { AdminService } from './admin.service';
 import { AdminGuard } from './guards/admin.guard';
@@ -88,5 +88,80 @@ export class AdminController {
   @UseGuards(AdminGuard)
   async getFinanceStats() {
     return this.adminService.getFinanceStats();
+  }
+
+  @Get('kyc/pending')
+  @UseGuards(AdminGuard)
+  async getPendingKyc() {
+    return this.adminService.getPendingKyc();
+  }
+
+  @Post('kyc/:userId/approve')
+  @UseGuards(AdminGuard)
+  async approveKyc(@Param('userId') userId: string) {
+    return this.adminService.approveKyc(userId);
+  }
+
+  @Post('kyc/:userId/reject')
+  @UseGuards(AdminGuard)
+  async rejectKyc(@Param('userId') userId: string, @Body('reason') reason: string) {
+    return this.adminService.rejectKyc(userId, reason);
+  }
+
+  @Get('disputes')
+  @UseGuards(AdminGuard)
+  async getAllDisputes(@Query('status') status?: string) {
+    const disputes = await this.adminService.getAllDisputes(status);
+    console.log(`[DEBUG] Admin fetching disputes. Found ${disputes.length}. First one evidence count: ${(disputes[0] as any)?.evidence?.length || 0}`);
+    return disputes;
+  }
+
+  @Get('subscribed-users')
+  @UseGuards(AdminGuard)
+  async getSubscribedUsers() {
+    return this.adminService.getSubscribedUsers();
+  }
+
+  @Patch('disputes/:id')
+  @UseGuards(AdminGuard)
+  async updateDispute(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Body('adminNotes') adminNotes?: string,
+    @Body('resolution') resolution?: string,
+  ) {
+    return this.adminService.updateDispute(id, status, adminNotes, resolution);
+  }
+
+  @Post('users/bulk-suspend')
+  @UseGuards(AdminGuard)
+  async bulkSuspendUsers(
+    @Body('userIds') userIds: string[],
+    @Body('suspend') suspend: boolean,
+  ) {
+    return this.adminService.bulkSuspendUsers(userIds, suspend);
+  }
+
+  @Get('activity/recent')
+  @UseGuards(AdminGuard)
+  async getRecentActivity(@Query('limit') limit?: string) {
+    return this.adminService.getRecentActivity(limit ? parseInt(limit, 10) : 12);
+  }
+
+  @Get('stats/categories')
+  @UseGuards(AdminGuard)
+  async getCategoryStats() {
+    return this.adminService.getCategoryStats();
+  }
+
+  @Get('stats/nav-badges')
+  @UseGuards(AdminGuard)
+  async getNavBadges() {
+    return this.adminService.getNavBadges();
+  }
+
+  @Get('stats/trust')
+  async getPlatformTrustStats() {
+    return this.adminService.getPlatformTrustStats();
   }
 }

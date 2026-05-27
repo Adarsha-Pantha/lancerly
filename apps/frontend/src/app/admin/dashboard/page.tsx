@@ -25,6 +25,10 @@ type User = {
   stats: { projects: number; proposals: number; posts: number; conversations: number };
 };
 
+type ActivityItem = { text: string; time: string; type: string };
+type CategoryStat = { name: string; projects: number; color: string; icon: string; skills: string[] };
+type DisputeItem = { id: string; status: string; raisedBy: any; contract: any; createdAt: string };
+
 const Icon = ({ d, size = 18, stroke = "currentColor", fill = "none", strokeWidth = 1.8 }: any) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
     {Array.isArray(d) ? d.map((p: string, i: number) => <path key={i} d={p} />) : <path d={d} />}
@@ -40,29 +44,7 @@ const icons = {
   trending: ["M23 6l-9.5 9.5-5-5L1 18", "M17 6h6v6"],
 };
 
-const activityFeed = [
-  { text: "New user Sarah Chen registered", time: "2m ago", type: "user" },
-  { text: "Project #3891 received 3 new proposals", time: "9m ago", type: "project" },
-  { text: "Dispute #D-0041 opened by Tom Okafor", time: "22m ago", type: "dispute" },
-  { text: "Withdrawal of $840 processed for Marcus Bell", time: "1h ago", type: "finance" },
-  { text: "AI Proposal Assistant generated 12 drafts", time: "2h ago", type: "ai" },
-  { text: "Project #3888 complete — escrow released", time: "3h ago", type: "finance" },
-];
 
-const categories = [
-  { name: "Web Development", projects: 1204, growth: "+14%", color: "#2563eb" },
-  { name: "UI/UX Design", projects: 874, growth: "+9%", color: "#7c3aed" },
-  { name: "Mobile Dev", projects: 612, growth: "+21%", color: "#059669" },
-  { name: "AI / ML", projects: 388, growth: "+38%", color: "#d97706" },
-  { name: "Content Writing", projects: 341, growth: "+6%", color: "#db2777" },
-  { name: "Marketing", projects: 298, growth: "+4%", color: "#0891b2" },
-];
-
-const staticDisputes = [
-  { id: "#D-0041", parties: "Tom O. vs Priya S.", amount: "$1,200", status: "open" },
-  { id: "#D-0039", parties: "Marcus B. vs Elena V.", amount: "$450", status: "reviewing" },
-  { id: "#D-0037", parties: "Jay Kim vs Acme Corp", amount: "$2,100", status: "resolved" },
-];
 
 function MiniBar({ color }: { color: string }) {
   const bars = [35, 55, 42, 70, 58, 80, 65, 88, 50, 92, 72, 100];
@@ -90,6 +72,9 @@ export default function AdminDashboardPage() {
   const { user, token } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [dbUsers, setDbUsers] = useState<User[]>([]);
+  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
+  const [categories, setCategories] = useState<CategoryStat[]>([]);
+  const [disputes, setDisputes] = useState<DisputeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -99,12 +84,18 @@ export default function AdminDashboardPage() {
 
   const loadData = async () => {
     try {
-      const [s, u] = await Promise.all([
-        get<Stats>("/admin/dashboard/stats", token),
-        get<{ users: User[] }>("/admin/users?limit=5", token),
+      const [s, u, activity, cats, disp] = await Promise.all([
+        get<Stats>("/admin/dashboard/stats", token || undefined),
+        get<{ users: User[] }>("/admin/users?limit=5", token || undefined),
+        get<ActivityItem[]>("/admin/activity/recent?limit=6", token || undefined),
+        get<CategoryStat[]>("/admin/stats/categories", token || undefined),
+        get<DisputeItem[]>("/admin/disputes", token || undefined),
       ]);
       setStats(s);
       setDbUsers(u.users);
+      setActivityFeed(activity);
+      setCategories(cats);
+      setDisputes(disp.slice(0, 5));
     } catch (e) {
       console.error(e);
     } finally {
@@ -229,13 +220,16 @@ export default function AdminDashboardPage() {
               <div className="adm-ct">Live Activity</div>
               <span className="adm-bdg active">Live</span>
             </div>
-            {activityFeed.map((a, i) => {
-              const dc: Record<string, string> = { user: "#2563eb", project: "#059669", dispute: "#dc2626", finance: "#d97706", ai: "#7c3aed" };
+            {activityFeed.length === 0 ? (
+              <div style={{ padding: "24px 18px", color: "#9ca3af", fontSize: 13, textAlign: "center" }}>No recent activity</div>
+            ) : activityFeed.map((a, i) => {
+              const dc: Record<string, string> = { user: "#2563eb", project: "#059669", dispute: "#dc2626", proposal: "#d97706", contract: "#7c3aed", finance: "#d97706" };
+              const relTime = new Date(a.time).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
               return (
                 <div className="adm-fi" key={i}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: dc[a.type], marginTop: 4, flexShrink: 0 }} />
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: dc[a.type] ?? "#6b7280", marginTop: 4, flexShrink: 0 }} />
                   <span style={{ fontSize: 12.5, color: "#4b5563", flex: 1, lineHeight: 1.5 }}>{a.text}</span>
-                  <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>{a.time}</span>
+                  <span style={{ fontSize: 11, color: "#9ca3af", whiteSpace: "nowrap" }}>{relTime}</span>
                 </div>
               );
             })}
@@ -245,16 +239,15 @@ export default function AdminDashboardPage() {
         <div className="adm-g2">
           <div className="adm-card">
             <div className="adm-ch"><div className="adm-ct">Category Health</div><div className="adm-cs">By active project volume</div></div>
-            {categories.map(c => (
+            {categories.length === 0 ? (
+              <div style={{ padding: "24px 18px", color: "#9ca3af", fontSize: 13, textAlign: "center" }}>No projects yet</div>
+            ) : categories.map(c => (
               <div className="adm-cr" key={c.name}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{c.name}</span>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#16a34a" }}>{c.growth}</span>
-                    <span style={{ fontSize: 12, color: "#9ca3af" }}>{c.projects.toLocaleString()}</span>
-                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{c.icon} {c.name}</span>
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>{c.projects.toLocaleString()}</span>
                 </div>
-                <ProgressBar value={c.projects} max={1204} color={c.color} />
+                <ProgressBar value={c.projects} max={Math.max(...categories.map(x => x.projects), 1)} color={c.color} />
               </div>
             ))}
           </div>
@@ -266,14 +259,16 @@ export default function AdminDashboardPage() {
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="adm-tbl">
-                <thead><tr><th>ID</th><th>Parties</th><th>Amount</th><th>Status</th></tr></thead>
+                <thead><tr><th>Project</th><th>Raised By</th><th>Status</th><th>Date</th></tr></thead>
                 <tbody>
-                  {staticDisputes.map(d => (
+                  {disputes.length === 0 ? (
+                    <tr><td colSpan={4} style={{ textAlign: "center", color: "#9ca3af", fontSize: 12, padding: "20px" }}>No disputes found</td></tr>
+                  ) : disputes.map(d => (
                     <tr key={d.id}>
-                      <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }}>{d.id}</td>
-                      <td style={{ fontSize: 12 }}>{d.parties}</td>
-                      <td style={{ fontWeight: 700 }}>{d.amount}</td>
-                      <td><span className={`adm-bdg ${d.status}`}>{d.status}</span></td>
+                      <td style={{ fontSize: 12 }}>{d.contract?.project?.title ?? "—"}</td>
+                      <td style={{ fontSize: 12 }}>{d.raisedBy?.profile?.name ?? d.raisedBy?.email ?? "—"}</td>
+                      <td><span className={`adm-bdg ${d.status.toLowerCase()}`}>{d.status.toLowerCase()}</span></td>
+                      <td style={{ fontSize: 11, color: "#9ca3af" }}>{new Date(d.createdAt).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>

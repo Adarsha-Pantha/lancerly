@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, Req } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Req, Headers, BadRequestException, RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { StripeService } from './stripe.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -65,5 +65,62 @@ export class StripeController {
   @Post('milestones/:id/sync')
   async syncPayment(@Param('id') id: string) {
     return this.stripeService.syncMilestonePaymentStatus(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('subscribe')
+  async subscribe(@Req() req: Request, @Body() body: { subscribe?: boolean }) {
+    const userId = this.getUserId(req);
+    return this.stripeService.subscribeUser(userId, body.subscribe ?? true);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sync-subscription')
+  async syncSubscription(@Req() req: Request) {
+    const userId = this.getUserId(req);
+    return this.stripeService.syncSubscriptionStatus(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('create-subscription-session')
+  async createSubscription(
+    @Req() req: Request,
+    @Body() body: { successUrl?: string; cancelUrl?: string }
+  ) {
+    const userId = this.getUserId(req);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return this.stripeService.createSubscriptionSession(
+      userId,
+      body.successUrl ?? `${frontendUrl}/settings?tab=subscription&success=true`,
+      body.cancelUrl ?? `${frontendUrl}/settings?tab=subscription&canceled=true`
+    );
+  }
+
+  @Post('webhook')
+  async handleWebhook(@Req() req: Request, @Headers('stripe-signature') signature: string) {
+    // Note: If you want to verify signatures, you need to enable rawBody in main.ts
+    // For now, we decode the event and process it.
+    const body = (req as any).body;
+    const eventType = body?.type;
+    const data = body?.data?.object;
+
+    console.log(`[Stripe Webhook] Received ${eventType}. Metadata:`, JSON.stringify(data.metadata));
+
+    if (eventType === 'checkout.session.completed') {
+      const userId = data.metadata?.userId;
+      const subscriptionId = data.subscription;
+      if (userId && subscriptionId) {
+        await this.stripeService.handleSubscriptionSucceeded(userId, subscriptionId as string);
+        console.log(`[Stripe Webhook] Subscription ${subscriptionId} activated for user ${userId}`);
+      }
+    } else if (eventType === 'customer.subscription.deleted') {
+      const userId = data.metadata?.userId;
+      if (userId) {
+        await this.stripeService.handleSubscriptionDeleted(userId);
+        console.log(`[Stripe Webhook] Subscription canceled for user ${userId}`);
+      }
+    }
+
+    return { received: true };
   }
 }

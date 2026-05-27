@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   async checkAdminExists() {
     const admin = await this.prisma.user.findFirst({
@@ -64,6 +68,7 @@ export class AdminService {
         email: u.email,
         role: u.role,
         createdAt: u.createdAt,
+        isSuspended: (u as any).isSuspended ?? false,
         profile: u.profile,
         stats: {
           projects: u._count.projects,
@@ -264,7 +269,7 @@ export class AdminService {
     });
   }
 
-  async updatePlatformSettings(data: { freelancerServiceFee?: number; clientProcessingFee?: number }) {
+  async updatePlatformSettings(data: { freelancerServiceFee?: number; clientProcessingFee?: number; weeklyProjectLimit?: number }) {
     return this.prisma.platformSettings.update({
       where: { id: 'singleton' },
       data,
@@ -306,6 +311,289 @@ export class AdminService {
       platformRevenue: platformRevenueCents,
       inEscrow: inEscrowCents,
       recentTransactions,
+    };
+  }
+
+  async getPendingKyc() {
+    return this.prisma.profile.findMany({
+      where: { kycStatus: 'PENDING' },
+      include: {
+        user: {
+          select: { email: true, role: true },
+        },
+      },
+    });
+  }
+
+  async approveKyc(userId: string) {
+    const profile = await this.prisma.profile.update({
+      where: { userId },
+      data: { kycStatus: 'APPROVED' },
+      include: { user: { select: { email: true } } },
+    });
+    this.mail.send({ to: profile.user.email, template: 'kyc_approved', data: { name: profile.name ?? 'there' } }).catch(() => null);
+    return profile;
+  }
+
+  async rejectKyc(userId: string, reason: string) {
+    const profile = await this.prisma.profile.update({
+      where: { userId },
+      data: {
+        kycStatus: 'REJECTED',
+        kycRejectionReason: reason,
+      },
+      include: { user: { select: { email: true } } },
+    });
+    this.mail.send({ to: profile.user.email, template: 'kyc_rejected', data: { name: profile.name ?? 'there', reason } }).catch(() => null);
+    return profile;
+  }
+
+  async getAllDisputes(status?: string) {
+    return this.prisma.dispute.findMany({
+      where: status ? { status: status as any } : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        raisedBy: {
+          select: {
+            email: true,
+            role: true,
+            profile: { select: { name: true, avatarUrl: true } },
+          },
+        },
+        contract: {
+          include: {
+            project: { select: { title: true } },
+            client: { select: { email: true, profile: { select: { name: true, avatarUrl: true } } } },
+            freelancer: { select: { email: true, profile: { select: { name: true, avatarUrl: true } } } },
+          },
+        },
+        evidence: {
+          include: {
+            uploadedBy: {
+              select: {
+                email: true,
+                profile: { select: { name: true, avatarUrl: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async getSubscribedUsers() {
+    return this.prisma.user.findMany({
+      where: { isSubscribed: true },
+      include: {
+        profile: {
+          select: {
+            name: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateDispute(id: string, status: string, adminNotes?: string, resolution?: string) {
+    return this.prisma.dispute.update({
+      where: { id },
+      data: {
+        status: status as any,
+        ...(adminNotes !== undefined && { adminNotes }),
+        ...(resolution !== undefined && { resolution }),
+      },
+      include: {
+        raisedBy: {
+          select: {
+            email: true,
+            role: true,
+            profile: { select: { name: true } },
+          },
+        },
+        contract: {
+          include: {
+            project: { select: { title: true } },
+            client: { select: { email: true, profile: { select: { name: true } } } },
+            freelancer: { select: { email: true, profile: { select: { name: true } } } },
+          },
+        },
+        evidence: {
+          include: {
+            uploadedBy: {
+              select: {
+                email: true,
+                profile: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async bulkSuspendUsers(userIds: string[], suspend: boolean) {
+    await this.prisma.user.updateMany({
+      where: { id: { in: userIds }, role: { not: 'ADMIN' } },
+      data: { isSuspended: suspend },
+    });
+    return { updated: userIds.length, suspend };
+  }
+
+  // ── Recent platform activity (replaces the hardcoded activityFeed) ─────────
+  async getRecentActivity(limit = 12) {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+
+    const [users, projects, disputes, proposals, contracts] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { createdAt: { gte: since }, role: { not: 'ADMIN' } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, email: true, role: true, createdAt: true, profile: { select: { name: true } } },
+      }),
+      this.prisma.project.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, title: true, createdAt: true },
+      }),
+      this.prisma.dispute.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true, createdAt: true, status: true,
+          raisedBy: { select: { profile: { select: { name: true } } } },
+          contract: { select: { project: { select: { title: true } } } },
+        },
+      }),
+      this.prisma.proposal.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true, createdAt: true,
+          project: { select: { title: true } },
+          freelancer: { select: { profile: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.contract.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true, createdAt: true,
+          project: { select: { title: true } },
+          client: { select: { profile: { select: { name: true } } } },
+          freelancer: { select: { profile: { select: { name: true } } } },
+        },
+      }),
+    ]);
+
+    const events: { text: string; time: Date; type: string }[] = [
+      ...users.map(u => ({
+        text: `New ${u.role.toLowerCase()} ${u.profile?.name ?? u.email} registered`,
+        time: u.createdAt,
+        type: 'user',
+      })),
+      ...projects.map(p => ({
+        text: `New project posted: "${p.title}"`,
+        time: p.createdAt,
+        type: 'project',
+      })),
+      ...disputes.map(d => ({
+        text: `Dispute opened by ${d.raisedBy.profile?.name ?? 'a user'} on "${d.contract.project.title}"`,
+        time: d.createdAt,
+        type: 'dispute',
+      })),
+      ...proposals.map(p => ({
+        text: `${p.freelancer.profile?.name ?? 'A freelancer'} submitted a proposal for "${p.project.title}"`,
+        time: p.createdAt,
+        type: 'proposal',
+      })),
+      ...contracts.map(c => ({
+        text: `Contract started between ${c.client.profile?.name ?? 'client'} & ${c.freelancer.profile?.name ?? 'freelancer'} for "${c.project.title}"`,
+        time: c.createdAt,
+        type: 'contract',
+      })),
+    ];
+
+    events.sort((a, b) => b.time.getTime() - a.time.getTime());
+
+    return events.slice(0, limit).map(e => ({
+      text: e.text,
+      time: e.time,
+      type: e.type,
+    }));
+  }
+
+  // ── Project counts grouped by top skills (replaces hardcoded categories) ──
+  async getCategoryStats() {
+    const projects = await this.prisma.project.findMany({
+      select: { skills: true, status: true },
+    });
+
+    const skillGroups: Record<string, { label: string; keywords: string[]; color: string; icon: string }> = {
+      'Web Development': { label: 'Web Development', keywords: ['react', 'vue', 'angular', 'node', 'javascript', 'typescript', 'html', 'css', 'next', 'web'], color: '#2563eb', icon: '💻' },
+      'UI/UX Design':    { label: 'UI/UX Design',    keywords: ['figma', 'ux', 'ui', 'design', 'sketch', 'adobe', 'prototyping', 'wireframe'],                  color: '#7c3aed', icon: '🎨' },
+      'Mobile Dev':      { label: 'Mobile Dev',       keywords: ['react native', 'flutter', 'swift', 'kotlin', 'android', 'ios', 'mobile'],                      color: '#059669', icon: '📱' },
+      'AI / ML':         { label: 'AI / ML',          keywords: ['python', 'tensorflow', 'pytorch', 'machine learning', 'ai', 'ml', 'nlp', 'llm', 'data'],       color: '#d97706', icon: '🤖' },
+      'Content Writing': { label: 'Content Writing',  keywords: ['writing', 'copywriting', 'seo', 'content', 'blog', 'technical writing'],                        color: '#db2777', icon: '✍️' },
+      'Marketing':       { label: 'Marketing',        keywords: ['marketing', 'social media', 'google ads', 'analytics', 'email marketing', 'seo'],               color: '#0891b2', icon: '📣' },
+    };
+
+    const counts: Record<string, number> = {};
+    const skillSets: Record<string, Set<string>> = {};
+
+    for (const [key] of Object.entries(skillGroups)) {
+      counts[key] = 0;
+      skillSets[key] = new Set();
+    }
+
+    for (const project of projects) {
+      const normalised = project.skills.map(s => s.toLowerCase());
+      for (const [key, group] of Object.entries(skillGroups)) {
+        if (normalised.some(s => group.keywords.some(k => s.includes(k)))) {
+          counts[key]++;
+          normalised.forEach(s => skillSets[key].add(s));
+        }
+      }
+    }
+
+    const total = Math.max(...Object.values(counts), 1);
+
+    return Object.entries(skillGroups).map(([key, group]) => ({
+      name: group.label,
+      projects: counts[key],
+      color: group.color,
+      icon: group.icon,
+      skills: Array.from(skillSets[key]).slice(0, 8),
+    }));
+  }
+
+  // ── Badge counts for nav (pending users without profile, open disputes) ────
+  async getNavBadges() {
+    const [pendingKyc, openDisputes] = await Promise.all([
+      this.prisma.profile.count({ where: { kycStatus: 'PENDING' } }),
+      this.prisma.dispute.count({ where: { status: 'OPEN' } }),
+    ]);
+    return { pendingKyc, openDisputes };
+  }
+
+  // ── Platform trust stats (replaces landing page hardcoded numbers) ─────────
+  async getPlatformTrustStats() {
+    const [totalFreelancers, totalProjects, totalContractValue] = await Promise.all([
+      this.prisma.user.count({ where: { role: 'FREELANCER' } }),
+      this.prisma.project.count(),
+      this.prisma.milestone.aggregate({ where: { status: 'PAID' }, _sum: { amount: true } }),
+    ]);
+
+    const totalValueDollars = Math.floor((totalContractValue._sum.amount ?? 0) / 100);
+    return {
+      totalFreelancers,
+      totalProjects,
+      totalValueDollars,
     };
   }
 }

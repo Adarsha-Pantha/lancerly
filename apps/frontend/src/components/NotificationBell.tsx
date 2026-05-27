@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bell, Check } from 'lucide-react';
+import Link from 'next/link';
 import { useNotifications } from '@/context/NotificationContext';
 
 export const NotificationBell = () => {
@@ -77,6 +78,15 @@ export const NotificationBell = () => {
                 ))
               )}
             </div>
+          </div>
+          <div className="border-t border-gray-100 px-4 py-2">
+            <Link
+              href="/notifications"
+              onClick={() => setIsOpen(false)}
+              className="block text-center text-xs font-semibold text-[#6B4EFF] hover:underline py-1"
+            >
+              View all notifications →
+            </Link>
           </div>
         </div>
       )}

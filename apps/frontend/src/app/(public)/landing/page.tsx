@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -54,6 +54,11 @@ const trustStats = [
   { value: "24/7",  label: "Expert Support"    },
 ];
 
+function formatNumber(n: number) {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M+`;
+  if (n >= 1_000) return `${Math.floor(n / 1_000)}k+`;
+  return n.toString();
+}
 
 const VIOLET        = "#4f3fe0";
 const VIOLET_LIGHT  = "#eeecfc";   
@@ -62,10 +67,28 @@ export default function LandingPage() {
   const { token, loading } = useAuth();
   const router = useRouter();
   const containerRef = useRef(null);
+  const [liveStats, setLiveStats] = useState<{ value: string; label: string }[]>(trustStats);
 
   useEffect(() => {
     if (!loading && token) router.replace("/home");
   }, [loading, token, router]);
+
+  // Fetch real platform stats (no auth needed — public endpoint)
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/admin/stats/trust`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.totalFreelancers != null) {
+          setLiveStats([
+            { value: d.totalValueDollars > 0 ? formatNumber(d.totalValueDollars) : "$50M+", label: "Project Value" },
+            { value: formatNumber(d.totalFreelancers), label: "Verified Talents" },
+            { value: formatNumber(d.totalProjects), label: "Projects Posted" },
+            { value: "24/7", label: "Expert Support" },
+          ]);
+        }
+      })
+      .catch(() => {}); // silently fall back to defaults
+  }, []);
 
   if (loading || token) return null;
 
@@ -425,7 +448,7 @@ export default function LandingPage() {
           <div className="h-px bg-gray-100 mb-20" />
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
-            {trustStats.map((stat, i) => (
+            {liveStats.map((stat, i) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 18 }}

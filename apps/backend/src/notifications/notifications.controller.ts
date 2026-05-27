@@ -1,34 +1,61 @@
-import { Controller, Get, Post, Param, UseGuards, Req, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request } from 'express';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Request } from 'express';
 
-interface AuthenticatedRequest extends Request {
-  user: { userId: string };
-}
-
-@UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  getUserNotifications(@Req() req: AuthenticatedRequest) {
-    return this.notificationsService.getUserNotifications(req.user.userId);
+  @UseGuards(JwtAuthGuard)
+  async findAll(@Req() req: Request) {
+    try {
+      const userId = (req.user as { sub: string })?.sub;
+      if (!userId) {
+        return { message: 'User not found', statusCode: 401 };
+      }
+      return await this.notificationsService.getUserNotifications(userId);
+    } catch (error: unknown) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
   }
 
-  @Post('read-all')
-  @HttpCode(204)
-  markAllAsRead(@Req() req: AuthenticatedRequest) {
-    return this.notificationsService.markAllAsRead(req.user.userId);
+  @Patch(':id/read')
+  @UseGuards(JwtAuthGuard)
+  async markAsRead(@Param('id') id: string, @Req() req: Request) {
+    try {
+      const userId = (req.user as { sub: string })?.sub;
+      if (!userId) {
+        return { message: 'User not found', statusCode: 401 };
+      }
+      return await this.notificationsService.markAsRead(userId, id);
+    } catch (error: unknown) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
   }
 
-  @Post(':id/read')
-  @HttpCode(204)
-  markAsRead(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') notificationId: string,
-  ) {
-    return this.notificationsService.markAsRead(req.user.userId, notificationId);
+  @Patch('read-all')
+  @UseGuards(JwtAuthGuard)
+  async markAllAsRead(@Req() req: Request) {
+    try {
+      const userId = (req.user as { sub: string })?.sub;
+      if (!userId) {
+        return { message: 'User not found', statusCode: 401 };
+      }
+      return await this.notificationsService.markAllAsRead(userId);
+    } catch (error: unknown) {
+      console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
   }
 }

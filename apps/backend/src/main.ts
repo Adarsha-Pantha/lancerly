@@ -27,7 +27,6 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'https://footiest-zada-retreative.ngrok-free.dev',
-      'http://192.168.1.77:3000',
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],

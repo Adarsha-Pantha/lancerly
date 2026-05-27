@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Req,
+  Body,
   UploadedFiles,
   UseInterceptors,
   BadRequestException,
@@ -95,6 +96,27 @@ export class FeedController {
       req.headers['authorization'] as string | undefined,
     );
     return this.feedService.remove(userId, id);
+  }
+
+  @Get(':id/comments')
+  async getComments(@Req() req: Request, @Param('id') id: string) {
+    await this.feedService.userIdFromAuth(
+      req.headers['authorization'] as string | undefined,
+    );
+    return this.feedService.getComments(id);
+  }
+
+  @Post(':id/comments')
+  async addComment(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body('content') content: string,
+  ) {
+    const userId = await this.feedService.userIdFromAuth(
+      req.headers['authorization'] as string | undefined,
+    );
+    if (!content?.trim()) throw new BadRequestException('Content is required');
+    return this.feedService.addComment(userId, id, content.trim());
   }
 }
 

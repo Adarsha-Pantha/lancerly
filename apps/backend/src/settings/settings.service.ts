@@ -8,6 +8,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as speakeasy from 'speakeasy';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UpdatePasswordDto,
@@ -17,16 +19,22 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { AiService } from '../ai/ai.service';
 
 const BCRYPT_ROUNDS = 10;
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 const AVATAR_SUBDIR = 'avatars';
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+const DOCUMENT_SUBDIR = 'documents';
+const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20MB
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+  ) {}
 
   // ─── GET SETTINGS ─────────────────────────────────────────────────────────
   async getSettings(userId: string) {
@@ -50,6 +58,7 @@ export class SettingsService {
             state: true,
             availability: true,
             avatarUrl: true,
+            hourlyRate: true,
           },
         },
       },
@@ -78,6 +87,7 @@ export class SettingsService {
         state: user.profile?.state ?? null,
         availability,
         avatarUrl: user.profile?.avatarUrl ?? null,
+        hourlyRate: user.profile?.hourlyRate ?? null,
       },
     };
   }
@@ -102,9 +112,28 @@ export class SettingsService {
     if (dto.country !== undefined) profileData.country = dto.country;
     if (dto.city !== undefined) profileData.city = dto.city;
     if (dto.state !== undefined) profileData.state = dto.state;
+    if (dto.hourlyRate !== undefined) profileData.hourlyRate = dto.hourlyRate;
+    if (dto.availability !== undefined) profileData.availability = dto.availability;
 
     if (Object.keys(profileData).length === 0) {
       return { message: 'No profile fields to update', profile: {} };
+    }
+
+    if (dto.headline !== undefined || dto.bio !== undefined || dto.skills !== undefined) {
+      try {
+        const currentData = await this.prisma.profile.findUnique({ where: { userId } });
+        const skillsRaw = dto.skills ?? currentData?.skills;
+        const skillsStr = Array.isArray(skillsRaw) ? skillsRaw.join(', ') : String(skillsRaw || '');
+        const contentToEmbed = [
+          dto.headline ?? currentData?.headline ?? '',
+          dto.bio ?? currentData?.bio ?? '',
+          skillsStr
+        ].filter(Boolean).join('\n');
+        
+        profileData.embedding = await this.aiService.generateEmbedding(contentToEmbed);
+      } catch (e) {
+        console.error('Failed to generate profile embedding', e);
+      }
     }
 
     const updated = await this.prisma.profile.upsert({
@@ -131,6 +160,8 @@ export class SettingsService {
         country: true,
         city: true,
         state: true,
+        hourlyRate: true,
+        availability: true,
       },
     });
 
@@ -376,6 +407,37 @@ export class SettingsService {
     };
   }
 
+  // ─── UPLOAD DOCUMENT (for chat attachments) ─────────────────────────────
+  async uploadDocument(userId: string, file: Express.Multer.File) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    if (file.size > MAX_DOCUMENT_SIZE) {
+      throw new BadRequestException('File size must not exceed 20MB');
+    }
+
+    const dir = path.join(UPLOAD_DIR, DOCUMENT_SUBDIR);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Preserve original extension safe-ishly
+    const ext = path.extname(file.originalname) || '';
+    const filename = `${userId}-${Date.now()}${ext}`;
+    const filepath = path.join(dir, filename);
+
+    fs.writeFileSync(filepath, file.buffer);
+
+    const attachmentUrl = `/uploads/${DOCUMENT_SUBDIR}/${filename}`;
+
+    return {
+      message: 'File uploaded successfully',
+      attachmentUrl,
+      attachmentName: file.originalname,
+    };
+  }
+
   // ─── DELETE ACCOUNT ──────────────────────────────────────────────────────
   async deleteAccount(userId: string, dto: DeleteAccountDto) {
     if (dto.confirmation !== 'DELETE') {
@@ -417,5 +479,46 @@ export class SettingsService {
     return {
       message: 'Account deleted successfully',
     };
+  }
+
+  // ─── 2FA SETUP (generate secret + QR) ──────────────────────────────────────
+  async setup2FA(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true, twoFA: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.twoFA) throw new ConflictException('2FA is already enabled');
+
+    const secret = speakeasy.generateSecret({ name: `Lancerly (${user.email})`, length: 20 });
+    // Store secret temporarily (not enabled yet)
+    await this.prisma.user.update({ where: { id: userId }, data: { twoFASecret: secret.base32 } });
+
+    const qrCode = await QRCode.toDataURL(secret.otpauth_url!);
+    return { qrCode, secret: secret.base32 };
+  }
+
+  // ─── 2FA ENABLE (verify OTP then flip flag) ─────────────────────────────────
+  async enable2FA(userId: string, token: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { twoFA: true, twoFASecret: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.twoFA) throw new ConflictException('2FA is already enabled');
+    if (!user.twoFASecret) throw new BadRequestException('Call /settings/2fa/setup first');
+
+    const valid = speakeasy.totp.verify({ secret: user.twoFASecret, encoding: 'base32', token, window: 1 });
+    if (!valid) throw new BadRequestException('Invalid verification code');
+
+    await this.prisma.user.update({ where: { id: userId }, data: { twoFA: true } });
+    return { message: '2FA enabled successfully' };
+  }
+
+  // ─── 2FA DISABLE ──────────────────────────────────────────────────────────────
+  async disable2FA(userId: string, token: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { twoFA: true, twoFASecret: true } });
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.twoFA) throw new BadRequestException('2FA is not enabled');
+
+    const valid = speakeasy.totp.verify({ secret: user.twoFASecret!, encoding: 'base32', token, window: 1 });
+    if (!valid) throw new BadRequestException('Invalid verification code');
+
+    await this.prisma.user.update({ where: { id: userId }, data: { twoFA: false, twoFASecret: null } });
+    return { message: '2FA disabled successfully' };
   }
 }

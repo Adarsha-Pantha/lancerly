@@ -72,7 +72,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       });
       if (res.ok && isMountedRef.current) {
         const data = await res.json();
-        safeSetState(setNotifications, data);
+        // Handle both array and object responses
+        const notificationsArray = Array.isArray(data) ? data : (data?.data || []);
+        safeSetState(setNotifications, notificationsArray);
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -162,9 +164,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const markAsRead = useCallback(async (id: string) => {
     if (!apiToken || !isMountedRef.current) return;
     // Optimistic update
-    if (isMountedRef.current) {
+    if (isMountedRef.current && Array.isArray(notifications)) {
       safeSetState(setNotifications, (prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+        Array.isArray(prev) ? prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)) : prev,
       );
     }
     try {
@@ -178,13 +180,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       console.error('Failed to mark notification as read:', error);
       // Consider reverting optimistic update on failure
     }
-  }, [apiUrl, safeSetState]);
+  }, [apiUrl, safeSetState, notifications]);
 
   const markAllAsRead = useCallback(async () => {
     if (!apiToken || !isMountedRef.current) return;
     // Optimistic update
-    if (isMountedRef.current) {
-      safeSetState(setNotifications, (prev) => prev.map((n) => ({ ...n, isRead: true })));
+    if (isMountedRef.current && Array.isArray(notifications)) {
+      safeSetState(setNotifications, (prev) => Array.isArray(prev) ? prev.map((n) => ({ ...n, isRead: true })) : prev);
     }
     try {
       await fetch(`${apiUrl}/notifications/read-all`, {
@@ -197,9 +199,9 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       console.error('Failed to mark all notifications as read:', error);
       // Consider reverting optimistic update on failure
     }
-  }, [apiUrl, safeSetState]);
+  }, [apiUrl, safeSetState, notifications]);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter((n) => !n.isRead).length : 0;
 
   return (
     <NotificationContext.Provider

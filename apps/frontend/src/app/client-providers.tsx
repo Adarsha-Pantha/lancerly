@@ -15,11 +15,9 @@ const APP_SHELL_ROUTES = [
   "/contracts",
   "/proposals",
   "/messages",
-  "/friends",
   "/analytics",
   "/skills",
   "/network",
-  "/users",
 ];
 
 // This component manages the lifecycle of the notification connection

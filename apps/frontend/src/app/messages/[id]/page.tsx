@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { get, post } from "@/lib/api";
 import { toPublicUrl } from "@/lib/url";
+import { UserProfilePanel } from "@/components/profile/UserProfilePanel";
 import { io, Socket } from "socket.io-client";
 import {
   ArrowLeft,
@@ -69,6 +70,7 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [profilePanelUserId, setProfilePanelUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -335,8 +337,8 @@ export default function ChatPage() {
             >
               <ArrowLeft size={20} className="text-slate-600" />
             </Link>
-            <Link
-              href={`/users/${conversation.participant.id}`}
+            <button
+              onClick={() => setProfilePanelUserId(conversation.participant.id)}
               className="hover:opacity-80 transition-opacity"
             >
               <img
@@ -344,17 +346,17 @@ export default function ChatPage() {
                 alt={conversation.participant.name}
                 className="h-10 w-10 rounded-full object-cover ring-2 ring-purple-200"
               />
-            </Link>
+            </button>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <Link
-                  href={`/users/${conversation.participant.id}`}
+                <button
+                  onClick={() => setProfilePanelUserId(conversation.participant.id)}
                   className="hover:text-purple-600 transition-colors"
                 >
                   <h2 className="font-semibold text-slate-900">
                     {conversation.participant.name}
                   </h2>
-                </Link>
+                </button>
                 {conversation.participant.isOnline && (
                   <span className="h-2 w-2 rounded-full bg-green-500" title="Online" />
                 )}
@@ -546,6 +548,13 @@ export default function ChatPage() {
           </form>
         </div>
       </div>
+
+      {profilePanelUserId && (
+        <UserProfilePanel
+          userId={profilePanelUserId}
+          onClose={() => setProfilePanelUserId(null)}
+        />
+      )}
     </div>
   );
 }

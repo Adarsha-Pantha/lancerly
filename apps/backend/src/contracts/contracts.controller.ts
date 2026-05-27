@@ -7,8 +7,13 @@ import {
   Param,
   Req,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { ContractsService } from './contracts.service';
 import { DeliveriesService } from './deliveries.service';
 import { TimeTrackingService } from './time-tracking.service';
@@ -42,6 +47,20 @@ export class ContractsController {
       role = user?.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER';
     }
     return this.contractsService.getStats(userId, role);
+  }
+
+  /** Get transaction history */
+  @Get('transactions')
+  async getTransactions(@Req() req: Request, @Query('role') role?: 'CLIENT' | 'FREELANCER') {
+    const userId = await this.getUserId(req);
+    if (!role) {
+      const user = await this.contractsService.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      role = user?.role === 'CLIENT' ? 'CLIENT' : 'FREELANCER';
+    }
+    return this.contractsService.getTransactions(userId, role as 'CLIENT' | 'FREELANCER');
   }
 
   /** Get contracts for current user */
@@ -136,14 +155,31 @@ export class ContractsController {
     return this.contractsService.updateTerms(contractId, userId, dto.terms ?? '');
   }
 
-  /** Submit a delivery */
+  /** Submit a delivery with file upload */
   @Post(':contractId/deliveries')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: 'uploads/documents',
+      filename: (_req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, 'delivery-' + unique + extname(file.originalname));
+      },
+    }),
+    limits: { fileSize: 20 * 1024 * 1024 },
+  }))
   async createDelivery(
     @Req() req: Request,
     @Param('contractId') contractId: string,
-    @Body() dto: CreateDeliveryDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body('message') message?: string,
   ) {
     const freelancerId = await this.getUserId(req);
+    const fileUrl = file ? `/uploads/documents/${file.filename}` : undefined;
+    const dto: CreateDeliveryDto = {
+      title: file?.originalname ?? 'Delivery',
+      description: message ?? '',
+      attachments: fileUrl ? [fileUrl] : [],
+    };
     return this.deliveriesService.create(contractId, freelancerId, dto);
   }
 

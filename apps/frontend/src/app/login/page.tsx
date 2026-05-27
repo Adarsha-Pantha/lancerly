@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Mail, Lock, LogIn, Sparkles } from "lucide-react";
@@ -6,7 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AnimatedButton from "@/components/ui/AnimatedButton";
-import LandingNavbar from "@/components/LandingNavbar";
+import Navbar from "@/components/Navbar";
 
 type Errors = { email?: string; password?: string; form?: string };
 
@@ -15,7 +16,7 @@ const apiBase =
 
 const REDIRECT_KEY = "postLoginRedirect";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const justRegistered = sp.get("registered") === "1";
@@ -95,7 +96,7 @@ export default function LoginPage() {
 
   return (
     <React.Fragment>
-      <LandingNavbar />
+      <Navbar />
       <div className="flex items-center justify-center min-h-screen bg-[#F5F7FA] px-4">
         <div className="w-full max-w-md animate-slideUp">
         {/* Header */}
@@ -245,5 +246,22 @@ export default function LoginPage() {
       </div>
     </div>
     </React.Fragment>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <React.Fragment>
+          <Navbar />
+          <div className="flex items-center justify-center min-h-[60vh] text-slate-600">
+            Loading…
+          </div>
+        </React.Fragment>
+      }
+    >
+      <LoginInner />
+    </Suspense>
   );
 }

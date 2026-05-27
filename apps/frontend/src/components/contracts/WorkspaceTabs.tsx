@@ -1,9 +1,9 @@
 "use client";
 
-import { MessageCircle, ListChecks, LayoutDashboard } from "lucide-react";
+import { MessageCircle, ListChecks, LayoutDashboard, Phone, PackageOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type WorkspaceTab = "overview" | "milestones" | "chat";
+export type WorkspaceTab = "overview" | "milestones" | "chat" | "meetings" | "deliveries";
 
 type WorkspaceTabsProps = {
   active: WorkspaceTab;
@@ -14,7 +14,9 @@ type WorkspaceTabsProps = {
 const TABS: { id: WorkspaceTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "milestones", label: "Milestones", icon: ListChecks },
+  { id: "deliveries", label: "Deliveries", icon: PackageOpen },
   { id: "chat", label: "Messages", icon: MessageCircle },
+  { id: "meetings", label: "Meetings", icon: Phone },
 ];
 
 export function WorkspaceTabs({ active, onSelect, className }: WorkspaceTabsProps) {

@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { get, toPublicUrl } from "@/lib/api";
+import { get, post, toPublicUrl } from "@/lib/api";
 
 type User = {
   id: string;
   email: string;
   role: string;
   createdAt: string;
+  isSuspended: boolean;
   profile: any;
   stats: { projects: number; proposals: number; posts: number; conversations: number };
 };
@@ -38,6 +39,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -63,6 +66,37 @@ export default function AdminUsersPage() {
     const mf = filter === "all" || u.role.toLowerCase() === filter;
     return mq && mf;
   });
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(u => u.id)));
+    }
+  }
+
+  async function handleBulkSuspend(suspend: boolean) {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`${suspend ? "Suspend" : "Unsuspend"} ${selectedIds.size} user(s)?`)) return;
+    setBulkLoading(true);
+    try {
+      await post("/admin/users/bulk-suspend", { userIds: Array.from(selectedIds), suspend }, token!);
+      setSelectedIds(new Set());
+      loadUsers();
+    } catch (e: any) {
+      alert(e?.message || "Failed");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
 
   return (
     <>
@@ -116,7 +150,26 @@ export default function AdminUsersPage() {
               <Icon d={icons.search[0]} size={13} stroke="#9ca3af" />
               <input placeholder="Search users…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <button className="usr-btn"><Icon d={icons.check} size={12} />Bulk Approve</button>
+            {selectedIds.size > 0 && (
+              <>
+                <button
+                  className="usr-btn"
+                  style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" }}
+                  onClick={() => handleBulkSuspend(true)}
+                  disabled={bulkLoading}
+                >
+                  🚫 Suspend ({selectedIds.size})
+                </button>
+                <button
+                  className="usr-btn"
+                  style={{ background: "#dcfce7", color: "#15803d", border: "1px solid #86efac" }}
+                  onClick={() => handleBulkSuspend(false)}
+                  disabled={bulkLoading}
+                >
+                  ✓ Unsuspend ({selectedIds.size})
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -129,6 +182,13 @@ export default function AdminUsersPage() {
                 <table className="usr-tbl">
                   <thead>
                     <tr>
+                      <th style={{ width: 36 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === filtered.length && filtered.length > 0}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
                       <th>User</th>
                       <th>Role</th>
                       <th>KYC</th>
@@ -140,7 +200,14 @@ export default function AdminUsersPage() {
                   </thead>
                   <tbody>
                     {filtered.map((u, i) => (
-                      <tr key={u.id}>
+                      <tr key={u.id} style={u.isSuspended ? { background: "#fff7f7" } : undefined}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(u.id)}
+                            onChange={() => toggleSelect(u.id)}
+                          />
+                        </td>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                             <div className="usr-av" style={{ background: AV_COLORS[i % AV_COLORS.length], overflow: "hidden" }}>
@@ -151,7 +218,10 @@ export default function AdminUsersPage() {
                               )}
                             </div>
                             <div>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{u.profile?.name || "Unknown"}</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                                {u.profile?.name || "Unknown"}
+                                {u.isSuspended && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#b91c1c", background: "#fee2e2", padding: "1px 6px", borderRadius: 10 }}>Suspended</span>}
+                              </div>
                               <div style={{ fontSize: 11.5, color: "#9ca3af" }}>{u.email}</div>
                             </div>
                           </div>
@@ -182,7 +252,7 @@ export default function AdminUsersPage() {
                     ))}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+                        <td colSpan={8} style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
                           No users match.
                         </td>
                       </tr>

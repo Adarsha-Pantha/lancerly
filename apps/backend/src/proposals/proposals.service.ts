@@ -15,6 +15,7 @@ import { CreateProposalDto } from './dto/create-proposal.dto';
 import { GenerateDraftDto } from './dto/generate-draft.dto';
 export { GenerateDraftDto };
 import { ModerationService } from '../common/moderation/moderation.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class ProposalsService {
@@ -25,6 +26,7 @@ export class ProposalsService {
     private readonly notificationsService: NotificationsService,
     private readonly conversationsService: ConversationsService,
     private readonly moderationService: ModerationService,
+    private readonly mail: MailService,
   ) {}
 
   async userIdFromAuth(auth?: string) {
@@ -286,6 +288,23 @@ export class ProposalsService {
       },
     );
 
+    // Send email to freelancer
+    const freelancerUser = await this.prisma.user.findUnique({
+      where: { id: proposal.freelancerId },
+      select: { email: true, emailNotifications: true, profile: { select: { name: true } } },
+    });
+    if (freelancerUser?.emailNotifications) {
+      await this.mail.send({
+        to: freelancerUser.email,
+        template: 'proposal_accepted',
+        data: {
+          name: freelancerUser.profile?.name ?? 'Freelancer',
+          projectTitle: proposal.project.title,
+          contractId: contract.id,
+        },
+      });
+    }
+
     // Create project-linked conversation so client and freelancer can chat about the project
     try {
       await this.conversationsService.create(clientId, {
@@ -334,6 +353,22 @@ export class ProposalsService {
         projectId: proposal.projectId,
       },
     );
+
+    // Send email to freelancer
+    const freelancerUser = await this.prisma.user.findUnique({
+      where: { id: proposal.freelancerId },
+      select: { email: true, emailNotifications: true, profile: { select: { name: true } } },
+    });
+    if (freelancerUser?.emailNotifications) {
+      await this.mail.send({
+        to: freelancerUser.email,
+        template: 'proposal_rejected',
+        data: {
+          name: freelancerUser.profile?.name ?? 'Freelancer',
+          projectTitle: proposal.project.title,
+        },
+      });
+    }
 
     return { message: 'Proposal rejected' };
   }

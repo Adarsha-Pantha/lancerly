@@ -16,10 +16,13 @@ type SiteLayoutProps = {
  */
 export default function SiteLayout({ children, hideFooter }: SiteLayoutProps) {
   const { user } = useAuth();
+  const safeUser = user
+    ? { name: user.name ?? undefined, email: user.email ?? undefined, role: user.role ?? undefined }
+    : null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <SiteNavbar user={user} />
+      <SiteNavbar user={safeUser} />
       <main className="flex-1">{children}</main>
       {!hideFooter && <SiteFooter />}
     </div>

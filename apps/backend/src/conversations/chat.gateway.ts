@@ -71,6 +71,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     data: {
       conversationId: string;
       content: string;
+      attachmentUrl?: string;
+      attachmentName?: string;
     },
   ) {
     const userId = this.users.get(client.id);
@@ -78,12 +80,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.disconnect();
       return;
     }
-    if (!data?.conversationId || !data?.content?.trim()) return;
+    if (!data?.conversationId || (!data?.content?.trim() && !data?.attachmentUrl)) return;
 
     const message = await this.conversations.sendMessage(
       data.conversationId,
       userId,
-      { content: data.content.trim() },
+      { 
+        content: data.content?.trim() || "",
+        attachmentUrl: data.attachmentUrl,
+        attachmentName: data.attachmentName
+      },
     );
 
     this.server

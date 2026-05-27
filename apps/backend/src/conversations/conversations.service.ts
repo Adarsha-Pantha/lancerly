@@ -67,6 +67,7 @@ export class ConversationsService {
           client: {
             select: {
               id: true,
+              lastActiveAt: true,
               profile: {
                 select: {
                   name: true,
@@ -78,6 +79,7 @@ export class ConversationsService {
           freelancer: {
             select: {
               id: true,
+              lastActiveAt: true,
               profile: {
                 select: {
                   name: true,
@@ -89,6 +91,16 @@ export class ConversationsService {
           messages: {
             orderBy: { createdAt: 'desc' },
             take: 1,
+          },
+          _count: {
+            select: {
+              messages: {
+                where: {
+                  senderId: { not: userId },
+                  isRead: false,
+                },
+              },
+            },
           },
           project: {
             select: {
@@ -105,19 +117,13 @@ export class ConversationsService {
       return conversations.map(conv => {
         const isClient = userId === conv.clientId;
         const otherUser = isClient ? conv.freelancer : conv.client;
-        const lastReadAt = isClient ? conv.clientLastReadAt : conv.freelancerLastReadAt;
         const lastMessage = conv.messages && conv.messages[0] ? conv.messages[0] : null;
-        const hasUnread = !!(
-          lastMessage &&
-          lastMessage.createdAt &&
-          lastMessage.createdAt > lastReadAt &&
-          lastMessage.senderId !== userId
-        );
         
-        if (!otherUser) {
-          // Handle edge case where relation might be missing
-          return null;
-        }
+        if (!otherUser) return null;
+
+        const isOnline = (otherUser as any).lastActiveAt 
+          ? (new Date().getTime() - new Date((otherUser as any).lastActiveAt).getTime()) < 5 * 60 * 1000 
+          : false;
 
         return {
           id: conv.id,
@@ -127,13 +133,16 @@ export class ConversationsService {
             id: otherUser.id,
             name: otherUser.profile?.name || 'Unknown',
             avatarUrl: otherUser.profile?.avatarUrl || null,
+            isOnline,
           },
           lastMessage: lastMessage ? {
             content: lastMessage.content,
             createdAt: lastMessage.createdAt,
             senderId: lastMessage.senderId,
+            isRead: lastMessage.isRead,
           } : null,
-          hasUnread,
+          unreadCount: (conv as any)._count?.messages || 0,
+          hasUnread: ((conv as any)._count?.messages || 0) > 0,
           createdAt: conv.createdAt,
           updatedAt: conv.updatedAt || conv.createdAt,
         };
@@ -184,7 +193,10 @@ export class ConversationsService {
       where: { id: conversationId },
       include: {
         client: {
-          include: {
+          select: {
+            id: true,
+            email: true,
+            lastActiveAt: true,
             profile: {
               select: {
                 name: true,
@@ -194,7 +206,10 @@ export class ConversationsService {
           },
         },
         freelancer: {
-          include: {
+          select: {
+            id: true,
+            email: true,
+            lastActiveAt: true,
             profile: {
               select: {
                 name: true,
@@ -220,7 +235,16 @@ export class ConversationsService {
       throw new ForbiddenException('Access denied to this conversation');
     }
 
-    // Mark conversation as read for this user when they open it
+    // Mark all received messages in this conversation as read for this user
+    await this.prisma.message.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+
     const now = new Date();
     await this.prisma.conversation.update({
       where: { id: conversationId },
@@ -254,6 +278,10 @@ export class ConversationsService {
       throw new NotFoundException('Participant not found in conversation');
     }
 
+    const isOnline = (otherUser as any).lastActiveAt 
+      ? (new Date().getTime() - new Date((otherUser as any).lastActiveAt).getTime()) < 5 * 60 * 1000 
+      : false;
+
     return {
       id: conversation.id,
       projectId: conversation.projectId,
@@ -262,6 +290,7 @@ export class ConversationsService {
         id: otherUser.id,
         name: otherUser.profile?.name || 'Unknown',
         avatarUrl: otherUser.profile?.avatarUrl || null,
+        isOnline,
       },
       messages: messages.map(msg => ({
         id: msg.id,
@@ -272,6 +301,9 @@ export class ConversationsService {
           name: msg.sender?.profile?.name || 'Unknown',
           avatarUrl: msg.sender?.profile?.avatarUrl || null,
         },
+        isRead: msg.isRead,
+        attachmentUrl: (msg as any).attachmentUrl,
+        attachmentName: (msg as any).attachmentName,
         createdAt: msg.createdAt,
       })),
       createdAt: conversation.createdAt,
@@ -413,6 +445,8 @@ export class ConversationsService {
         conversationId,
         senderId: userId,
         content,
+        attachmentUrl: dto.attachmentUrl,
+        attachmentName: dto.attachmentName,
         createdAt: now,
         moderationStatus: moderation.status,
         moderationNotes: moderation.notes,
@@ -472,8 +506,47 @@ export class ConversationsService {
         name: message.sender.profile?.name || 'Unknown',
         avatarUrl: message.sender.profile?.avatarUrl || null,
       },
+      attachmentUrl: (message as any).attachmentUrl,
+      attachmentName: (message as any).attachmentName,
       createdAt: message.createdAt,
     };
+  }
+
+  /** Mark all unread messages in a conversation as read */
+  async markAsRead(conversationId: string, userId: string) {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (conversation.clientId !== userId && conversation.freelancerId !== userId) {
+      throw new ForbiddenException('Access denied to this conversation');
+    }
+
+    // Update messages
+    await this.prisma.message.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+
+    // Also update conversation timestamp
+    const now = new Date();
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data:
+        conversation.clientId === userId
+          ? { clientLastReadAt: now }
+          : { freelancerLastReadAt: now },
+    });
+
+    return { success: true };
   }
 }
 

@@ -15,6 +15,8 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import { KYCVerifiedBadge, DoubleBlindReviewCard } from "@/components/ui/TrustBadges";
 import { Button } from "@/components/ui/button";
 import { ReviewModal } from "@/components/contracts/ReviewModal";
+import { MeetingsTab } from "@/components/contracts/MeetingsTab";
+import { DeliveriesTab } from "@/components/contracts/DeliveriesTab";
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -366,7 +368,12 @@ export default function ContractPage() {
                       </h3>
                       {(() => {
                         const nextMilestone = contract.milestones.find(m => m.status !== "PAID");
-                        if (!nextMilestone) return <p className="text-sm text-muted-foreground">All milestones are completed and paid!</p>;
+                        if (!nextMilestone) return (
+                          <div className="text-center py-2">
+                            <p className="text-sm font-semibold text-green-700 mb-1">All milestones have been paid!</p>
+                            <p className="text-xs text-muted-foreground">Click <strong>Finish &amp; End Contract</strong> below to close this contract.</p>
+                          </div>
+                        );
                         
                         return (
                           <div className="space-y-4">
@@ -471,14 +478,97 @@ export default function ContractPage() {
                       <Scale size={16} className="mr-2" />
                       Raise Dispute
                     </Button>
-                    {isClient &&
-                      contract.milestones.length > 0 &&
-                      contract.milestones.every((m) => m.status === "PAID") && (
-                        <Button onClick={completeContract} className="bg-[#059669] hover:bg-[#047857]">
+                    {isClient && contract.milestones.length > 0 && (() => {
+                      const allPaid = contract.milestones.every((m) => m.status === "PAID");
+                      const pendingCount = contract.milestones.filter((m) => m.status !== "PAID").length;
+                      return (
+                        <Button
+                          onClick={completeContract}
+                          disabled={!allPaid}
+                          title={!allPaid ? `${pendingCount} milestone${pendingCount !== 1 ? "s" : ""} still unpaid` : "All milestones paid — ready to close"}
+                          className={allPaid ? "bg-[#059669] hover:bg-[#047857] text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"}
+                        >
                           <CheckCircle2 size={16} className="mr-2" />
-                          Mark as completed
+                          {allPaid ? "Finish & End Contract" : `Finish & End Contract (${pendingCount} unpaid)`}
                         </Button>
-                      )}
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Raise Dispute Modal */}
+                {showDisputeModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDisputeModal(false)}>
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {/* <Scale size={18} className="text-amber-600" /> */}
+                        <h3 className="text-lg font-bold text-slate-900">Raise a Dispute</h3>
+                      </div>
+                      <p className="text-sm text-slate-500 mb-5">Describe the issue. Our team will review it within 48 hours.</p>
+                      <form onSubmit={submitDispute} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Dispute Type</label>
+                          <select
+                            value={disputeType}
+                            onChange={(e) => setDisputeType(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                          >
+                            <option value="PAYMENT">Payment Issue</option>
+                            <option value="SCOPE">Scope Dispute</option>
+                            <option value="DELIVERY">Delivery Problem</option>
+                            <option value="QUALITY">Quality Issue</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                          <input
+                            type="text"
+                            required
+                            value={disputeTitle}
+                            onChange={(e) => setDisputeTitle(e.target.value)}
+                            placeholder="Brief summary of the issue"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                          <textarea
+                            required
+                            minLength={10}
+                            value={disputeDesc}
+                            onChange={(e) => setDisputeDesc(e.target.value)}
+                            placeholder="Describe the issue in detail…"
+                            rows={4}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Evidence (optional)</label>
+                          <input
+                            type="file"
+                            onChange={(e) => setDisputeFile(e.target.files?.[0] || null)}
+                            className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                          />
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                          <button
+                            type="submit"
+                            disabled={disputeSubmitting}
+                            className="px-4 py-2 bg-[#6b27d9] text-white rounded-lg text-sm font-semibold disabled:opacity-60"
+                          >
+                            {disputeSubmitting ? "Submitting…" : "Submit Dispute"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowDisputeModal(false)}
+                            className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 )}
 
@@ -812,6 +902,19 @@ export default function ContractPage() {
                   Chat will be available once the project conversation is set up.
                 </p>
               </div>
+            )}
+
+            {activeTab === "meetings" && token && (
+              <MeetingsTab contractId={contractId} token={token} />
+            )}
+
+            {activeTab === "deliveries" && token && user && (
+              <DeliveriesTab
+                contractId={contractId}
+                token={token}
+                isFreelancer={user.role === "FREELANCER"}
+                isClient={user.role === "CLIENT"}
+              />
             )}
 
             {contract.status === "COMPLETED" && (

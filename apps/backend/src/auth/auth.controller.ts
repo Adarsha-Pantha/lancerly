@@ -16,6 +16,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto } from './dto';
 import { AdminRegisterDto, AdminLoginDto } from '../admin/dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -67,15 +68,14 @@ export class AuthController {
   @Put('role')
   @UseGuards(JwtAuthGuard)
   async setRole(
-    @Req() req: Request,
+    @CurrentUser('userId') userId: string,
     @Body() body: { role: 'CLIENT' | 'FREELANCER' },
   ) {
-    const user = (req as any).user as { sub: string };
-    if (!user?.sub) throw new UnauthorizedException('Not authenticated');
+    if (!userId) throw new UnauthorizedException('Not authenticated');
     if (!body?.role || (body.role !== 'CLIENT' && body.role !== 'FREELANCER')) {
       throw new UnauthorizedException('Role must be CLIENT or FREELANCER');
     }
-    return this.auth.setRole(user.sub, body.role);
+    return this.auth.setRole(userId, body.role);
   }
 
   /** Admin register */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { needsCompletion, needsRoleSelection } from "@/lib/auth";
@@ -8,7 +8,7 @@ import { get } from "@/lib/api";
 
 const REDIRECT_KEY = "postLoginRedirect";
 
-export default function OAuthLanding() {
+function OAuthLandingInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const token = sp.get("token");
@@ -47,5 +47,19 @@ export default function OAuthLanding() {
     <div className="flex min-h-[50vh] items-center justify-center text-gray-600">
       Finishing sign-in…
     </div>
+  );
+}
+
+export default function OAuthLanding() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center text-gray-600">
+          Finishing sign-in…
+        </div>
+      }
+    >
+      <OAuthLandingInner />
+    </Suspense>
   );
 }

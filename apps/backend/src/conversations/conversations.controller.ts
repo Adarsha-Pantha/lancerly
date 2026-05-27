@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -57,6 +58,14 @@ export class ConversationsController {
       req.headers['authorization'] as string | undefined,
     );
     return this.conversationsService.sendMessage(id, userId, dto);
+  }
+
+  @Patch(':id/read')
+  async markAsRead(@Param('id') id: string, @Req() req: Request) {
+    const userId = await this.conversationsService.userIdFromAuth(
+      req.headers['authorization'] as string | undefined,
+    );
+    return this.conversationsService.markAsRead(id, userId);
   }
 }
 

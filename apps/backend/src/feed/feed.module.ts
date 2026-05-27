@@ -4,11 +4,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { FeedController } from './feed.controller';
 import { FeedService } from './feed.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ModerationModule } from '../common/moderation/moderation.module';
 
 @Module({
   imports: [
     PrismaModule,
     ConfigModule,
+    ModerationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

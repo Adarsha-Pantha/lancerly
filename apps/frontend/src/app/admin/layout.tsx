@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { get } from "@/lib/api";
 
 const Icon = ({ d, size = 18, stroke = "currentColor", fill = "none", strokeWidth = 1.8 }: any) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -46,6 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, token, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchVal, setSearchVal] = useState("");
+  const [badges, setBadges] = useState<{ pendingKyc: number; openDisputes: number }>({ pendingKyc: 0, openDisputes: 0 });
 
   // Auth check
   useEffect(() => {
@@ -55,6 +57,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/");
     }
   }, [token, user, router, pathname]);
+
+  // Fetch real badge counts whenever user is admin
+  useEffect(() => {
+    if (token && user?.role === "ADMIN") {
+      get<{ pendingKyc: number; openDisputes: number }>("/admin/stats/nav-badges", token)
+        .then(setBadges)
+        .catch(() => {});
+    }
+  }, [token, user]);
 
   const isAuthPage = pathname === "/admin/register";
   if (isAuthPage) {
@@ -209,7 +220,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   >
                     <Icon d={icons[item.icon as keyof typeof icons]} size={17} />
                     <span className="nav-lbl">{item.label}</span>
-                    {/* {item.badge && <span className="nav-badge">{item.badge}</span>} */}
+                    {item.id === "kyc" && badges.pendingKyc > 0 && (
+                      <span className="nav-badge">{badges.pendingKyc}</span>
+                    )}
+                    {item.id === "disputes" && badges.openDisputes > 0 && (
+                      <span className="nav-badge">{badges.openDisputes}</span>
+                    )}
                   </Link>
                 ))}
               </div>

@@ -1,55 +1,76 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/context/ToastContext';
+import { useState } from "react";
+import { useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-interface CheckoutFormProps {
+export function CheckoutForm({
+  milestoneId,
+  contractId,
+}: {
   milestoneId: string;
-}
-
-export const CheckoutForm: React.FC<CheckoutFormProps> = ({ milestoneId }) => {
+  contractId?: string;
+}) {
   const stripe = useStripe();
   const elements = useElements();
-  const toast = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setIsProcessing(true);
-
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/settings/payments/success?milestoneId=${milestoneId}`,
-      },
-    });
-
-    if (error) {
-      toast.toast(error.message ?? 'An unexpected error occurred.', 'error');
-    }
-
-    setIsProcessing(false);
-  };
+  const successUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/settings/payments/success?milestoneId=${milestoneId}${contractId ? `&contractId=${contractId}` : ""}`
+      : `/settings/payments/success?milestoneId=${milestoneId}${contractId ? `&contractId=${contractId}` : ""}`;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="p-4 border rounded-lg bg-background">
-        <PaymentElement />
-      </div>
-      <Button 
-        type="submit" 
-        disabled={!stripe || isProcessing} 
-        className="w-full"
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!stripe || !elements) return;
+        setSubmitting(true);
+        setMessage(null);
+        try {
+          const result = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+              // Used only for redirect-based payments (3DS, bank redirects)
+              return_url: successUrl,
+            },
+            redirect: "if_required",
+          });
+          if (result.error) {
+            setMessage(result.error.message || "Payment failed. Please try again.");
+          } else {
+            // Payment confirmed without redirect
+            router.push(successUrl);
+          }
+        } finally {
+          setSubmitting(false);
+        }
+      }}
+      className="space-y-5"
+    >
+      <PaymentElement />
+      {message && (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {message}
+        </div>
+      )}
+      <Button
+        type="submit"
+        disabled={!stripe || !elements || submitting}
+        className="w-full h-11 text-sm font-bold bg-violet-600 hover:bg-violet-700"
       >
-        {isProcessing ? 'Processing...' : 'Pay Now'}
+        {submitting ? (
+          <span className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            Processing…
+          </span>
+        ) : (
+          "Pay Now"
+        )}
       </Button>
     </form>
   );
-};
+}

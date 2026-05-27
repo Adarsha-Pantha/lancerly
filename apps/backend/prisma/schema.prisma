@@ -16,6 +16,8 @@ model User {
   password  String
   role      Role      @default(FREELANCER)
   twoFA     Boolean   @default(false)
+  twoFASecret String?
+  isSuspended Boolean @default(false)
   emailNotifications Boolean @default(true)
   profileVisibility   Boolean @default(true)
   pendingEmail            String?
@@ -23,6 +25,7 @@ model User {
   emailVerificationExpires DateTime?
   deletedAt   DateTime?
   createdAt DateTime  @default(now())
+  lastActiveAt DateTime @default(now())
   profile   Profile?
   logins    Login[]
   provider    AuthProvider @default(CREDENTIALS)
@@ -34,15 +37,23 @@ model User {
   deliveries  Delivery[]    @relation("FreelancerDeliveries")
   timeEntries TimeEntry[]   @relation("FreelancerTimeEntries")
   posts       Post[]
+  portfolioProjects PortfolioProject[] @relation("FreelancerPortfolio")
   likes       PostLike[]
+  postComments PostComment[]
   conversationsAsClient    Conversation[] @relation("ClientConversations")
   conversationsAsFreelancer Conversation[] @relation("FreelancerConversations")
   sentMessages Message[]
   friendships      Friendship[] @relation("UserFriendships")
   friendshipsAsFriend Friendship[] @relation("FriendUserFriendships")
+  isSubscribed     Boolean   @default(false)
+  subscriptionExpiresAt DateTime?
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
   notifications      Notification[]
   sentReviews        Review[]      @relation("SentReviews")
   receivedReviews    Review[]      @relation("ReceivedReviews")
+  disputesRaised     Dispute[]     @relation("DisputeRaiser")
+  disputeEvidence    DisputeEvidence[]
 }
 
 model Profile {
@@ -55,6 +66,7 @@ model Profile {
   timezone     String?
   skills       Json?
   availability Boolean  @default(true)
+  hourlyRate   Int?
   avatarUrl    String?
   dob          DateTime?
   country     String?
@@ -64,11 +76,30 @@ model Profile {
   state       String?
   postalCode  String?
 
+  // KYC - Know Your Customer
+  kycStatus           KycStatus @default(NOT_SUBMITTED)
+  kycFrontImage       String?
+  kycBackImage        String?
+  kycRejectionReason  String?
+
   // convenience flag (optional)
   isComplete  Boolean   @default(false)
 
   // Stripe Connect – for freelancers to receive payments
   stripeAccountId String? @unique
+
+  rating       Float     @default(0.0)
+  reviewCount  Int       @default(0)
+
+  // AI Matchmaking
+  embedding Float[]
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Login {
@@ -94,11 +125,19 @@ model Project {
   status      String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
   moderationStatus ModerationStatus @default(APPROVED)
   moderationNotes  String?
+  
+  // AI Refinement & Clear Briefs
+  screeningQuestions String[] @default([])
+  acceptanceCriteria String[] @default([])
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   proposals   Proposal[]
   conversations Conversation[]
   contract    Contract?
+
+  // AI Matchmaking
+  embedding   Float[]
 }
 
 model Proposal {
@@ -141,16 +180,27 @@ model Message {
   content        String
   moderationStatus ModerationStatus @default(APPROVED)
   moderationNotes  String?
+  isRead         Boolean       @default(false)
+  attachmentUrl  String?
+  attachmentName String?
   createdAt      DateTime      @default(now())
 }
 
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 model Friendship {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
   friendId  String
-  user      User     @relation("UserFriendships", fields: [userId], references: [id])
-  friend    User     @relation("FriendUserFriendships", fields: [friendId], references: [id])
-  createdAt DateTime @default(now())
+  status    FriendshipStatus @default(ACCEPTED)
+  user      User             @relation("UserFriendships", fields: [userId], references: [id])
+  friend    User             @relation("FriendUserFriendships", fields: [friendId], references: [id])
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
 
   @@unique([userId, friendId])
 }
@@ -161,9 +211,12 @@ model Post {
   author    User      @relation(fields: [authorId], references: [id])
   content   String?
   mediaUrls String[]  @default([])
+  moderationStatus ModerationStatus @default(APPROVED)
+  moderationNotes  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   likes     PostLike[]
+  comments  PostComment[]
 }
 
 model PostLike {
@@ -175,6 +228,16 @@ model PostLike {
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
 }
 
 enum ModerationStatus {
@@ -241,12 +304,14 @@ model Contract {
   milestones    Milestone[]
   deliveries    Delivery[]
   timeEntries   TimeEntry[]
-  review        Review?
+  reviews       Review[]
+  disputes      Dispute[]
+  meetings      Meeting[]
 }
 
 model Review {
   id              String           @id @default(uuid())
-  contractId      String           @unique
+  contractId      String
   contract        Contract         @relation(fields: [contractId], references: [id])
   reviewerId      String
   reviewer        User             @relation("SentReviews", fields: [reviewerId], references: [id])
@@ -316,5 +381,69 @@ model PlatformSettings {
   id                    String   @id @default("singleton")
   freelancerServiceFee  Float    @default(10.0) // Percentage (e.g. 10.0 for 10%)
   clientProcessingFee   Float    @default(3.0)  // Percentage (e.g. 3.0 for 3%)
+  weeklyProjectLimit    Int      @default(3)    // Max projects per week for non-subscribed clients
   updatedAt             DateTime @updatedAt
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+model Dispute {
+  id          String        @id @default(uuid())
+  contractId  String
+  contract    Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  raisedById  String
+  raisedBy    User          @relation("DisputeRaiser", fields: [raisedById], references: [id])
+  title       String
+  description String
+  type        String        @default("OTHER") // PAYMENT, SCOPE, DELIVERY, QUALITY, OTHER
+  status      DisputeStatus @default(OPEN)
+  adminNotes  String?
+  resolution  String?
+  evidence    DisputeEvidence[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model DisputeEvidence {
+  id            String   @id @default(uuid())
+  disputeId     String
+  dispute       Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploadedById  String
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id])
+  fileUrl       String
+  fileName      String?
+  createdAt     DateTime @default(now())
+}
+
+model PortfolioProject {
+  id           String   @id @default(uuid())
+  freelancerId String
+  freelancer   User     @relation("FreelancerPortfolio", fields: [freelancerId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  skills       String[]
+  imageUrl     String?
+  liveLink     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Meeting {
+  id           String   @id @default(uuid())
+  contractId   String
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  scheduledBy  String
+  roomName     String   @unique
+  roomUrl      String
+  title        String
+  scheduledAt  DateTime
+  status       String   @default("SCHEDULED") // SCHEDULED, ACTIVE, ENDED, CANCELLED
+  endedBy      String[] @default([])           // user IDs who have clicked "Leave"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
